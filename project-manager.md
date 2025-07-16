@@ -22,5 +22,12 @@ Dependencies:
 uv add 'pandas==2.3.0'
 ```
 
+Deploy procedure
+```bash
+# 1. Update the requirements. The changes will be picked up by the
+#    Streamlit community Cloud. 
+uv export --format requirements-txt --output-file requirements.txt
 
+# 2. Commit the changes.
+```
 

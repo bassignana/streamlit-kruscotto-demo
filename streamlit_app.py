@@ -1,3 +1,6 @@
 import streamlit as st
+import pandas as pd
 
-st.write('hi')
+df = pd.DataFrame()
+df
+
