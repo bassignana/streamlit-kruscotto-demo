@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import date, datetime, timedelta
 import uuid
 import plotly.graph_objects as go
-
+import invoice_xml_processor
 
 # Initialize session state for invoices
 if 'invoices' not in st.session_state:
@@ -39,12 +39,7 @@ CLIENT_OPTIONS = [
     'Marketing Plus S.r.l.'
 ]
 PAYMENT_METHODS = ['Bonifico', 'Contanti', 'Assegno', 'Carta di credito', 'RID', 'Altro']
-CASH_ACCOUNTS = ['Banca Intesa', 'Cassa Contanti', 'Cassa Generica', 'INTESA SAN PAOLO']
-
-def initialize_payment_terms():
-    """Initialize payment terms in session state if not exists"""
-    if 'current_payment_terms' not in st.session_state:
-        st.session_state.current_payment_terms = []
+CASH_ACCOUNTS = ['Banca Intesa', 'Cassa Contanti', 'Cassa Generica', 'INTESA SAN PAOLO']    
 
 def add_payment_term():
     """Add a new payment term to the current list"""
@@ -86,41 +81,50 @@ def auto_split_payment(total_amount, num_installments, start_date, interval_days
         }
         st.session_state.current_payment_terms.append(new_term)
 
+    total_configured = sum(term['importo'] for term in st.session_state.current_payment_terms)
+    remaining = total_amount - total_configured
+    
+    if remaining != 0:
+        for term in st.session_state.current_payment_terms:
+            if term['id'] == num_installments - 1:
+                term['importo'] += remaining
+
+
 def payment_terms_manager(total_amount, invoice_date):
     """Component to manage payment terms"""
-    st.subheader("💰 Scadenze di Pagamento")
+    # st.subheader("💰 Scadenze di Pagamento")
     
-    # Initialize if needed
-    initialize_payment_terms()
+    if 'current_payment_terms' not in st.session_state:
+        st.session_state.current_payment_terms = []    
     
     # Quick setup options
-    with st.expander("⚡ Configurazione Rapida", expanded=False):
-        col1, col2, col3 = st.columns(3)
+    with st.expander("⚡ Configurazione Rapida", expanded=True):
+        # col1, col2, col3 = st.columns(3)
         
-        with col1:
-            if st.button("📅 Pagamento Unico", use_container_width=True):
-                st.session_state.current_payment_terms = [{
-                    'id': 0,
-                    'data_scadenza': invoice_date + timedelta(days=30),
-                    'importo': total_amount,
-                    'modalita_pagamento': 'Bonifico',
-                    'cassa': 'Banca Intesa',
-                    'note': 'Pagamento unico'
-                }]
-                st.rerun()
+        # with col1:
+        #     if st.button("📅 Pagamento Unico", use_container_width=True):
+        #         st.session_state.current_payment_terms = [{
+        #             'id': 0,
+        #             'data_scadenza': invoice_date + timedelta(days=30),
+        #             'importo': total_amount,
+        #             'modalita_pagamento': 'Bonifico',
+        #             'cassa': 'Banca Intesa',
+        #             'note': 'Pagamento unico'
+        #         }]
+        #         st.rerun()
         
-        with col2:
-            if st.button("📊 2 Rate Mensili", use_container_width=True):
-                auto_split_payment(total_amount, 2, invoice_date, 30)
-                st.rerun()
+        # with col2:
+        #     if st.button("📊 2 Rate Mensili", use_container_width=True):
+        #         auto_split_payment(total_amount, 2, invoice_date, 30)
+        #         st.rerun()
         
-        with col3:
-            if st.button("📈 3 Rate Mensili", use_container_width=True):
-                auto_split_payment(total_amount, 3, invoice_date, 30)
-                st.rerun()
+        # with col3:
+        #     if st.button("📈 3 Rate Mensili", use_container_width=True):
+        #         auto_split_payment(total_amount, 3, invoice_date, 30)
+        #         st.rerun()
         
         # Custom split
-        st.markdown("**Divisione Personalizzata:**")
+        st.markdown("**Configurazione Personalizzata:**")
         split_col1, split_col2, split_col3 = st.columns([2, 2, 1])
         
         with split_col1:
@@ -130,7 +134,7 @@ def payment_terms_manager(total_amount, invoice_date):
             interval_days = st.number_input("Giorni tra rate", min_value=1, max_value=365, value=30)
         
         with split_col3:
-            if st.button("🔄 Applica", use_container_width=True):
+            if st.button("🔄 Applica Configurazione", use_container_width=True):
                 auto_split_payment(total_amount, num_installments, invoice_date, interval_days)
                 st.rerun()
     
@@ -176,7 +180,7 @@ def payment_terms_manager(total_amount, invoice_date):
                         key=f"amount_{i}"
                     )
                     st.session_state.current_payment_terms[i]['importo'] = new_amount
-                
+
                 with col3:
                     new_payment_method = st.selectbox(
                         "Modalità",
@@ -185,12 +189,13 @@ def payment_terms_manager(total_amount, invoice_date):
                         key=f"method_{i}"
                     )
                     st.session_state.current_payment_terms[i]['modalita_pagamento'] = new_payment_method
-                
+
                 with col4:
                     st.write("")  # Spacing
                     st.write("")  # Spacing
-                    if st.button("🗑️", key=f"remove_{i}", help="Rimuovi scadenza"):
-                        remove_payment_term(i)
+                    if len(st.session_state.current_payment_terms) > 1:
+                        if st.button("🗑️", key=f"remove_{i}", help="Rimuovi scadenza"):
+                            remove_payment_term(i)
                 
                 # Second row for additional details
                 col1, col2 = st.columns(2)
@@ -628,31 +633,31 @@ def view_all_invoices():
             filtered_df = filtered_df[mask]
         
         # Display summary statistics for filtered data
-        col1, col2, col3, col4 = st.columns(4)
+        # col1, col2, col3, col4 = st.columns(4)
 
-        with col1:
-            total_invoices = len(filtered_df)
-            st.metric("Fatture Mostrate", f"{total_invoices}/{len(st.session_state.invoices)}")
-        with col2:
-            if not filtered_df.empty:
-                total_amount = filtered_df['importo_totale'].sum()
-                st.metric("Importo Totale", f"€ {total_amount:,.2f}")
-            else:
-                st.metric("Importo Totale", "€ 0,00")
-        with col3:
-            if not filtered_df.empty:
-                unique_clients_filtered = filtered_df['cliente'].nunique()
-                st.metric("Clienti Unici", unique_clients_filtered)
-            else:
-                st.metric("Clienti Unici", "0")
-        with col4:
-            if not filtered_df.empty:
-                avg_amount = filtered_df['importo_totale'].mean()
-                st.metric("Importo Medio", f"€ {avg_amount:,.2f}")
-            else:
-                st.metric("Importo Medio", "€ 0,00")
+        # with col1:
+        #     total_invoices = len(filtered_df)
+        #     st.metric("Fatture Mostrate", f"{total_invoices}/{len(st.session_state.invoices)}")
+        # with col2:
+        #     if not filtered_df.empty:
+        #         total_amount = filtered_df['importo_totale'].sum()
+        #         st.metric("Importo Totale", f"€ {total_amount:,.2f}")
+        #     else:
+        #         st.metric("Importo Totale", "€ 0,00")
+        # with col3:
+        #     if not filtered_df.empty:
+        #         unique_clients_filtered = filtered_df['cliente'].nunique()
+        #         st.metric("Clienti Unici", unique_clients_filtered)
+        #     else:
+        #         st.metric("Clienti Unici", "0")
+        # with col4:
+        #     if not filtered_df.empty:
+        #         avg_amount = filtered_df['importo_totale'].mean()
+        #         st.metric("Importo Medio", f"€ {avg_amount:,.2f}")
+        #     else:
+        #         st.metric("Importo Medio", "€ 0,00")
         
-        st.write("---")
+        # st.write("---")
         
         # Display filtered results with payment terms
         if filtered_df.empty:
@@ -793,19 +798,22 @@ def view_financial_summary():
 
 # Main App
 def main():
+    st.session_state
+
     st.set_page_config(page_title="Sistema Gestione Fatture", page_icon="📄", layout="wide")
     
     st.title("📄 Sistema Gestione Fatture")
     uploaded_files = xml_invoice_uploader()
 
-    tab1, tab2, tab3 = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "💰 Fatture di Vendita", 
         "🛒 Fatture di Acquisto", 
-        "📊 Riepilogo Finanziario"
+        "📊 Riepilogo Finanziario",
+        "uploader"
     ])
 
     with tab1:
-        st.write("Gestisci le tue fatture: aggiungi, modifica, elimina e cerca facilmente")
+        # st.write("Gestisci le tue fatture: aggiungi, modifica, elimina e cerca facilmente")
         
         # Always show all invoices at the top
         view_all_invoices()
@@ -857,9 +865,9 @@ def main():
                 st.rerun()
         
         # Footer
-        if st.session_state.show_section is None:
-            st.write("---")
-            st.info("💡 **Suggerimento:** Usa la ricerca per trovare rapidamente le fatture di un cliente specifico")
+        # if st.session_state.show_section is None:
+        #     st.write("---")
+        #     st.info("💡 **Suggerimento:** Usa la ricerca per trovare rapidamente le fatture di un cliente specifico")
 
     with tab2:
         st.write("📝 Fatture di Acquisto - Coming Soon")
@@ -867,6 +875,9 @@ def main():
 
     with tab3:
         view_financial_summary()
+
+    with tab4:
+        invoice_xml_processor.invoice_xml_processor_page()
 
 if __name__ == "__main__":
     main()

@@ -1,3 +1,5 @@
 .venv
-node_modules
 .streamlit/*
+fatture_emesse
+fatture_ricevute
+__pycache__
