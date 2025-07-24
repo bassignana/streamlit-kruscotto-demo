@@ -42,9 +42,10 @@ python3 invoice_common_tags.py fatture_emesse/ fatture_ricevute
 Here I prefer a manage supabase account in order to avoid to 
 manage the local supabase instance.
 
+
 # 3. Project automation
 Focus on generating code to faster iteration.
-[] db generation
+
 NOTE: since I cannot run raw sql directly in supabase from
 the python API, I use the following workaround where I have
 to create the following procedure manually once.
@@ -70,10 +71,9 @@ python reset_db.py
 Reset without test data  
 python reset_db.py --noseed
 
-test users and credentials in secrets.toml
+test user and credentials in secrets.toml
 
 
-[] Persist everything in one table (+1 for auth).
 [x] Add RLS to the below.
 [] Verify what index I really need.
 [] Ask in chat Invoice Persistene in Supabase:
@@ -155,4 +155,16 @@ default streamlit behaviour.
 [] remember that I can add material icons to pages 
 st.Page("dashboard.py", title="Dashboard", icon=":material/search:")
 
+[] Se avessi 2 tabelle, una per tutte le fatture
+   emesse, e una per quelle ricevute. Eventualmente 4 tabelle se alle 2 aggiungo
+   delle scadenze in altre tabelle.
+   Poi creo un file di configurazione che associa,
+   a ciascun campo nella tabella, un relativo tag xml. 
+   Da li potrei autogenerare il processor xml,
+   e i vari componenti streamlit per l'input e
+   la visualizzazione.
+   Ed eventuali test.
 
+
+# 4. Business logic
+Distinzione tra fatture emesse e ricevute

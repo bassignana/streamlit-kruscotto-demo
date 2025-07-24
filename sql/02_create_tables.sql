@@ -10,22 +10,19 @@ CREATE TABLE public.users (
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
 
--- Invoices table
-CREATE TABLE public.invoices (
+-- fatture emesse table
+CREATE TABLE public.fatture_emesse (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
   invoice_number character varying NOT NULL,
-  type character varying NOT NULL CHECK (type::text = ANY (ARRAY['sale'::character varying, 'purchase'::character varying]::text[])),
-  client_supplier character varying NOT NULL,
-  currency character varying DEFAULT 'EUR'::character varying,
-  total_amount numeric NOT NULL,
   document_date date NOT NULL,
+  -- type character varying NOT NULL CHECK (type::text = ANY (ARRAY['sale'::character varying, 'purchase'::character varying]::text[])),
+  total_amount numeric NOT NULL,
   due_date date,
-  xml_content text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT invoices_pkey PRIMARY KEY (id),
-  CONSTRAINT invoices_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id)
+  CONSTRAINT fatture_emesse_pkey PRIMARY KEY (id),
+  CONSTRAINT fatture_emesse_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 -- User data table
