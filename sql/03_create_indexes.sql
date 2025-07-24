@@ -1,0 +1,3 @@
+CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_user_date ON invoices(user_id, document_date);
+CREATE INDEX IF NOT EXISTS idx_invoices_type ON invoices(user_id, type);

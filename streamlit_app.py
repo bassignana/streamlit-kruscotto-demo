@@ -6,6 +6,7 @@ import hashlib
 import re
 from datetime import datetime, timedelta
 import json
+from streamlit_pages import streamlit_pages_generator 
 
 
 @st.cache_resource
@@ -206,26 +207,9 @@ def main():
         #     if st.button("Logout", type="secondary"):
         #         logout_user()
         
-        dashboard = st.Page("dashboard.py", title="Dashboard", icon=":material/search:")
-        elenco_anagrafiche = st.Page("elenco_anagrafiche.py")
-        casse = st.Page("casse.py")
-        fatture = st.Page("fatture.py")
-        altri_movimenti = st.Page("altri_movimenti.py")
-        flussi_di_cassa = st.Page("flussi_di_cassa.py")
-        feedback = st.Page("feedback.py")
 
 
-
-
-        pg = st.navigation(
-            {
-            "Overview": [dashboard],
-            "Anagrafiche": [elenco_anagrafiche],
-            "Documenti": [casse, fatture, altri_movimenti],
-            "Flussi di cassa": [flussi_di_cassa],
-            "Comunicazioni": [feedback]
-        }
-        )
+        pg = streamlit_pages_generator.get_navigation_obj()
         pg.run()
 
         # # Main application content
