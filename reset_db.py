@@ -144,10 +144,11 @@ def main():
             if response.lower() != 'y':
                 return
     
+    print("👤 Creating test user...")
+    test_user_id = create_test_user()
+
     # Handle seed data separately with user creation
     if not args.noseed:
-        print("👤 Creating test user...")
-        test_user_id = create_test_user()
         
         if test_user_id:
             try:
