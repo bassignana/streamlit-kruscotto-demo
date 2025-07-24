@@ -70,6 +70,8 @@ python reset_db.py
 Reset without test data  
 python reset_db.py --noseed
 
+test users and credentials in secrets.toml
+
 
 [] Persist everything in one table (+1 for auth).
 [x] Add RLS to the below.

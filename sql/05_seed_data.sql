@@ -1,14 +1,14 @@
--- Insert test user
-INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, created_at)
-VALUES (
-    '12345678-1234-1234-1234-123456789012',
-    'test@test.example',
-    crypt('password123', gen_salt('bf')),
-    NOW(),
-    NOW()
-) ON CONFLICT (id) DO NOTHING;
+-- USER_ID_PLACEHOLDER will be replaced by Python script
 
--- Insert sample invoices
-INSERT INTO invoices (user_id, invoice_number, type, client_supplier, total_amount, document_date) VALUES
-('12345678-1234-1234-1234-123456789012', '2024-001', 'sale', 'ABC Company Ltd', 1250.50, '2024-01-15'),
-('12345678-1234-1234-1234-123456789012', '2024-002', 'purchase', 'XYZ Supplier Inc', 850.75, '2024-01-20');
+-- Insert sample invoices using the test user ID
+INSERT INTO invoices (user_id, invoice_number, type, client_supplier, total_amount, document_date, due_date) VALUES
+('USER_ID_PLACEHOLDER', '2024-001', 'sale', 'ABC Company Ltd', 1250.50, '2024-01-15', '2024-02-15'),
+('USER_ID_PLACEHOLDER', '2024-002', 'purchase', 'XYZ Supplier Inc', 850.75, '2024-01-20', '2024-02-20'),
+('USER_ID_PLACEHOLDER', '2024-003', 'sale', 'DEF Corporation', 2100.00, '2024-01-25', '2024-02-25'),
+('USER_ID_PLACEHOLDER', '2024-004', 'purchase', 'GHI Services', 450.25, '2024-01-30', '2024-03-01'),
+('USER_ID_PLACEHOLDER', '2024-005', 'sale', 'JKL Enterprises', 3200.75, '2024-02-05', '2024-03-05');
+
+-- Insert some sample user data
+INSERT INTO user_data (user_id, data) VALUES
+('USER_ID_PLACEHOLDER', '{"preferences": {"currency": "EUR", "date_format": "DD/MM/YYYY"}}'),
+('USER_ID_PLACEHOLDER', '{"settings": {"notifications": true, "theme": "light"}}');
