@@ -44,12 +44,17 @@ manage the local supabase instance.
 
 
 # 3. Project automation
-Focus on generating code to faster iteration.
+Goal: starting from the initial sql tables definition and 
+a config file detailing what variables in the sql are corresponding
+to the values inside the xml tag, I want to create automatically:
+- upload page with custom xml extractor to db
+- add, modify, delete forms with db api
+- visualization?
+- tests?
 
 NOTE: since I cannot run raw sql directly in supabase from
 the python API, I use the following workaround where I have
 to create the following procedure manually once.
-
 ```sql
 -- Run this ONCE in Supabase SQL Editor
 -- Allows Python script to execute any SQL
@@ -65,17 +70,22 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
-then I can use
-Full reset with test data
-python reset_db.py
-Reset without test data  
-python reset_db.py --noseed
+then, for resetting the database, I can use:
+`python reset_db.py`
+or to reset the database without test data: 
+`python reset_db.py --noseed`
 
-test user and credentials in secrets.toml
+For now, the only test user and credentials are stored 
+in the secrets.toml so that I can commit the seeding script.
+
+There is a functioning but not thoroughly tested version in 
+Caricamente_xml_fatture_emesse.py, with config, xml extractor and
+streamlit upload field all in one streamlit page.
+What I want though is to create a separate xml reader that I can 
+test with all the invoices, to be sure that I can read all fields.
+Then, after I've tested it, I can use it with more certiantly.
 
 
-[x] Add RLS to the below.
-[] Verify what index I really need.
 [] Ask in chat Invoice Persistene in Supabase:
 - add soft delete
 - why the REF on user_id? to check? how checks works?

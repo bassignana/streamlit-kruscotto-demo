@@ -49,6 +49,7 @@ def init_supabase():
         logger.error(f"Failed to initialize Supabase: {str(e)}")
         raise
 
+# XML processor
 def safe_decimal(value):
     """Safely convert value to Decimal with 2 decimal places."""
     if value is None or value == '':
@@ -200,6 +201,7 @@ def process_xml_file(xml_content, filename, user_id):
             'error': f'Processing error: {str(e)}'
         }
 
+# XML file processing and db ops
 def process_uploaded_files(uploaded_files, user_id):
     """Process all uploaded files."""
     
