@@ -1,309 +1,197 @@
+"""
+sql -> mapping sql:xml -> format sql, extraction, conversion.
+
+NOTE: the workflow is to take this data and upload it to a database,
+so all types must be thought as compatible for an 'insert into',
+not for the frontend.
+
+For now, don't manage repeated nested structure. But in the future,
+the following should be valid also.
+If in 'mapping sql:xml' I specify just the last tag name in the hierarchy,
+and not the full xml path,
+then I have to check that I'm getting a tag that it is a 'leaf' tag in
+the hierarchy tree.
+I prefer to not use fully specified xml paths so that it is easier to
+manage nested tags with multiple repeated elements.
+
+INPUT: list of files or folder.
+Streamlit file uploader returns a list of files,
+even if there is just one file uploaded if the option
+accept_multiple_files = True.
+In order to be able to use this tool as a standalone tool/testing harness,
+and also as a module to export the code for the app xml processing,
+I'm going to expect to read files from a list.
+The edgecase where I want to test just one file outside of a streamlit
+application, has to be solved by putting a single file in one folder for now.
+
+NO CONVERSIONS IN THIS FILE:
+Conversion can be tricky, for example in the tag Numero
+can be present values like 2/PA, so
+1. doing two things, parsing and converting, is against unix philosophy
+2. conversion is hard and used only where string is not a viable option.
+"""
+
+
+
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, getcontext
 import os
 import glob
 from xml_field_mapping import XML_FIELD_MAPPING
 
-# BAD: inconsintent return types.
-def safe_decimal(value):
-    """Safely convert value to Decimal with 2 decimal places."""
+# todo: rounding in division? I don't need rounding I want reminders.
+# todo: use signals to handle operations safer like divisions or rounding?
+def to_decimal(value) -> Decimal:
+    # Is this global or do I need to do it every time?
+    getcontext().prec = 2
+
+    # todo: does it make sense to use 0.00 in this case or is it better to raise an error?
     if value is None or value == '':
-        return 0.0
+        return Decimal('0.00')
     try:
         clean_value = str(value).strip().replace(',', '.')
-        return float(Decimal(clean_value).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
-    except:
-        return 0.0
+        return Decimal(clean_value)
+    except Exception as e:
+        raise Exception('Invalid Decimal conversion') from e
 
 
 # I could simplify this for sure, and in general I have
 # to use the italian convention.
-def parse_date_to_iso(date_string):
-    """Parse date string to ISO format (YYYY-MM-DD)."""
+def to_italian_date(date_string):
+
+    # todo: is this teh right format for the database?
     if not date_string or date_string.strip() == '':
         return None
-    
-    date_string = date_string.strip()
-    
-    date_formats = ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y']
-    
-    for fmt in date_formats:
-        try:
-            parsed_date = datetime.strptime(date_string, fmt)
-            return parsed_date.strftime('%Y-%m-%d')
-        except ValueError:
-            continue
-    
-    return date_string  # Return original if no format matches
 
-# why do I need the double approach?
-# Can I manage every case with just one way of doing things?
-def find_element_text(root_element, tag_name):
-    """Find text content of an XML element by tag name."""
-    if root_element is None:
-        return ''
-    
-    # Direct search
-    found = root_element.find(f'.//{tag_name}')
-    if found is not None and found.text:
-        return found.text.strip()
-    
-    # Iterative search ignoring namespaces
+    # todo: this -> datetime.strptime(date_string.strip(), '%Y-%m-%d')
+    # should produce a ValueError in case the date is in the wrong format,
+    # and since the exception is not handled, the program will terminate.
+    return datetime.strptime(date_string.strip(), '%Y-%m-%d')
+
+def find_element_text(root_element, tag_name) -> str:
+    # In this function I expect that the tag that I want to extract
+    # the text from, is unique in the whole xml file.
+    #
+    # Also, given the examples that I've been provided,
+    # I expect one single, and useless, namespace at the root element level.
+    #
+    # I'll check for these conditions at the end of the function
+    tag = []
+    ns = []
+
+    # todo: how to verify that a root like
+    # <Element '{http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2}FatturaElettronica' at 0x1044ec9a0>
+    # is well formed?
+    # It has to be logged but not break the user flow.
+    # old:
+    # if root_element is None:
+    #     return ''
+
     for element in root_element.iter():
-        clean_tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
-        if clean_tag == tag_name and element.text:
-            return element.text.strip()
-    
-    return ''
 
-# Why do I need section at all?! Can I just parse the whole document?
-# Also, puttin the section in the config is useless, just added effort.
-def extract_xml_sections(root):
-    """Extract main XML sections (header and body)."""
-    sections = {'header': None, 'body': None}
-    
-    for element in root.iter():
-        tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
-        if tag == 'FatturaElettronicaHeader' and sections['header'] is None:
-            sections['header'] = element
-        elif tag == 'FatturaElettronicaBody' and sections['body'] is None:
-            sections['body'] = element
-    
-    return sections
+        if '}' in element.tag:
+            assert element.tag.count('}') == 1, AssertionError('Unexpected namespace and tag syntax')
+            ns_name, tag_content = element.tag.split('}')
+            # len(element) = 0 if has text but no children
+            if len(element) == 0:
+                tag.append(tag_content.strip())
+                ns.append(ns_name)
 
+        # From the docs, the preferred way of knowing if an element has zero children
+        # is to do len(element) == 0. It's True if it is a 'leaf' element.
+        # Here I'm checking that it is a leaf element because I've not implemented yet
+        # parsing repeating structures.
+        if element.tag == tag_name and len(element) == 0:
+            tag.append(element.text.strip())
 
-def extract_field_value(sections, field_config):
-    """Extract a single field value based on configuration."""
-    
-    # Get the section to search in
-    section_name = field_config.get('section', 'body')
-    section_element = sections.get(section_name)
-    
-    if section_element is None:
-        return None
-    
-    # Extract raw value
-    tag_name = field_config['xml_tag']
-    raw_value = find_element_text(section_element, tag_name)
-    
-    if not raw_value:
-        return None
-    
-    # Convert data type
-    # This is good! Return an exception or warning in else: case.
-    data_type = field_config.get('data_type', 'string')
-    
-    if data_type == 'string':
-        return raw_value
-    elif data_type == 'decimal':
-        return safe_decimal(raw_value)
-    elif data_type == 'date':
-        return parse_date_to_iso(raw_value)
+    if len(tag) == 0:
+        raise Exception('No tag found')
+    elif len(tag) > 1:
+        raise Exception('Tag expected to be unique in the xml file')
     else:
-        return raw_value
+        return tag[0]
 
-
-def process_xml_file(xml_content, filename):
+def process_xml_file(xml_tree) -> dict:
     """Process a single XML file and extract configured fields."""
-    
-    try:
-        # Parse XML
-        root = ET.fromstring(xml_content)
-        
-        # Extract sections
-        sections = extract_xml_sections(root)
-        
-        if sections['header'] is None or sections['body'] is None:
-            return {
-                'filename': filename,
-                'status': 'error',
-                'error': 'Missing header or body section'
-            }
-        
-        # Extract all configured fields
-        extracted_data = {}
-        
-        for field_name, field_config in XML_FIELD_MAPPING.items():
-            value = extract_field_value(sections, field_name, field_config)
-            extracted_data[field_name] = value
-        
-        # Why do I need to return the filename?
-        return {
-            'filename': filename,
-            'status': 'success',
-            'data': extracted_data
-        }
-        
-    except ET.ParseError as e:
-        return {
-            'filename': filename,
-            'status': 'error',
-            'error': f'XML parsing error: {str(e)}'
-        }
-    except Exception as e:
-        return {
-            'filename': filename,
-            'status': 'error',
-            'error': f'Processing error: {str(e)}'
-        }
 
+    extracted_data = {}
 
-# Do I really need to read bytes and convert to string
-# instead of just reading from the xml file directly?
-def read_xml_file(filepath):
-    """Read XML file with proper encoding handling."""
-    
-    with open(filepath, 'rb') as f:
-        raw_content = f.read()
-    
-    # Try different encodings
-    for encoding in ['utf-8', 'utf-8-sig', 'cp1252', 'iso-8859-1']:
-        try:
-            xml_content = raw_content.decode(encoding)
-            # Clean content
-            xml_content = xml_content.strip()
-            if xml_content.startswith('\ufeff'):  # Remove BOM
-                xml_content = xml_content[1:]
-            return xml_content
-        except UnicodeDecodeError:
-            continue
-    
-    raise Exception("Could not decode file with supported encodings")
+    for sql_field_name, sql_field_config in XML_FIELD_MAPPING.items():
+        tag_name = sql_field_config['xml_tag']
+        tag_value = find_element_text(xml_tree.getroot(), tag_name)
+        extracted_data[sql_field_name] = tag_value
 
+    # todo: how to hande the fact that inside find_element_text I raised an exception?
+    # Do I need to propagate errors here? The program will halt and terminate?
 
-def process_xml_folder(folder_path):
-    """Process all XML files in a folder."""
-    
+        # sql_insert_data_type = field_config.get('data_type', 'string')
+
+        # if sql_insert_data_type == 'string':
+        #     extracted_data[sql_field_name] = tag_value
+        # elif sql_insert_data_type == 'decimal':
+        #     extracted_data[sql_field_name] = to_decimal(tag_value)
+        # elif sql_insert_data_type == 'date':
+        #     extracted_data[sql_field_name] = to_italian_date(tag_value)
+        # else:
+        #     raise Exception('Unhandled conversion case')
+
+    return extracted_data
+
+def process_xml_folder(folder_path) -> list:
+
     if not os.path.exists(folder_path):
-        print(f"❌ Folder not found: {folder_path}")
+        print(f"Folder not found: {folder_path}")
         return []
     
-    # Find all XML files
+    # Find all XML files todo: names?
     xml_files = glob.glob(os.path.join(folder_path, "*.xml"))
     
     if not xml_files:
-        print(f"❌ No XML files found in: {folder_path}")
+        print(f"No XML files found in: {folder_path}")
         return []
     
-    print(f"📁 Found {len(xml_files)} XML files in {folder_path}")
+    print(f"Found {len(xml_files)} XML files in {folder_path}")
     print("-" * 50)
     
-    results = []
+    xmls = []
     
     for filepath in xml_files:
         filename = os.path.basename(filepath)
-        print(f"\n🔄 Processing: {filename}")
-        
-        try:
-            # Read file
-            xml_content = read_xml_file(filepath)
-            
-            # Process file
-            result = process_xml_file(xml_content, filename)
-            results.append(result)
-            
-            # Print result
-            if result['status'] == 'success':
-                print("✅ Success")
-                data = result['data']
-                for field, value in data.items():
-                    print(f"   {field}: {value}")
-            else:
-                print(f"❌ Error: {result['error']}")
-                
-        except Exception as e:
-            error_result = {
-                'filename': filename,
-                'status': 'error',
-                'error': f'File reading error: {str(e)}'
-            }
-            results.append(error_result)
-            print(f"❌ File error: {str(e)}")
-    
-    return results
+        print(f"Processing: {filename}")
 
+        xml_tree = ET.parse(filepath)
+        data = process_xml_file(xml_tree)
 
-def print_summary(results):
-    """Print a summary of processing results."""
-    
-    if not results:
-        print("\n📊 No results to summarize")
-        return
-    
-    successful = [r for r in results if r['status'] == 'success']
-    errors = [r for r in results if r['status'] == 'error']
-    
-    print("\n" + "="*60)
-    print("📊 PROCESSING SUMMARY")
-    print("="*60)
-    print(f"Total files: {len(results)}")
-    print(f"✅ Successful: {len(successful)}")
-    print(f"❌ Errors: {len(errors)}")
-    
-    if successful:
-        print(f"\n💰 Total amount from successful files:")
-        total_amount = 0
-        for result in successful:
-            amount = result['data'].get('total_amount', 0)
-            if amount:
-                total_amount += amount
-        print(f"   € {total_amount:,.2f}")
-    
-    if errors:
-        print(f"\n❌ Error details:")
-        for result in errors:
-            print(f"   {result['filename']}: {result['error']}")
-
-
-def test_single_file(filepath):
-    """Test processing of a single XML file."""
-    
-    if not os.path.exists(filepath):
-        print(f"❌ File not found: {filepath}")
-        return
-    
-    filename = os.path.basename(filepath)
-    print(f"🔄 Testing single file: {filename}")
-    print("-" * 50)
-    
-    try:
-        xml_content = read_xml_file(filepath)
-        result = process_xml_file(xml_content, filename)
-        
-        if result['status'] == 'success':
-            print("✅ Success")
-            print("\nExtracted data:")
-            for field, value in result['data'].items():
-                print(f"   {field}: {value}")
+        if len(data):
+            xmls.append({
+                'file': filename,
+                'data': data
+            })
         else:
-            print(f"❌ Error: {result['error']}")
-            
-    except Exception as e:
-        print(f"❌ File error: {str(e)}")
+            raise Exception('Error creating result dictionary for xml file')
+
+    return xmls
+
+
+def print_processed_xml(xml_array):
+    for xml in xml_array:
+        print(f"Filename: {xml.get('file')}")
+        for sql_name, xml_tag_value in xml.get('data').items():
+            print(f"{sql_name}: {xml_tag_value}")
 
 
 # Main execution for testing
 if __name__ == "__main__":
     
-    print("🧾 Simple XML Invoice Processor")
+    print("XML Processor manual execution.")
+    print("Specify in the code the folder or file to test.")
     print("="*60)
     
-    # Test with a folder (change this path to your XML folder)
-    test_folder = "./fatture_emesse"  # Change this to your folder path
-    
-    print(f"\n📂 Current configuration fields:")
-    for field, config in XML_FIELD_MAPPING.items():
-        required = "yes" if config.get('required', False) else "no"
-        print(f"   {field} ({config['data_type']}) - Required: {required}")
-    
-    print(f"\n🔍 Looking for XML files in: {test_folder}")
-    
+    test_folder = "../fatture_emesse"
+
     # Process all files in folder
-    results = process_xml_folder(test_folder)
+    xmls = process_xml_folder(test_folder)
     
     # Print summary
-    print_summary(results)
-    
-    # Uncomment to test a single file instead
-    # test_single_file("./path/to/your/invoice.xml")
+    print_processed_xml(xmls)

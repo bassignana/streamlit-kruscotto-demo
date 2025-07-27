@@ -22,8 +22,8 @@ uv add 'plotly==6.2'
 Manage local development inside the venv
 ```bash
 source .venv/bin/activate
-which python
-python --version
+which python3
+python3 --version
 ```
 
 Deploy procedure
