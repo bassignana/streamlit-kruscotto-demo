@@ -86,6 +86,7 @@ test with all the invoices, to be sure that I can read all fields.
 Then, after I've tested it, I can use it with more certiantly.
 
 
+
 [] Ask in chat Invoice Persistene in Supabase:
 - add soft delete
 - why the REF on user_id? to check? how checks works?

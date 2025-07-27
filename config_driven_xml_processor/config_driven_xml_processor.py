@@ -5,7 +5,7 @@ import os
 import glob
 from xml_field_mapping import XML_FIELD_MAPPING
 
-
+# BAD: inconsintent return types.
 def safe_decimal(value):
     """Safely convert value to Decimal with 2 decimal places."""
     if value is None or value == '':
@@ -17,6 +17,8 @@ def safe_decimal(value):
         return 0.0
 
 
+# I could simplify this for sure, and in general I have
+# to use the italian convention.
 def parse_date_to_iso(date_string):
     """Parse date string to ISO format (YYYY-MM-DD)."""
     if not date_string or date_string.strip() == '':
@@ -35,7 +37,8 @@ def parse_date_to_iso(date_string):
     
     return date_string  # Return original if no format matches
 
-
+# why do I need the double approach?
+# Can I manage every case with just one way of doing things?
 def find_element_text(root_element, tag_name):
     """Find text content of an XML element by tag name."""
     if root_element is None:
@@ -54,7 +57,8 @@ def find_element_text(root_element, tag_name):
     
     return ''
 
-
+# Why do I need section at all?! Can I just parse the whole document?
+# Also, puttin the section in the config is useless, just added effort.
 def extract_xml_sections(root):
     """Extract main XML sections (header and body)."""
     sections = {'header': None, 'body': None}
@@ -87,6 +91,7 @@ def extract_field_value(sections, field_config):
         return None
     
     # Convert data type
+    # This is good! Return an exception or warning in else: case.
     data_type = field_config.get('data_type', 'string')
     
     if data_type == 'string':
@@ -123,6 +128,7 @@ def process_xml_file(xml_content, filename):
             value = extract_field_value(sections, field_name, field_config)
             extracted_data[field_name] = value
         
+        # Why do I need to return the filename?
         return {
             'filename': filename,
             'status': 'success',
@@ -143,6 +149,8 @@ def process_xml_file(xml_content, filename):
         }
 
 
+# Do I really need to read bytes and convert to string
+# instead of just reading from the xml file directly?
 def read_xml_file(filepath):
     """Read XML file with proper encoding handling."""
     
