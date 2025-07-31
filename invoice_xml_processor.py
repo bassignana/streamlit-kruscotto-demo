@@ -1,382 +1,141 @@
-import streamlit as st
-import pandas as pd
+"""
+# todo: update docs
+
+Parses xml files to appropriate data structure below, all in strings.
+The conversion is not handled here. UNIX. Testable. All strings.
+
+input: [file1.xml, ..., ] at least one file.
+output:
+    extracted_data = {}
+    extracted_data[sql_field_name] = tag_value
+
+    xmls = []
+    xmls.append({
+                    'filename': filename,
+                    'data': extracted_data,
+                    'status' : 'success'
+                })
+
+extracted_data['status'] = 'success'
+
+If run in streamlit app, reads from uploader,
+if run manually via terminal, will read via hardcoded folder.
+
+REPEATED STRUCTURES:
+For now, don't manage repeated nested structure. But in the future,
+the following should be valid also.
+
+STREAMLIT UPLOADER COMPONENT:
+Streamlit file uploader returns a list of files,
+even if there is just one file uploaded if the option
+accept_multiple_files = True.
+
+STANDALONE TESTING:
+Usage: python3 components/xml_processing/invoice_xml_processor.py
+The edge case where I want to test just one file outside of a streamlit
+application, has to be solved by putting a single file in one folder for now.
+
+NO CONVERSIONS IN THIS FILE:
+Conversion can be tricky, for example in the tag Numero
+can be present values like 2/PA, so
+1. doing two things, parsing and converting, is against unix philosophy
+2. conversion is hard and used only where string is not a viable option.
+
+DONE: add handling of failed processing without blocking successful uploads.
+"""
+
 import xml.etree.ElementTree as ET
-from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, List, Optional
+import os
+import glob
+from xml_mapping_emesse import XML_FIELD_MAPPING
+
+def process_xml_list(xml_files: list) -> list:
+    """
+    Take a list of xml files paths or a Streamlit UploadedFile object.
+    For each file extract data based on config,
+    augmenting extracted data with information about success or failure
+    of extraction operation and uploaded file name.
+    """
+    extracted_info = []
+
+    for file in xml_files:
+
+        # Check if it's a Streamlit UploadedFile object
+        if hasattr(file, 'name') and hasattr(file, 'read'):
+            filename = file.name
+            xml_content = file.read()
+            file.seek(0)  # Reset file pointer
+            xml_tree = ET.ElementTree(ET.fromstring(xml_content))
+        else:
+            # It's an os file path
+            filename = os.path.basename(file)
+            xml_tree = ET.parse(file)
 
 
-def safe_decimal(value) -> Decimal:
-    """Safely convert value to Decimal with 2 decimal places."""
-    if value is None or value == '':
-        return Decimal('0.00')
-    try:
-        return Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-    except:
-        return Decimal('0.00')
+        try:
+            extracted_xml_data = {}
+            for sql_field_name, sql_field_config in XML_FIELD_MAPPING.items():
+                full_path = sql_field_config['xml_path']
+                root_element = xml_tree.getroot()
 
-
-def parse_date(date_string: str) -> Optional[str]:
-    """Parse date and return formatted string."""
-    try:
-        dt = datetime.strptime(date_string, '%Y-%m-%d')
-        return dt.strftime('%d/%m/%Y')
-    except:
-        return date_string if date_string else None
-
-
-def get_element_text(element, tag_name: str) -> str:
-    """Get text from element by tag name, handling any namespace issues."""
-    if element is None:
-        return ''
-    
-    # Method 1: Direct search
-    found = element.find(f'.//{tag_name}')
-    if found is not None and found.text:
-        return found.text.strip()
-    
-    # Method 2: Iterate through all elements and match tag name
-    for elem in element.iter():
-        # Get clean tag name (remove namespace if present)
-        clean_tag = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
-        if clean_tag == tag_name and elem.text:
-            return elem.text.strip()
-    
-    return ''
-
-
-def extract_invoice_data_simple(xml_content: str, file_name: str) -> Dict:
-    """Extract invoice data using simple, robust approach."""
-    
-    try:
-        # Parse XML
-        root = ET.fromstring(xml_content)
-        
-        # Initialize result
-        result = {
-            'file_name': file_name,
-            'status': 'success',
-            'document_number': '',
-            'document_date': '',
-            'supplier_name': '',
-            'customer_name': '',
-            'total_amount': 0.00,
-            'taxable_amount': 0.00,
-            'vat_amount': 0.00,
-            'payment_due_date': '',
-            'payment_method': '',
-            'iban': '',
-            'currency': 'EUR',
-            'withholding_amount': 0.00
-        }
-        
-        # Find main sections by iterating (most reliable method)
-        header = None
-        body = None
-        
-        for element in root.iter():
-            tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
-            if tag == 'FatturaElettronicaHeader' and header is None:
-                header = element
-            elif tag == 'FatturaElettronicaBody' and body is None:
-                body = element
-        
-        if header is None or body is None:
-            return {
-                'file_name': file_name,
-                'status': 'error',
-                'error_message': f'Cannot find header ({header is not None}) or body ({body is not None})'
-            }
-        
-        # Extract document info from body
-        result['document_number'] = get_element_text(body, 'Numero')
-        
-        date_str = get_element_text(body, 'Data')
-        if date_str:
-            result['document_date'] = parse_date(date_str) or date_str
-        
-        result['currency'] = get_element_text(body, 'Divisa') or 'EUR'
-        
-        # Total amount
-        total_str = get_element_text(body, 'ImportoTotaleDocumento')
-        if total_str:
-            result['total_amount'] = float(safe_decimal(total_str))
-        
-        # Withholding tax
-        withholding_str = get_element_text(body, 'ImportoRitenuta')
-        if withholding_str:
-            result['withholding_amount'] = float(safe_decimal(withholding_str))
-        
-        # Find supplier section
-        supplier_section = None
-        for element in header.iter():
-            tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
-            if tag == 'CedentePrestatore':
-                supplier_section = element
-                break
-        
-        if supplier_section is not None:
-            # Try company name first
-            supplier_name = get_element_text(supplier_section, 'Denominazione')
-            if not supplier_name:
-                # Try individual name
-                first_name = get_element_text(supplier_section, 'Nome')
-                last_name = get_element_text(supplier_section, 'Cognome')
-                if first_name or last_name:
-                    supplier_name = f"{first_name} {last_name}".strip()
-            result['supplier_name'] = supplier_name
-        
-        # Find customer section
-        customer_section = None
-        for element in header.iter():
-            tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
-            if tag == 'CessionarioCommittente':
-                customer_section = element
-                break
-        
-        if customer_section is not None:
-            # Try company name first
-            customer_name = get_element_text(customer_section, 'Denominazione')
-            if not customer_name:
-                # Try individual name
-                first_name = get_element_text(customer_section, 'Nome')
-                last_name = get_element_text(customer_section, 'Cognome')
-                if first_name or last_name:
-                    customer_name = f"{first_name} {last_name}".strip()
-            result['customer_name'] = customer_name
-        
-        # Find VAT summary
-        vat_section = None
-        for element in body.iter():
-            tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
-            if tag == 'DatiRiepilogo':
-                vat_section = element
-                break
-        
-        if vat_section is not None:
-            taxable_str = get_element_text(vat_section, 'ImponibileImporto')
-            vat_str = get_element_text(vat_section, 'Imposta')
-            
-            if taxable_str:
-                result['taxable_amount'] = float(safe_decimal(taxable_str))
-            if vat_str:
-                result['vat_amount'] = float(safe_decimal(vat_str))
-        
-        # Find payment info
-        payment_section = None
-        for element in body.iter():
-            tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
-            if tag == 'DettaglioPagamento':
-                payment_section = element
-                break
-        
-        if payment_section is not None:
-            result['payment_method'] = get_element_text(payment_section, 'ModalitaPagamento')
-            result['iban'] = get_element_text(payment_section, 'IBAN')
-            
-            due_date_str = get_element_text(payment_section, 'DataScadenzaPagamento')
-            if due_date_str:
-                result['payment_due_date'] = parse_date(due_date_str) or due_date_str
-        
-        return result
-        
-    except ET.ParseError as e:
-        return {
-            'file_name': file_name,
-            'status': 'error',
-            'error_message': f'XML parsing error: {str(e)}'
-        }
-    except Exception as e:
-        return {
-            'file_name': file_name,
-            'status': 'error',
-            'error_message': f'Unexpected error: {str(e)}'
-        }
-
-
-def invoice_xml_processor_page():
-    """Main Streamlit page for processing XML invoices - SIMPLIFIED VERSION."""
-    
-    # Initialize session state
-    if 'processed_invoices_simple' not in st.session_state:
-        st.session_state.processed_invoices_simple = []
-    
-    st.title("🧾 Elaborazione Fatture XML - Versione Semplificata")
-    st.markdown("Carica le fatture elettroniche XML per estrarre i dati essenziali per il flusso di cassa.")
-    
-    # File uploader
-    uploaded_files = st.file_uploader(
-        "📁 Seleziona fatture XML",
-        type=['xml'],
-        accept_multiple_files=True,
-        help="Fatture elettroniche italiane in formato XML"
-    )
-    
-    if uploaded_files:
-        st.success(f"📄 {len(uploaded_files)} file caricato/i")
-        
-        # Show file details
-        with st.expander("📋 File caricati", expanded=True):
-            for i, file in enumerate(uploaded_files, 1):
-                st.write(f"**{i}.** {file.name} ({file.size/1024:.1f} KB)")
-        
-        # Process button
-        if st.button("🔄 Elabora Fatture", type="primary", use_container_width=True):
-            
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            processed_invoices = []
-            
-            for i, uploaded_file in enumerate(uploaded_files):
-                status_text.text(f"Elaborazione {uploaded_file.name}...")
-                progress_bar.progress((i) / len(uploaded_files))
-                
+                # Here I expect that the tag that I want to extract
+                # the text from, is unique in the whole xml file.
+                # Currently there is no automatic check for that, instead you have
+                # to look at the documentation at
+                # https://www.fatturapa.gov.it/it/norme-e-regole/documentazione-fattura-elettronica/
+                # and be sure that the field that you are searching for will be present 0 or 1 times.
+                #
+                # Also, given the examples that I've been provided,
+                # I expect one single, and useless, namespace at the root element level.
                 try:
-                    # Reset file pointer and read content
-                    uploaded_file.seek(0)
-                    raw_content = uploaded_file.read()
-                    
-                    # Handle encoding
-                    try:
-                        xml_content = raw_content.decode('utf-8')
-                    except UnicodeDecodeError:
-                        try:
-                            xml_content = raw_content.decode('utf-8-sig')
-                        except UnicodeDecodeError:
-                            xml_content = raw_content.decode('cp1252')
-                    
-                    # Clean content
-                    xml_content = xml_content.strip()
-                    if xml_content.startswith('\ufeff'):
-                        xml_content = xml_content[1:]
-                    
-                    # Extract data using simple method
-                    invoice_data = extract_invoice_data_simple(xml_content, uploaded_file.name)
-                    processed_invoices.append(invoice_data)
-                    
-                except Exception as e:
-                    processed_invoices.append({
-                        'file_name': uploaded_file.name,
-                        'status': 'error',
-                        'error_message': f'File reading error: {str(e)}'
-                    })
-            
-            # Complete processing
-            progress_bar.progress(1.0)
-            status_text.text("✅ Elaborazione completata!")
-            
-            # Store results
-            st.session_state.processed_invoices_simple = processed_invoices
-            
-            # Show summary
-            successful = sum(1 for inv in processed_invoices if inv.get('status') == 'success')
-            failed = len(processed_invoices) - successful
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("✅ Successo", successful)
-            with col2:
-                st.metric("❌ Errori", failed)
-            with col3:
-                if successful > 0:
-                    total = sum(inv.get('total_amount', 0) for inv in processed_invoices if inv.get('status') == 'success')
-                    st.metric("💰 Totale", f"€ {total:,.2f}")
-                else:
-                    st.metric("💰 Totale", "€ 0,00")
-    
-    # Display results if available
-    if st.session_state.processed_invoices_simple:
-        st.markdown("---")
-        st.subheader("📊 Risultati Elaborazione")
-        
-        # Create DataFrame
-        df_data = []
-        for inv in st.session_state.processed_invoices_simple:
-            if inv.get('status') == 'success':
-                row = {
-                    'File': inv['file_name'],
-                    'Numero': inv['document_number'],
-                    'Data': inv['document_date'],
-                    'Fornitore': inv['supplier_name'],
-                    'Cliente': inv['customer_name'],
-                    'Totale €': inv['total_amount'],
-                    'Imponibile €': inv['taxable_amount'],
-                    'IVA €': inv['vat_amount'],
-                    'Ritenuta €': inv.get('withholding_amount', 0.00),
-                    'Scadenza': inv['payment_due_date'],
-                    'Metodo Pag.': inv['payment_method'],
-                    'IBAN': inv['iban'],
-                    'Valuta': inv['currency'],
-                    'Status': '✅'
-                }
-            else:
-                row = {
-                    'File': inv['file_name'],
-                    'Numero': '',
-                    'Data': '',
-                    'Fornitore': '',
-                    'Cliente': '',
-                    'Totale €': 0.00,
-                    'Imponibile €': 0.00,
-                    'IVA €': 0.00,
-                    'Ritenuta €': 0.00,
-                    'Scadenza': '',
-                    'Metodo Pag.': '',
-                    'IBAN': '',
-                    'Valuta': '',
-                    'Status': f"❌ {inv.get('error_message', 'Errore')}"
-                }
-            df_data.append(row)
-        
-        if df_data:
-            df = pd.DataFrame(df_data)
-            
-            # Format monetary columns for display
-            display_df = df.copy()
-            monetary_cols = ['Totale €', 'Imponibile €', 'IVA €', 'Ritenuta €']
-            for col in monetary_cols:
-                display_df[col] = display_df[col].apply(lambda x: f"€ {x:,.2f}" if isinstance(x, (int, float)) else x)
-            
-            # Show dataframe
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-            
-            # Show successful extractions summary
-            successful_data = [inv for inv in st.session_state.processed_invoices_simple if inv.get('status') == 'success']
-            if successful_data:
-                st.success(f"✅ Estratti con successo {len(successful_data)} fatture!")
-                
-                # Show quick summary
-                total_value = sum(inv['total_amount'] for inv in successful_data)
-                total_withholding = sum(inv.get('withholding_amount', 0) for inv in successful_data)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.info(f"💰 Valore totale fatture: **€ {total_value:,.2f}**")
-                with col2:
-                    if total_withholding > 0:
-                        st.info(f"🏦 Ritenute totali: **€ {total_withholding:,.2f}**")
-            
-            # Controls
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🗑️ Cancella Risultati", use_container_width=True):
-                    st.session_state.processed_invoices_simple = []
-                    st.rerun()
-            
-            with col2:
-                # CSV download
-                csv = df.to_csv(index=False)
-                st.download_button(
-                    label="📥 Scarica CSV",
-                    data=csv,
-                    file_name=f"fatture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
+                    expected_tag = root_element.find(full_path)
+                    if expected_tag is not None:
+                        tag_value = expected_tag.text
+                        extracted_xml_data[sql_field_name] = tag_value
+                except:
+                    print(f'Error on full path: {full_path}')
 
+            extracted_info.append({
+                'filename': filename,
+                'data': extracted_xml_data,
+                'status' : 'success'
+            })
 
-# Test the component
+        except Exception as e:  # More specific exception handling
+            extracted_info.append({
+                'filename': filename,
+                'data': {},
+                'status': 'error',
+                'error_message': str(e)
+            })
+
+    return extracted_info
+
+def print_processed_xml(xml_array):
+    for xml in xml_array:
+        print(f"Filename: {xml.get('filename')}")
+        for sql_name, xml_tag_value in xml.get('data').items():
+            print(f"{sql_name}: {xml_tag_value}")
+
 if __name__ == "__main__":
-    st.set_page_config(page_title="Elaboratore Fatture XML", page_icon="🧾", layout="wide")
-    invoice_xml_processor_page()
+    
+    print("XML Processor manual execution.")
+    print("="*60)
+    
+    test_folder = f"fatture_emesse/"
+    if not os.path.exists(test_folder):
+        raise Exception(f"Folder not found: {test_folder}")
+
+    xml_files = glob.glob(os.path.join(test_folder, "*.xml"))
+    if not xml_files:
+        raise Exception(f"No XML files found in: {test_folder}")
+
+    print(f"Found {len(xml_files)} XML files in {test_folder}")
+    print("-" * 50)
+
+    # todo: in streamlit, add warning that if I don't find the list of file,
+    # especially with one single file, I have to set the upload_multiple_files
+    # to True in the uploader component.
+    xmls = process_xml_list(xml_files)
+    print_processed_xml(xmls)
+    # print(xmls)

@@ -25,7 +25,7 @@ def get_navigation_obj():
         # fatture = st.Page("fatture.py")
         # #altri_movimenti = st.Page("altri_movimenti.py")
         # #flussi_di_cassa = st.Page("flussi_di_cassa.py")
-        # feedback = st.Page("feedback.py")
+        # feedback = st.Page("page_feedback.py")
         # page_test = st.Page("streamlit_pages/p_test.py")
 
         # pg = st.navigation(

@@ -324,7 +324,7 @@ def add_invoice():
                         st.session_state.current_payment_terms = []
                         
                         st.success(f"✅ Fattura {invoice_data['numero']} salvata con {len(payment_terms)} scadenze!")
-                        st.balloons()
+                        
                         st.rerun()
                 else:
                     st.error("⚠️ Configura almeno una scadenza di pagamento")

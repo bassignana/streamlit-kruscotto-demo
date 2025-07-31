@@ -201,7 +201,6 @@ def process_xml_file(xml_content, filename, user_id):
             'error': f'Processing error: {str(e)}'
         }
 
-# XML file processing and db ops
 def process_uploaded_files(uploaded_files, user_id):
     """Process all uploaded files."""
     
@@ -387,7 +386,7 @@ def main():
             # Success message
             if save_result['saved'] > 0:
                 st.success(f"🎉 Successfully processed and saved {save_result['saved']} invoices to database!")
-                st.balloons()
+                
             
             # Show successful results
             if successful:

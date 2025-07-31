@@ -177,5 +177,87 @@ st.Page("dashboard.py", title="Dashboard", icon=":material/search:")
    Ed eventuali test.
 
 
+To do: IF IT IS REALLY EASIER, THEN IT SHOULD FEEL EASIER!
+- no weird imports or structure.
+- config base rendering of pieces of UI. No component. simple switch and code.
+- pass db client in session state.
+- Put everything in different pages. copy paste.
+- no page generator.
+
+?
+- pass config into the state? 
+- separate testing app?
+
+for later:
+- auto gen cypress tests
+- redux pattern for state management, maybe I can put state for each component in a dictionary with the name
+  of the component inside the global session state
+- auto gen test data
+
+
+
+
+
+
+
+    def get_supabase_client():
+        secrets_path = Path(".streamlit/secrets.toml")
+        if not secrets_path.exists():
+            raise FileNotFoundError("Missing .streamlit/secrets.toml file")
+
+        secrets = toml.load(secrets_path)
+
+        url = secrets.get("SUPABASE_URL")
+        key = secrets.get("SUPABASE_ANON_KEY")
+        if not url or not key:
+            raise ValueError("Missing SUPABASE_URL or SUPABASE_ANON_KEY in secrets.toml")
+
+        return create_client(url, key)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 4. Business logic
 Distinzione tra fatture emesse e ricevute

@@ -1,12 +1,13 @@
+"""
+In the main streamlit file, I want db and auth function definitions.
+The rest are all imports.
+"""
+
 import streamlit as st
-import pandas as pd
-import supabase
-from supabase import create_client, Client
+from supabase import create_client
 import hashlib
 import re
-from datetime import datetime, timedelta
-import json
-from streamlit_pages import streamlit_pages_generator 
+from datetime import datetime
 
 
 @st.cache_resource
@@ -88,40 +89,6 @@ def login_user(supabase_client, email, password):
     except Exception as e:
         return False, f"Login error: {str(e)}"
 
-def get_user_data(supabase_client, user_id):
-    """Get user-specific data from database"""
-    try:
-        # Example: Get user profile and related data
-        result = supabase_client.table('user_data').select('*').eq('user_id', user_id).execute()
-        return result.data
-    except Exception as e:
-        st.error(f"Error fetching user data: {str(e)}")
-        return []
-
-def save_user_data(supabase_client, user_id, data):
-    """Save user-specific data to database"""
-    try:
-        data_entry = {
-            'user_id': user_id,
-            'data': json.dumps(data),
-            'updated_at': datetime.now().isoformat()
-        }
-        
-        # Check if data exists for this user
-        existing = supabase_client.table('user_data').select('*').eq('user_id', user_id).execute()
-        
-        if existing.data:
-            # Update existing data
-            result = supabase_client.table('user_data').update(data_entry).eq('user_id', user_id).execute()
-        else:
-            # Insert new data
-            result = supabase_client.table('user_data').insert(data_entry).execute()
-            
-        return True
-    except Exception as e:
-        st.error(f"Error saving user data: {str(e)}")
-        return False
-
 def logout_user():
     """Clear session state and logout user"""
     for key in list(st.session_state.keys()):
@@ -130,11 +97,12 @@ def logout_user():
 
 def main():
     st.set_page_config(page_title="Kruscotto", page_icon="", layout="wide")
-    
-    # Initialize Supabase
+
     supabase_client = init_supabase()
     
     # Initialize session state
+    if 'client' not in st.session_state:
+        st.session_state.client = supabase_client
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
     if 'user' not in st.session_state:
@@ -194,62 +162,42 @@ def main():
                             st.error(message)
     
     else:
-        # User is authenticated - show main application
-        st.title(f"Welcome, {st.session_state.user['full_name']}!")
-        
-        # Sidebar with user info and logout
+        # st.title(f"Welcome, {st.session_state.user['full_name']}!")
+
         # with st.sidebar:
-        #     st.header("User Information")
-        #     st.write(f"**Name:** {st.session_state.user['full_name']}")
-        #     st.write(f"**Email:** {st.session_state.user['email']}")
-        #     st.write(f"**User ID:** {st.session_state.user['id']}")
-        #     
         #     if st.button("Logout", type="secondary"):
         #         logout_user()
-        
+
+        overview = st.Page("page_overview.py", title="Sommario Fatture", icon=":material/search:")
+
+        fatture_emesse_uploader = st.Page("emesse_uploader.py", title="Upload XML", icon=":material/search:")
+        fatture_emesse_add = st.Page("emesse_add.py", title="Aggiungi", icon=":material/search:")
+        fatture_emesse_modify = st.Page("emesse_modify.py", title="Modifica", icon=":material/search:")
+        fatture_emesse_delete = st.Page("emesse_delete.py", title="Elimina", icon=":material/search:")
+
+        fatture_ricevute_uploader = st.Page("ricevute_uploader.py", title="Upload XML", icon=":material/search:")
+        fatture_ricevute_add = st.Page("ricevute_add.py", title="Aggiungi", icon=":material/search:")
+        fatture_ricevute_modify = st.Page("ricevute_modify.py", title="Modifica", icon=":material/search:")
+        fatture_ricevute_delete = st.Page("ricevute_delete.py", title="Elimina", icon=":material/search:")
+
+        fatture_emesse_deadlines_add = st.Page("deadlines_add.py", title="Aggiungi", icon=":material/search:")
+        fatture_emesse_deadlines_modify = st.Page("deadlines_modify.py", title="Modifica", icon=":material/search:")
+        fatture_emesse_deadlines_delete = st.Page("deadlines_delete.py", title="Rimuovi", icon=":material/search:")
+        fatture_emesse_deadlines_term_modify = st.Page("deadlines_terms_modify.py", title="Aggiorna Stato Pagamento", icon=":material/search:")
+
+        feedback = st.Page("page_feedback.py", title="Contattaci", icon=":material/search:")
 
 
-        pg = streamlit_pages_generator.get_navigation_obj()
+        pg = st.navigation(
+            {
+            "Sommario": [overview],
+            "Fatture Emesse": [fatture_emesse_uploader, fatture_emesse_add, fatture_emesse_modify, fatture_emesse_delete],
+            "Fatture Ricevute": [fatture_ricevute_uploader, fatture_ricevute_add, fatture_ricevute_modify, fatture_ricevute_delete],
+            "Scadenze" : [fatture_emesse_deadlines_add, fatture_emesse_deadlines_modify, fatture_emesse_deadlines_delete, fatture_emesse_deadlines_term_modify],
+            "Comunicazioni": [feedback]
+            }
+        )
         pg.run()
-
-        # # Main application content
-        # st.header("Your Personal Dashboard")
-        # 
-        # # Load user-specific data
-        # user_data = get_user_data(supabase_client, st.session_state.user['id'])
-        # 
-        # # Example: Display user data
-        # if user_data:
-        #     st.subheader("Your Data")
-        #     for item in user_data:
-        #         st.write(f"Data entry from {item.get('updated_at', 'Unknown')}")
-        #         st.json(json.loads(item['data']))
-        # else:
-        #     st.info("No data found for your account.")
-        # 
-        # # Example: Form to save new data
-        # st.subheader("Save New Data")
-        # with st.form("save_data_form"):
-        #     data_title = st.text_input("Title")
-        #     data_content = st.text_area("Content")
-        #     data_value = st.number_input("Value", value=0.0)
-        #     
-        #     if st.form_submit_button("Save Data"):
-        #         if data_title and data_content:
-        #             new_data = {
-        #                 'title': data_title,
-        #                 'content': data_content,
-        #                 'value': data_value,
-        #                 'timestamp': datetime.now().isoformat()
-        #             }
-        #             
-        #             if save_user_data(supabase_client, st.session_state.user['id'], new_data):
-        #                 st.success("Data saved successfully!")
-        #                 st.rerun()
-        #             else:
-        #                 st.error("Failed to save data")
-        #         else:
-        #             st.error("Please fill in title and content")
 
 if __name__ == "__main__":
     main()

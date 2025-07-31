@@ -1,2 +1,2 @@
-CREATE POLICY "Users can manage own data" ON invoices
-    FOR ALL USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can manage own data" ON invoices
+--     FOR ALL USING (auth.uid() = user_id);

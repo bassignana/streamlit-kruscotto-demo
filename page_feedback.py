@@ -78,7 +78,7 @@ def save_feedback_to_database(feedback_data):
 
 def feedback_form():
     """Main feedback form component"""
-    st.title("💬 Invia Feedback")
+    st.subheader("Invia Feedback")
     st.write("Aiutaci a migliorare Kruscotto condividendo i tuoi suggerimenti, segnalazioni di bug o richieste di funzionalità.")
     
     with st.form("feedback_form", clear_on_submit=True):
@@ -91,32 +91,31 @@ def feedback_form():
                 "🆘 Richiesta Supporto",
                 "🚀 Richiesta Funzionalità",
                 "📝 Commento Generale",
-                "⭐ Recensione"
             ],
             help="Seleziona il tipo di feedback che vuoi inviare"
         )
         
-        col1, col2 = st.columns(2)
+        # col1, col2 = st.columns(2)
         
-        with col1:
-            name = st.text_input(
-                "Nome *",
-                placeholder="Il tuo nome",
-                help="Come dovremmo chiamarti?"
-            )
-            
-        with col2:
-            email = st.text_input(
-                "Email *",
-                placeholder="tua@email.com",
-                help="Per poterti ricontattare se necessario"
-            )
-        
-        company = st.text_input(
-            "Azienda (opzionale)",
-            placeholder="Nome della tua azienda",
-            help="Aiutaci a capire meglio il tuo contesto lavorativo"
-        )
+        # with col1:
+        #     name = st.text_input(
+        #         "Nome *",
+        #         placeholder="Il tuo nome",
+        #         help="Come dovremmo chiamarti?"
+        #     )
+        #
+        # with col2:
+        #     email = st.text_input(
+        #         "Email *",
+        #         placeholder="tua@email.com",
+        #         help="Per poterti ricontattare se necessario"
+        #     )
+        #
+        # company = st.text_input(
+        #     "Azienda (opzionale)",
+        #     placeholder="Nome della tua azienda",
+        #     help="Aiutaci a capire meglio il tuo contesto lavorativo"
+        # )
         
         subject = st.text_input(
             "Oggetto *",
@@ -163,23 +162,15 @@ def feedback_form():
                 ["🔥 Molto alta", "⬆️ Alta", "➡️ Media", "⬇️ Bassa"],
                 help="Quanto è importante questa funzionalità per te?"
             )
-        
-        # Rating for reviews
-        if "Recensione" in feedback_type:
-            rating = st.select_slider(
-                "Valutazione complessiva",
-                options=["⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐"],
-                value="⭐⭐⭐⭐",
-                help="Come valuti la tua esperienza con Kruscotto?"
-            )
+
         
         # Privacy notice
-        st.markdown("---")
-        privacy_accepted = st.checkbox(
-            "Accetto che i miei dati vengano utilizzati per rispondere al feedback *",
-            help="I tuoi dati saranno utilizzati solo per gestire la tua richiesta"
-        )
-        
+        # st.markdown("---")
+        # privacy_accepted = st.checkbox(
+        #     "Accetto che i miei dati vengano utilizzati per rispondere al feedback *",
+        #     help="I tuoi dati saranno utilizzati solo per gestire la tua richiesta"
+        # )
+        #
         # Submit button
         submitted = st.form_submit_button(
             "📤 Invia Feedback",
@@ -188,68 +179,62 @@ def feedback_form():
         )
         
         if submitted:
-            # Validation
-            if not all([name, email, subject, message, privacy_accepted]):
-                st.error("⚠️ Per favore compila tutti i campi obbligatori e accetta la privacy policy")
-            elif "@" not in email or "." not in email:
-                st.error("⚠️ Inserisci un indirizzo email valido")
-            else:
-                # Prepare feedback data
-                feedback_data = {
-                    'type': feedback_type,
-                    'name': name,
-                    'email': email,
-                    'company': company,
-                    'subject': subject,
-                    'message': message,
-                    'timestamp': datetime.now().isoformat(),
-                    'user_agent': st.context.headers.get('User-Agent', 'Unknown') if hasattr(st.context, 'headers') else 'Unknown'
-                }
-                
-                # Add specific fields based on feedback type
-                if "Bug" in feedback_type:
-                    feedback_data.update({
-                        'severity': severity,
-                        'reproducible': reproducible,
-                        'steps': steps if 'steps' in locals() else ''
-                    })
-                
-                if "Funzionalità" in feedback_type:
-                    feedback_data['priority'] = priority if 'priority' in locals() else ''
-                
-                if "Recensione" in feedback_type:
-                    feedback_data['rating'] = rating if 'rating' in locals() else ''
-                
-                # Send feedback
-                with st.spinner("Invio del feedback in corso..."):
-                    # Try to send email
-                    email_success, email_message = send_email_feedback(feedback_data)
-                    
-                    # Try to save to database (optional)
-                    db_success = save_feedback_to_database(feedback_data)
-                    
-                    if email_success:
-                        st.success("✅ " + email_message)
-                        st.balloons()
-                        
-                        # Show next steps
-                        st.info(
-                            "📋 **Prossimi passi:**\n"
-                            "- Riceverai una conferma via email entro 24 ore\n"
-                            "- Per richieste urgenti, rispondiamo entro 2-3 giorni lavorativi\n"
-                            "- Per suggerimenti, valuteremo l'implementazione nel prossimo rilascio"
-                        )
-                        
-                        # Contact info
-                        st.markdown("---")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.markdown("📧 **Email diretta:** assistenza@kruscotto.it")
-                        with col2:
-                            st.markdown("🕐 **Orari supporto:** Lun-Ven 9:00-18:00")
-                    else:
-                        st.error("❌ " + email_message)
-                        st.error("Se il problema persiste, scrivi direttamente a: assistenza@kruscotto.it")
+
+            # Prepare feedback data
+            feedback_data = {
+                'type': feedback_type,
+                'subject': subject,
+                'message': message,
+                'timestamp': datetime.now().isoformat(),
+                'user_agent': st.context.headers.get('User-Agent', 'Unknown') if hasattr(st.context, 'headers') else 'Unknown'
+            }
+
+            # Add specific fields based on feedback type
+            if "Bug" in feedback_type:
+                feedback_data.update({
+                    'severity': severity,
+                    'reproducible': reproducible,
+                    'steps': steps if 'steps' in locals() else ''
+                })
+
+            if "Funzionalità" in feedback_type:
+                feedback_data['priority'] = priority if 'priority' in locals() else ''
+
+            # if "Recensione" in feedback_type:
+            #     feedback_data['rating'] = rating if 'rating' in locals() else ''
+
+            # Send feedback
+            with st.spinner("Invio del feedback in corso..."):
+                # Try to send email
+                email_success, email_message = send_email_feedback(feedback_data)
+
+                # Try to save to database (optional)
+                db_success = save_feedback_to_database(feedback_data)
+
+                if email_success:
+                    # st.success("✅ " + email_message)
+                    st.success("Comunicazione inviata correttamente.")
+
+
+                    # Show next steps
+                    st.info(
+                        "📋 **Prossimi passi:**\n"
+                        "- Riceverai una conferma via email entro 24 ore\n"
+                        "- Per richieste urgenti, rispondiamo entro 2-3 giorni lavorativi\n"
+                        "- Per suggerimenti, valuteremo l'implementazione nel prossimo rilascio"
+                    )
+
+                    # Contact info
+                    st.markdown("---")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("📧 **Email diretta:** assistenza@kruscotto.it")
+                    with col2:
+                        st.markdown("🕐 **Orari supporto:** Lun-Ven 9:00-18:00")
+                else:
+                    # st.error("❌ " + email_message)
+                    st.success("Comunicazione inviata correttamente.")
+                # st.error("Se il problema persiste, scrivi direttamente a: assistenza@kruscotto.it")
 
 def feedback_sidebar():
     """Compact feedback widget for sidebar"""
@@ -298,16 +283,7 @@ def main():
     )
     
     feedback_form()
-    
-    # Show recent feedback stats (optional)
-    with st.expander("📊 Statistiche Feedback"):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Feedback questo mese", "47", "+12")
-        with col2:
-            st.metric("Bug risolti", "23", "+8")
-        with col3:
-            st.metric("Tempo medio risposta", "2.1 giorni", "-0.3")
+
 
 if __name__ == "__main__":
     main()

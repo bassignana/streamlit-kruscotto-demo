@@ -1,7 +1,5 @@
-# reset_db.py (UPDATED WITH SECRETS-BASED CREDENTIALS)
 """
-Database reset script using custom users table
-Test user credentials loaded from secrets.toml
+
 """
 
 import argparse
