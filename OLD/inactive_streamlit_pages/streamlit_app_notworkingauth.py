@@ -470,7 +470,7 @@ def main():
         #     st.header("User Information")
         #     st.write(f"**Name:** {st.session_state.user['full_name']}")
         #     st.write(f"**Email:** {st.session_state.user['email']}")
-        #     st.write(f"**User ID:** {st.session_state.user['id']}")
+        #     st.write(f"**User ID:** {st.session_state.user.id}")
         #     
         #     if st.button("Logout", type="secondary"):
         #         logout_user()
@@ -501,7 +501,7 @@ def main():
         # st.header("Your Personal Dashboard")
         # 
         # # Load user-specific data
-        # user_data = get_user_data(supabase_client, st.session_state.user['id'])
+        # user_data = get_user_data(supabase_client, st.session_state.user.id)
         # 
         # # Example: Display user data
         # if user_data:
@@ -528,7 +528,7 @@ def main():
         #                 'timestamp': datetime.now().isoformat()
         #             }
         #             
-        #             if save_user_data(supabase_client, st.session_state.user['id'], new_data):
+        #             if save_user_data(supabase_client, st.session_state.user.id, new_data):
         #                 st.success("Data saved successfully!")
         #                 st.rerun()
         #             else:

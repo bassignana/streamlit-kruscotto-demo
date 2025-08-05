@@ -323,7 +323,7 @@ def main():
         st.error("🔐 Please login first")
         st.stop()
     
-    user_id = st.session_state.user['id']
+    user_id = st.session_state.user.id
     logger.info(f"User authenticated: {user_id}")
     logger.info(f"User details: {st.session_state.user}")
     

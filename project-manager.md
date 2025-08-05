@@ -38,10 +38,100 @@ uv export --format requirements-txt --output-file requirements.txt
 For the list of COMMON and UNCOMMON tags between all invoices:
 python3 invoice_common_tags.py fatture_emesse/ fatture_ricevute 
 
-# 2. DB
-Here I prefer a manage supabase account in order to avoid to 
-manage the local supabase instance.
+Seeding the database
+python3 tool_reset_db.py --noseed
 
+# 2. DB
+Here I prefer a managed supabase account in order to avoid to 
+manage the local supabase instance for now.
+
+For a temporary development environment, I've created a new 
+Supabase project and I manually switch the credentials in the 
+secrets.toml file.
+
+# Meeting Notes
+## Ven 1 Agosto 2025
+- gestione delle scadenze non inserite (come casse e anagrafiche)
+- come gestire il pagamento delle rate rispetto alle visualizzazioni? 4 righe?
+- 
+- importazione: importazione in base anagrafica unica.
+- possibilita' di impostare il saldo iniziale ogni mese.
+- >>> data pagamento di default: data documento + 1
+- cassa: Iban o da definire
+- fatture a 12 mesi, flusso di cassa da oggi in avanti
+- visualizzare flussi per data, banca, cliente
+- default non incassata
+
+- accessi seprarati, dati separati
+- iva, contributi, ..., nella dashboard
+- altri movimenti anche positivi, come ordini
+- Visione: saro' in grado di pagare?
+
+# Features
+UPLOADER
+- get info on anagrafica cliente / profilo
+- one single uploader for emesse / ricevute
+user_data or {}
+what is a session? Is it saved in local memory and then used for re-auth without login form.
+  "options": {
+  "email_redirect_to": "https://example.com/welcome",
+  },
+@st.cache
+
+
+
+
+FLUSSI DI CASSA
+Forward looking.
+|30|60|||||||||||||
+tabella_saldo_iniziale
+- display saldo iniziale
+- ? quick add saldo iniziale
+tabella_incassi_group_by_casse
+tabella_pagamenti_group_by_casse
+tabella_saldo_finale
+graph_incassi_group_by_casse
+graph_pagamenti_group_by_casse
+
+
+
+
+?
+[] Visualizzatore scadenze divise per mese (ed eventuale rimando 
+   alla relativa fattura) nella dashboard principale.
+[] Gestione dei pagamenti delle rate piu' veloci, magari con una data
+   table. Soprattutto in vista della gestione di molte scadenze.
+[] Aggiunta di un campo per permettere all'imprenditore di riconoscere 
+   al volo le fatture.
+[] Dashboard data range: select with slider.
+[] # todo: In what part of the application do I need to ensure datatypes consistency?
+   What I might do, for READ query at least, is that I create a function that will
+   read the config or some other info and convert any data that I might have in the 
+   correct data format. Then I do all queries either in a separate file, or I use
+   this function to tranform the result.data that I get from the py API.
+   Maybe leaving the query where they are is better, also because I can do 
+   herror handling on the result right there.
+[] Associa fattura altre spese: preventivo vs consuntivo
+[] classic streamlit groupby option for interacting with fatture and flussi di cassa
+
+
+
+1.0
+
+USER
+[] Nelle pagine di add, modify ... mostrare solo le fatture che possono essere effettivamente
+modificate, cosi' posso rimandare alle pagine con un bottone eventualmente.
+[] 2 Graphs
+[] Cassa e anagrafica per Fatture Emesse, ma ha senso visualizzare? Perche' ci
+   saranno dei casi dove non ho tutte le info, quindi come nella dashboard dovrei
+   individuare tutte le fatture che hanno dati mancanti. Qui si tratterebbe di diventare
+   un visualizzatore di fatture... out of scope.
+
+
+DEV
+[] Test scadenze 1$ per day.
+[] Divisione dei payment terms in due tabelle.
+[] RLS
 
 # 3. Project automation
 Goal: starting from the initial sql tables definition and 
@@ -194,70 +284,3 @@ for later:
   of the component inside the global session state
 - auto gen test data
 
-
-
-
-
-
-
-    def get_supabase_client():
-        secrets_path = Path(".streamlit/secrets.toml")
-        if not secrets_path.exists():
-            raise FileNotFoundError("Missing .streamlit/secrets.toml file")
-
-        secrets = toml.load(secrets_path)
-
-        url = secrets.get("SUPABASE_URL")
-        key = secrets.get("SUPABASE_ANON_KEY")
-        if not url or not key:
-            raise ValueError("Missing SUPABASE_URL or SUPABASE_ANON_KEY in secrets.toml")
-
-        return create_client(url, key)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 4. Business logic
-Distinzione tra fatture emesse e ricevute

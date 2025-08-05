@@ -1,166 +1,177 @@
-"""
-In the main streamlit file, I want db and auth function definitions.
-The rest are all imports.
-"""
-
 import streamlit as st
 from supabase import create_client
-import hashlib
 import re
 from datetime import datetime
-
-
+import time
 @st.cache_resource
 def init_supabase():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_ANON_KEY"]
     return create_client(url, key)
 
-def hash_password(password):
-    """Hash password using SHA-256"""
-    return hashlib.sha256(password.encode()).hexdigest()
-
 def validate_email(email):
-    """Validate email format"""
+    # todo: better pattern, like in https://stackoverflow.com/questions/201323/how-can-i-validate-an-email-address-using-a-regular-expression
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(pattern, email) is not None
+    if re.match(pattern, email) is not None:
+        return True, ""
+    else:
+        return False, "Inserire un indirizzo email valido"
 
 def validate_password(password):
-    """Validate password strength (minimum 8 characters, at least one number and one letter)"""
-    if len(password) < 8:
-        return False, "Password must be at least 8 characters long"
-    if not re.search(r'[A-Za-z]', password):
-        return False, "Password must contain at least one letter"
-    if not re.search(r'\d', password):
-        return False, "Password must contain at least one number"
-    return True, "Password is valid"
 
-def register_user(supabase_client, email, password, full_name):
-    """Register a new user"""
+    msg = "La Password deve contenere almeno 8 caratteri, di cui almeno un numero"
+    if len(password) < 8:
+        return False, msg
+    if not re.search(r'[A-Za-z]', password):
+        return False, msg
+    if not re.search(r'\d', password):
+        return False, msg
+    return True, ""
+
+def register_user(supabase_client, email, password, full_name = None):
     try:
-        # Check if user already exists
-        result = supabase_client.table('users').select('*').eq('email', email).execute()
-        if result.data:
-            return False, "User already exists with this email"
-        
-        # Hash password
-        hashed_password = hash_password(password)
-        
-        # Insert new user
-        user_data = {
-            'email': email,
-            'password_hash': hashed_password,
-            'full_name': full_name,
-            'created_at': datetime.now().isoformat(),
-            'is_active': True
-        }
-        
-        result = supabase_client.table('users').insert(user_data).execute()
-        
-        if result.data:
-            return True, "User registered successfully"
-        else:
-            return False, "Registration failed"
-            
+        response = supabase_client.auth.sign_up({
+            "email": email,
+            "password": password,
+            "options": {
+                "data": {
+                    "full_name": full_name or ""
+                }
+            }
+        })
+
+        return response, ""
+
     except Exception as e:
-        return False, f"Registration error: {str(e)}"
+        # "User already registered" is returned as str(e).
+        if "already registered" in str(e):
+            return {}, f"Errore, email già registrata"
+        else:
+            return {}, f"Errore durante la registrazione, eccezione: {str(e)}"
 
 def login_user(supabase_client, email, password):
-    """Authenticate user login"""
     try:
-        hashed_password = hash_password(password)
-        
-        result = supabase_client.table('users').select('*').eq('email', email).eq('password_hash', hashed_password).execute()
-        
-        if result.data:
-            user = result.data[0]
-            if user['is_active']:
-                # Update last login
-                supabase_client.table('users').update({
-                    'last_login': datetime.now().isoformat()
-                }).eq('id', user['id']).execute()
-                
-                return True, user
-            else:
-                return False, "Account is deactivated"
-        else:
-            return False, "Invalid email or password"
-            
-    except Exception as e:
-        return False, f"Login error: {str(e)}"
 
-def logout_user():
-    """Clear session state and logout user"""
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    st.rerun()
+        response = supabase_client.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+        return response.user, ""
+
+    except Exception as e:
+        if "Invalid login credentials" in str(e):
+            return {}, f"Credenziali di accesso non valide"
+        else:
+            return {}, f"Errore: {str(e)}"
+
+# def logout_user():
+#     """Clear session state and logout user"""
+#     for key in list(st.session_state.keys()):
+#         del st.session_state[key]
+#     st.rerun()
 
 def main():
     st.set_page_config(page_title="Kruscotto", page_icon="", layout="wide")
 
     supabase_client = init_supabase()
     
-    # Initialize session state
     if 'client' not in st.session_state:
         st.session_state.client = supabase_client
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
     if 'user' not in st.session_state:
         st.session_state.user = None
-    
-    # Check if user is authenticated
+
+    # Add a flag to track login processing to prevent login form UI duplication after submit.
+    if 'login_processing' not in st.session_state:
+        st.session_state.login_processing = False
+
+    # Check if user is authenticated, else show login and registration forms.
     if not st.session_state.authenticated:
-        st.title("🔐 Secure Authentication")
+        st.subheader("Autenticazione")
         
         # Create tabs for login and registration
-        tab1, tab2 = st.tabs(["Login", "Register"])
+        tab1, tab2 = st.tabs(["Login", "Registrazione"])
         
         with tab1:
             st.header("Login")
-            login_email = st.text_input("Email", key="login_email")
-            login_password = st.text_input("Password", type="password", key="login_password")
-            
-            if st.button("Login", type="primary"):
-                if not login_email or not login_password:
-                    st.error("Please fill in all fields")
-                elif not validate_email(login_email):
-                    st.error("Please enter a valid email address")
-                else:
-                    success, result = login_user(supabase_client, login_email, login_password)
-                    if success:
-                        st.session_state.authenticated = True
-                        st.session_state.user = result
-                        st.success("Login successful!")
-                        st.rerun()
-                    else:
-                        st.error(result)
+
+            # Show a loading state during login processing to prevent duplication
+            if st.session_state.login_processing:
+                st.info("Accesso in corso...")
+                # Small delay to prevent UI flicker
+                time.sleep(0.1)
+                st.session_state.login_processing = False
+                st.rerun()
+            else:
+                with st.form("login", clear_on_submit=True, enter_to_submit=False):
+                    login_email = st.text_input("Email *", key="login_email")
+                    login_password = st.text_input("Password *", type="password", key="login_password")
+                    submitted = st.form_submit_button("Login", type="primary")
+
+                    if submitted:
+                        if not all([login_email, login_password]):
+                            st.error("Inserire tutti i campi")
+                        else:
+                            # Set processing flag to show loading state
+                            st.session_state.login_processing = True
+
+                        # NOTE: to access user object property, I can only use dot notation, not ['id'].
+                        user_obj, error_msg = login_user(supabase_client, login_email, login_password)
+                        if not error_msg:
+                            st.session_state.authenticated = True
+                            st.session_state.user = user_obj
+                            st.session_state.login_processing = False
+                            st.success("Login successful!")
+                            # Add a small delay before rerun to ensure state is properly set
+                            time.sleep(0.3)
+                            st.rerun()
+                        else:
+                            st.error(error_msg)
         
         with tab2:
-            st.header("Register")
-            reg_full_name = st.text_input("Full Name", key="reg_full_name")
-            reg_email = st.text_input("Email", key="reg_email")
-            reg_password = st.text_input("Password", type="password", key="reg_password")
-            reg_confirm_password = st.text_input("Confirm Password", type="password", key="reg_confirm_password")
-            
-            if st.button("Register", type="primary"):
-                if not all([reg_full_name, reg_email, reg_password, reg_confirm_password]):
-                    st.error("Please fill in all fields")
-                elif not validate_email(reg_email):
-                    st.error("Please enter a valid email address")
-                elif reg_password != reg_confirm_password:
-                    st.error("Passwords do not match")
-                else:
-                    is_valid, message = validate_password(reg_password)
-                    if not is_valid:
-                        st.error(message)
+            st.header("Registrazione")
+            # Set clear_on_submit to False so the user does not have to fill again the
+            # form if the email is already in use or if the password is not valid.
+            with st.form("registration", clear_on_submit=False, enter_to_submit=False):
+                signup_name = st.text_input("Nome", key="signup_name")
+                signup_surname = st.text_input("Cognome", key="signup_full_name")
+                signup_email = st.text_input("Email *", key="signup_email")
+                signup_password = st.text_input("Password *", type="password", key="signup_password")
+                signup_confirm_password = st.text_input("Conferma Password *", type="password", key="signup_confirm_password")
+                submitted = st.form_submit_button("Registrati", type="primary")
+
+                if submitted:
+                    if not all([signup_email, signup_password, signup_confirm_password]):
+                        st.error("Riempire tutti i campi obbligatori")
+                    elif signup_password != signup_confirm_password:
+                        st.error("Le password non corrispondono")
                     else:
-                        success, message = register_user(supabase_client, reg_email, reg_password, reg_full_name)
-                        if success:
-                            st.success(message)
-                            st.info("Please login with your new credentials")
+                        is_email_valid, email_error_msg = validate_email(signup_email)
+                        is_pwd_valid, pwd_error_msg = validate_password(signup_password)
+
+                        if not is_email_valid:
+                            st.error(email_error_msg)
+                        elif not is_pwd_valid:
+                            st.error(pwd_error_msg)
                         else:
-                            st.error(message)
-    
+                            full_name = None
+                            if signup_name is not None and signup_surname is not None:
+                                full_name = signup_name + ' ' + signup_surname
+
+                            response, message = register_user(supabase_client, signup_email, signup_password, full_name)
+                            if response:
+                                st.success("Registrazione effettuata con successo.")
+
+                                # Clear the form fields after successful registration for better UX.
+                                st.session_state.signup_name = ""
+                                st.session_state.signup_full_name = ""
+                                st.session_state.signup_email = ""
+                                st.session_state.signup_password = ""
+                                st.session_state.signup_confirm_password = ""
+                            else:
+                                st.error(message)
+
     else:
         # st.title(f"Welcome, {st.session_state.user['full_name']}!")
 

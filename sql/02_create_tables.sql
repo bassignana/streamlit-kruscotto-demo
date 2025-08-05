@@ -1,22 +1,23 @@
-CREATE TABLE public.users (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  email character varying NOT NULL UNIQUE,
-  password_hash character varying NOT NULL,
-  full_name character varying NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  last_login timestamp with time zone,
-  is_active boolean DEFAULT true,
-  CONSTRAINT users_pkey PRIMARY KEY (id)
-);
+-- Not used since switching to supabase built-in auth
+-- CREATE TABLE public.users (
+--   id uuid NOT NULL DEFAULT gen_random_uuid(),
+--   email character varying NOT NULL UNIQUE,
+--   password_hash character varying NOT NULL,
+--   full_name character varying NOT NULL,
+--   created_at timestamp with time zone DEFAULT now(),
+--   last_login timestamp with time zone,
+--   is_active boolean DEFAULT true,
+--   CONSTRAINT users_pkey PRIMARY KEY (id)
+-- );
 
 CREATE TABLE public.user_data (
-                                  id uuid NOT NULL DEFAULT gen_random_uuid(),
-                                  user_id uuid,
-                                  data jsonb NOT NULL,
-                                  created_at timestamp with time zone DEFAULT now(),
-                                  updated_at timestamp with time zone DEFAULT now(),
-                                  CONSTRAINT user_data_pkey PRIMARY KEY (id),
-                                  CONSTRAINT user_data_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id)
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  data jsonb NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_data_pkey PRIMARY KEY (id),
+  CONSTRAINT user_data_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 CREATE TABLE public.fatture_emesse (
@@ -57,21 +58,40 @@ ALTER TABLE public.fatture_ricevute
 ADD CONSTRAINT unique_composite_key
 UNIQUE (id_codice, invoice_number, document_date);
 
-CREATE TABLE public.payment_terms (
-                                      id uuid NOT NULL DEFAULT gen_random_uuid(),
-                                      user_id uuid NOT NULL,
-                                      invoice_id uuid NOT NULL,
-                                      due_date date NOT NULL,
-                                      amount numeric(10,2) NOT NULL CHECK (amount > 0),
-                                      payment_method varchar NOT NULL,
-                                      cash_account varchar NOT NULL,
-                                      notes text,
-                                      is_paid boolean DEFAULT false,
-                                      payment_date date,
-                                      created_at timestamp with time zone DEFAULT now(),
-                                      updated_at timestamp with time zone DEFAULT now(),
-                                      CONSTRAINT payment_terms_pkey PRIMARY KEY (id),
-                                      CONSTRAINT payment_terms_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id)
+CREATE TABLE public.payment_terms_emesse (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  invoice_id uuid NOT NULL,
+  due_date date NOT NULL,
+  amount numeric(10,2) NOT NULL CHECK (amount > 0),
+  payment_method varchar NOT NULL,
+  cash_account varchar NOT NULL,
+  notes text,
+  is_paid boolean DEFAULT false,
+  payment_date date,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT payment_terms_pkey PRIMARY KEY (id),
+  CONSTRAINT payment_terms_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id),
+  CONSTRAINT payment_terms_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES fatture_emesse(id),
+);
+
+CREATE TABLE public.payment_terms_ricevute (
+ id uuid NOT NULL DEFAULT gen_random_uuid(),
+ user_id uuid NOT NULL,
+ invoice_id uuid NOT NULL,
+ due_date date NOT NULL,
+ amount numeric(10,2) NOT NULL CHECK (amount > 0),
+ payment_method varchar NOT NULL,
+ cash_account varchar NOT NULL,
+ notes text,
+ is_paid boolean DEFAULT false,
+ payment_date date,
+ created_at timestamp with time zone DEFAULT now(),
+ updated_at timestamp with time zone DEFAULT now(),
+ CONSTRAINT payment_terms_pkey PRIMARY KEY (id),
+ CONSTRAINT payment_terms_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id),
+ CONSTRAINT payment_terms_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES fatture_ricevute(id),
 );
 
 -- Add indexes for better performance
@@ -115,7 +135,12 @@ $$ language 'plpgsql';
 
 -- Create trigger to automatically update updated_at
 CREATE TRIGGER update_payment_terms_updated_at
-    BEFORE UPDATE ON public.payment_terms
+    BEFORE UPDATE ON public.payment_terms_emesse
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_payment_terms_updated_at
+    BEFORE UPDATE ON public.payment_terms_ricevute
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
@@ -140,7 +165,12 @@ $$ language 'plpgsql';
 
 -- Create trigger for INSERT operations
 CREATE TRIGGER set_payment_terms_created_at
-    BEFORE INSERT ON public.payment_terms
+    BEFORE INSERT ON public.payment_terms_emesse
+    FOR EACH ROW
+    EXECUTE FUNCTION set_created_at_column();
+
+CREATE TRIGGER set_payment_terms_created_at
+    BEFORE INSERT ON public.payment_terms_ricevute
     FOR EACH ROW
     EXECUTE FUNCTION set_created_at_column();
 

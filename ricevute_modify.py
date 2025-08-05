@@ -15,7 +15,7 @@ def main():
     if 'user' not in st.session_state or not st.session_state.user:
         st.error("🔐 Please login first")
         st.stop()
-    user_id = st.session_state.user['id']
+    user_id = st.session_state.user.id
 
     if 'client' not in st.session_state:
         st.error("Please create the client for pate_test_uploader")

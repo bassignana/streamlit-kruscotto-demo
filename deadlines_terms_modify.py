@@ -313,7 +313,7 @@ def main():
         st.error("🔐 Effettuare il login per accedere a questa pagina")
         st.stop()
 
-    user_id = st.session_state.user['id']
+    user_id = st.session_state.user.id
 
     if 'client' not in st.session_state:
         st.error("❌ Errore di connessione al database")

@@ -1,74 +1,89 @@
 import streamlit as st
 import pandas as pd
-from decimal import Decimal, getcontext, ROUND_HALF_UP
-from datetime import date, datetime, timedelta
-from typing import Dict, List
-import plotly.express as px
+from decimal import Decimal, getcontext
+from datetime import date, datetime
 import plotly.graph_objects as go
 from dateutil.relativedelta import relativedelta
-import calendar
 
 getcontext().prec = 2
 
-def get_invoices_overview(supabase_client, user_id: str) -> Dict:
+def get_invoices_statistics(supabase_client, user_id):
     """Get overview of all invoices and their terms status"""
     try:
-        # Load all emesse invoices
+        # todo: use count if I don't need the full data.
         emesse_result = supabase_client.table('fatture_emesse').select('id').eq('user_id', user_id).execute()
         emesse_invoices = emesse_result.data or []
+        emesse_invoices_count = len(emesse_invoices)
 
-        # Load all ricevute invoices
         ricevute_result = supabase_client.table('fatture_ricevute').select('id').eq('user_id', user_id).execute()
         ricevute_invoices = ricevute_result.data or []
+        ricevute_invoices_count = len(ricevute_invoices)
 
-        # Get all invoice IDs
-        all_invoice_ids = [inv['id'] for inv in emesse_invoices] + [inv['id'] for inv in ricevute_invoices]
+        total_invoices_count = emesse_invoices_count + ricevute_invoices_count
 
-        # Get invoices that have payment terms
-        if all_invoice_ids:
-            terms_result = supabase_client.table('payment_terms').select('invoice_id').eq('user_id', user_id).execute()
-            invoices_with_terms = set(term['invoice_id'] for term in (terms_result.data or []))
-        else:
-            invoices_with_terms = set()
+        emesse_with_terms_result = supabase_client.table('payment_terms_emesse').select('DISTINCT invoice_id').eq('user_id', user_id).execute()
+        emesse_with_terms = emesse_with_terms_result.data or []
+        emesse_with_terms_count = len(emesse_with_terms)
 
-        total_invoices = len(emesse_invoices) + len(ricevute_invoices)
-        invoices_with_terms_count = len(invoices_with_terms)
-        invoices_without_terms_count = total_invoices - invoices_with_terms_count
+        ricevute_with_terms_result = supabase_client.table('payment_terms_ricevute').select('DISTINCT invoice_id').eq('user_id', user_id).execute()
+        ricevute_with_terms = ricevute_with_terms_result.data or []
+        ricevute_with_terms_count = len(ricevute_with_terms)
+
+        invoices_without_terms_count = total_invoices_count - emesse_with_terms_count - ricevute_with_terms_count
 
         return {
-            'total_invoices': total_invoices,
-            'emesse_invoices': len(emesse_invoices),
-            'ricevute_invoices': len(ricevute_invoices),
-            'invoices_with_terms': invoices_with_terms_count,
-            'invoices_without_terms': invoices_without_terms_count,
-            'percentage_with_terms': (invoices_with_terms_count / total_invoices * 100) if total_invoices > 0 else 0
+            'total_invoices_count': total_invoices_count,
+            'invoices_without_terms_count': invoices_without_terms_count,
         }
 
     except Exception as e:
         st.error(f"Errore nel caricamento dell'overview: {str(e)}")
         return {
-            'total_invoices': 0,
-            'emesse_invoices': 0,
-            'ricevute_invoices': 0,
-            'invoices_with_terms': 0,
+            'total_invoices_count': 0,
             'invoices_without_terms': 0,
-            'percentage_with_terms': 0
         }
 
-def get_monthly_terms_projection(supabase_client, user_id: str, months_ahead: int = 12) -> pd.DataFrame:
-    """Get monthly projection of payment terms for next 12 months"""
+def get_monthly_terms_projection(supabase_client, user_id, months_ahead = 12):
+    """Get monthly projection of payment terms for next 12 months
+
+    Using datetime.date format, so dealing with int representation of year, month, day:
+
+    date.today()
+    datetime.date(2025, 8, 1)
+
+
+    """
     try:
-        # Get current date and calculate date range
+
         today = date.today()
         start_date = today.replace(day=1)  # First day of current month
-        end_date = start_date + relativedelta(months=months_ahead)
+        end_date = start_date.replace(year=start_date.year + 1)
+
+        # end_date = start_date + relativedelta(months=months_ahead)
 
         # Load payment terms within the date range
-        terms_result = supabase_client.table('payment_terms').select('''
-            due_date, amount, invoice_id
-        ''').eq('user_id', user_id).gte('due_date', start_date.isoformat()).lt('due_date', end_date.isoformat()).execute()
+        # terms_result = supabase_client.table('payment_terms').select('''
+        #     due_date, amount, invoice_id
+        # ''').eq('user_id', user_id).gte('due_date', start_date.isoformat()).lt('due_date', end_date.isoformat()).execute()
+        #
+        # terms_data = terms_result.data or []
 
-        terms_data = terms_result.data or []
+        emesse_terms_result = supabase_client.table('payment_terms_emesse').select('''
+            due_date, amount
+        ''').eq('user_id', user_id).gte('due_date', start_date.isoformat()).lt('due_date', end_date.isoformat()).execute()
+        emesse_terms = emesse_terms_result.data or []
+
+        ricevute_terms_result = supabase_client.table('payment_terms_ricevute').select('''
+            due_date, amount
+        ''').eq('user_id', user_id).gte('due_date', start_date.isoformat()).lt('due_date', end_date.isoformat()).execute()
+        ricevute_terms = ricevute_terms_result.data or []
+
+
+        month_begin = start_date.month
+        for m in range(months_ahead):
+            month_begin += m
+
+
 
         # Load invoice data to determine type
         emesse_result = supabase_client.table('fatture_emesse').select('id').eq('user_id', user_id).execute()
@@ -119,7 +134,7 @@ def get_monthly_terms_projection(supabase_client, user_id: str, months_ahead: in
         st.error(f"Errore nel calcolo delle proiezioni mensili: {str(e)}")
         return pd.DataFrame()
 
-def render_overview_metrics(overview_data: Dict):
+def render_overview_metrics(overview_data):
     """Render the overview metrics cards"""
     col1, col2, col3, col4 = st.columns(4)
 
@@ -152,7 +167,7 @@ def render_overview_metrics(overview_data: Dict):
     #         help="Fatture con scadenze di pagamento configurate"
     #     )
 
-def render_terms_status_breakdown(overview_data: Dict):
+def render_terms_status_breakdown(overview_data):
     """Render breakdown of invoices with/without terms"""
     # st.markdown("### 📋 Stato Configurazione Scadenze")
 
@@ -315,7 +330,7 @@ def render_monthly_charts(monthly_df: pd.DataFrame):
 def main():
 
     st.set_page_config(
-        page_title="Riepilogo",
+        page_title="Riepilogo Fatture",
         page_icon="📊",
         layout="wide"
     )
@@ -326,7 +341,7 @@ def main():
         st.error("🔐 Effettuare il login per accedere a questa pagina")
         st.stop()
 
-    user_id = st.session_state.user['id']
+    user_id = st.session_state.user.id
 
     if 'client' not in st.session_state:
         st.error("❌ Errore di connessione al database")
@@ -334,49 +349,30 @@ def main():
 
     supabase_client = st.session_state.client
 
-    # st.title("📊 Dashboard Overview")
-    # st.markdown("### Panoramica completa di fatture e scadenze di pagamento")
-
     # Load data
     with st.spinner("📊 Caricamento dati..."):
-        overview_data = get_invoices_overview(supabase_client, user_id)
+        invoices_statistics = get_invoices_statistics(supabase_client, user_id)
         monthly_df = get_monthly_terms_projection(supabase_client, user_id)
 
     # Render terms status breakdown
-    if overview_data['total_invoices'] > 0:
+    if invoices_statistics['total_invoices_count'] > 0:
         render_monthly_projection_table(monthly_df)
         st.markdown("---")
         render_monthly_charts(monthly_df)
-        # st.markdown("## 📋 Riepilogo Scadenze Fatture")
-        # st.markdown("---")
-        # render_overview_metrics(overview_data)
-        # # st.markdown("---")
-        # render_terms_status_breakdown(overview_data)
 
-        without_terms = overview_data['invoices_without_terms']
+        without_terms = invoices_statistics['invoices_without_terms_count']
         if without_terms > 0:
             st.warning(f"""{without_terms} fatture sono sprovviste di scadenze.
 Solo le fatture con scadenze configurate saranno prese in considerazione
 per il riepilogo presente in questa pagina.""")
 
-
-
-
     else:
-        # st.info("🚀 **Inizia creando le tue prime fatture!**")
         st.markdown("""
         Per vedere la dashboard completa:
         1. 📄 Crea alcune fatture (emesse o ricevute)
         2. ⏰ Configura le scadenze di pagamento
         3. 📊 Torna qui per vedere l'analisi completa
         """)
-
-    # # Refresh button
-    # st.markdown("---")
-    # col1, col2, col3 = st.columns([1, 1, 1])
-    # with col2:
-    #     if st.button("🔄 Aggiorna Dati", use_container_width=True):
-    #         st.rerun()
 
 if __name__ == "__main__":
     main()

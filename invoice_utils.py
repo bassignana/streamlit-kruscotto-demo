@@ -10,10 +10,13 @@ def render_add_form(supabase_client, table_name, fields_config, display_name = N
     display_name = display_name or table_name.replace('_', ' ').title()
     st.subheader(f"Aggiungi {display_name}")
 
-    with st.form(f"add_{table_name}_form"):
+    with st.form(f"add_{table_name}_form",
+                 clear_on_submit=True,
+                 enter_to_submit=False):
 
         form_data = {}
         field_items = list(fields_config.items())
+
 
         # Render fields in columns if many fields
         if len(field_items) > 4:

@@ -19,6 +19,7 @@ def main():
         st.stop()
     supabase_client = st.session_state.client
 
+    st.session_state
     render_add_form(supabase_client, 'fatture_emesse', fields_config, 'Fattura Emessa')
 
 if __name__ == "__main__":
