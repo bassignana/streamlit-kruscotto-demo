@@ -69,6 +69,8 @@ secrets.toml file.
 
 # Features
 UPLOADER
+
+
 - get info on anagrafica cliente / profilo
 - one single uploader for emesse / ricevute
 user_data or {}

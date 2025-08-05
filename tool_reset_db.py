@@ -10,7 +10,6 @@ from pathlib import Path
 from supabase import create_client
 
 def load_secrets():
-    """Load secrets from .streamlit/secrets.toml"""
     secrets_path = Path(".streamlit/secrets.toml")
     
     if not secrets_path.exists():
@@ -19,7 +18,6 @@ def load_secrets():
     return toml.load(secrets_path)
 
 def get_supabase_client():
-    """Create Supabase client with service role privileges"""
     secrets = load_secrets()
     
     url = secrets.get("SUPABASE_URL")
@@ -103,22 +101,20 @@ def main():
                        help='Skip seed data insertion')
     args = parser.parse_args()
     
-    print("🔄 Starting database reset...")
+    print("Starting database reset...")
     
-    # Test connection and secrets
     try:
         client = get_supabase_client()
+        print("Supabase connection established")
+
         secrets = load_secrets()
         
-        # Validate test user credentials exist
-        if not secrets.get("TEST_USER_EMAIL") or not secrets.get("TEST_USER_PASSWORD"):
-            print("❌ Missing test user credentials in secrets.toml")
-            print("💡 Add TEST_USER_EMAIL and TEST_USER_PASSWORD to .streamlit/secrets.toml")
-            return
-            
-        print("✅ Supabase connection established")
-        print(f"✅ Test user credentials loaded from secrets")
-        
+        # Old test user creation
+        # if not secrets.get("TEST_USER_EMAIL") or not secrets.get("TEST_USER_PASSWORD"):
+        #     print("❌ Missing test user credentials in secrets.toml")
+        #     print("💡 Add TEST_USER_EMAIL and TEST_USER_PASSWORD to .streamlit/secrets.toml")
+        #     return
+
     except Exception as e:
         print(f"❌ Setup failed: {e}")
         return
@@ -142,20 +138,20 @@ def main():
             if response.lower() != 'y':
                 return
     
-    print("👤 Creating test user...")
-    test_user_id = create_test_user()
+    # print("👤 Creating test user...")
+    # test_user_id = create_test_user()
 
     # Handle seed data separately with user creation
-    if not args.noseed:
+    # if not args.noseed:
         
-        if test_user_id:
-            try:
-                execute_seed_data_with_user(test_user_id)
-                print("✅ Seed data completed")
-            except Exception as e:
-                print(f"❌ Seed data failed: {e}")
-        else:
-            print("⚠️  Skipping seed data - no test user created")
+        # if test_user_id:
+        #     try:
+        #         execute_seed_data_with_user(test_user_id)
+        #         print("✅ Seed data completed")
+        #     except Exception as e:
+        #         print(f"❌ Seed data failed: {e}")
+        # else:
+        #     print("⚠️  Skipping seed data - no test user created")
     
     print("🎉 Database reset complete!")
 

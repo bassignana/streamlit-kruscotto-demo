@@ -1,7 +1,6 @@
 import streamlit as st
 from supabase import create_client
 import re
-from datetime import datetime
 import time
 @st.cache_resource
 def init_supabase():
@@ -181,6 +180,8 @@ def main():
 
         overview = st.Page("page_overview.py", title="Sommario Fatture", icon=":material/search:")
 
+        anagrafica_azienda = st.Page("page_anagrafica_azienda.py", title="Azienda", icon=":material/search:")
+
         fatture_emesse_uploader = st.Page("emesse_uploader.py", title="Upload XML", icon=":material/search:")
         fatture_emesse_add = st.Page("emesse_add.py", title="Aggiungi", icon=":material/search:")
         fatture_emesse_modify = st.Page("emesse_modify.py", title="Modifica", icon=":material/search:")
@@ -202,6 +203,7 @@ def main():
         pg = st.navigation(
             {
             "Sommario": [overview],
+            "Anagrafiche": [anagrafica_azienda],
             "Fatture Emesse": [fatture_emesse_uploader, fatture_emesse_add, fatture_emesse_modify, fatture_emesse_delete],
             "Fatture Ricevute": [fatture_ricevute_uploader, fatture_ricevute_add, fatture_ricevute_modify, fatture_ricevute_delete],
             "Scadenze" : [fatture_emesse_deadlines_add, fatture_emesse_deadlines_modify, fatture_emesse_deadlines_delete, fatture_emesse_deadlines_term_modify],

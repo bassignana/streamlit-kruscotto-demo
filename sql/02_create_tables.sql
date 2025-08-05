@@ -12,13 +12,20 @@
 
 CREATE TABLE public.user_data (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid,
-  data jsonb NOT NULL,
+  user_id uuid NOT NULL,
+  -- codice fiscale e partita iva sono necessari per identificare l'azienda
+  -- all'interno delle fatture
+  codice_fiscale varchar NOT NULL,
+  partita_iva varchar NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT user_data_pkey PRIMARY KEY (id),
-  CONSTRAINT user_data_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id)
+  CONSTRAINT user_data_pkey PRIMARY KEY (id)
 );
+
+ALTER TABLE public.user_data ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage only their own data" ON public.user_data
+FOR ALL USING (auth.uid() = user_id);
 
 CREATE TABLE public.fatture_emesse (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -30,13 +37,17 @@ CREATE TABLE public.fatture_emesse (
   due_date date,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT fatture_emesse_pkey PRIMARY KEY (id),
-  CONSTRAINT fatture_emesse_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id)
+  CONSTRAINT fatture_emesse_pkey PRIMARY KEY (id)
 );
+
+ALTER TABLE public.fatture_emesse ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage only their own data" ON public.fatture_emesse
+FOR ALL USING (auth.uid() = user_id);
 
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_emesse
-ADD CONSTRAINT unique_composite_key
+ADD CONSTRAINT emesse_unique_composite_key
 UNIQUE (id_codice, invoice_number, document_date);
 
 CREATE TABLE public.fatture_ricevute (
@@ -49,13 +60,17 @@ CREATE TABLE public.fatture_ricevute (
     due_date date,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT fatture_ricevute_pkey PRIMARY KEY (id),
-    CONSTRAINT fatture_ricevute_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id)
+    CONSTRAINT fatture_ricevute_pkey PRIMARY KEY (id)
 );
+
+ALTER TABLE public.fatture_ricevute ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage only their own data" ON public.fatture_ricevute
+FOR ALL USING (auth.uid() = user_id);
 
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_ricevute
-ADD CONSTRAINT unique_composite_key
+ADD CONSTRAINT ricevute_unique_composite_key
 UNIQUE (id_codice, invoice_number, document_date);
 
 CREATE TABLE public.payment_terms_emesse (
@@ -71,10 +86,14 @@ CREATE TABLE public.payment_terms_emesse (
   payment_date date,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT payment_terms_pkey PRIMARY KEY (id),
-  CONSTRAINT payment_terms_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id),
-  CONSTRAINT payment_terms_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES fatture_emesse(id),
+  CONSTRAINT emesse_payment_terms_pkey PRIMARY KEY (id),
+  CONSTRAINT payment_terms_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES fatture_emesse(id)
 );
+
+ALTER TABLE public.payment_terms_emesse ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage only their own data" ON public.payment_terms_emesse
+FOR ALL USING (auth.uid() = user_id);
 
 CREATE TABLE public.payment_terms_ricevute (
  id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -89,10 +108,14 @@ CREATE TABLE public.payment_terms_ricevute (
  payment_date date,
  created_at timestamp with time zone DEFAULT now(),
  updated_at timestamp with time zone DEFAULT now(),
- CONSTRAINT payment_terms_pkey PRIMARY KEY (id),
- CONSTRAINT payment_terms_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id),
- CONSTRAINT payment_terms_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES fatture_ricevute(id),
+ CONSTRAINT ricevute_payment_terms_pkey PRIMARY KEY (id),
+ CONSTRAINT payment_terms_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES fatture_ricevute(id)
 );
+
+ALTER TABLE public.payment_terms_ricevute ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage only their own data" ON public.payment_terms_ricevute
+FOR ALL USING (auth.uid() = user_id);
 
 -- Add indexes for better performance
 -- CREATE INDEX idx_payment_terms_user_id ON public.payment_terms(user_id);
