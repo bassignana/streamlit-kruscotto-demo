@@ -69,8 +69,6 @@ secrets.toml file.
 
 # Features
 UPLOADER
-
-
 - get info on anagrafica cliente / profilo
 - one single uploader for emesse / ricevute
 user_data or {}
@@ -189,24 +187,24 @@ Then, after I've tested it, I can use it with more certiantly.
 CREATE TABLE invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) NOT NULL,
-    invoice_number VARCHAR(50) NOT NULL,
+    numero_fattura VARCHAR(50) NOT NULL,
     type VARCHAR(20) NOT NULL CHECK (type IN ('sale', 'purchase')),
     client_supplier VARCHAR(255) NOT NULL,
     currency VARCHAR(3) DEFAULT 'EUR',
-    total_amount DECIMAL(15,2) NOT NULL,
-    document_date DATE NOT NULL,
-    due_date DATE,
+    importo_totale_documento DECIMAL(15,2) NOT NULL,
+    data_documento DATE NOT NULL,
+    data_scadenza_pagamento DATE,
     xml_content TEXT, -- Store original XML
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Compound unique constraint
-    UNIQUE(user_id, invoice_number, type)
+    UNIQUE(user_id, numero_fattura, type)
 );
 
 -- Essential indexes
 CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_user_date ON invoices(user_id, document_date);
+CREATE INDEX IF NOT EXISTS idx_invoices_user_date ON invoices(user_id, data_documento);
 CREATE INDEX IF NOT EXISTS idx_invoices_type ON invoices(user_id, type);
 
 CREATE POLICY "Users can manage own data" ON your_table_name

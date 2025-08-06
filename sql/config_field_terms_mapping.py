@@ -6,14 +6,14 @@ Follows the same pattern as xml_mapping_emesse.py
 from datetime import date, timedelta
 
 PAYMENT_TERMS_FIELD_MAPPING = {
-    'due_date': {
+    'data_scadenza_pagamento': {
         'label': 'Data Scadenza',
         'type': 'date',
         'required': True,
         'default': lambda: date.today() + timedelta(days=30),
         'help': 'Data di scadenza del pagamento'
     },
-    'amount': {
+    'importo_pagamento_rata': {
         'label': 'Importo',
         'type': 'number',
         'required': True,
@@ -64,7 +64,7 @@ PAYMENT_TERMS_FIELD_MAPPING = {
 PAYMENT_TERMS_FIELD_GROUPS = {
     'basic_info': {
         'label': 'Informazioni Base',
-        'fields': ['due_date', 'amount', 'payment_method', 'cash_account']
+        'fields': ['data_scadenza_pagamento', 'importo_pagamento_rata', 'payment_method', 'cash_account']
     },
     'additional_info': {
         'label': 'Informazioni Aggiuntive',
@@ -78,8 +78,8 @@ PAYMENT_TERMS_FIELD_GROUPS = {
 
 # Validation rules
 VALIDATION_RULES = {
-    'amount_positive': {
-        'field': 'amount',
+    'importo_pagamento_rata_positive': {
+        'field': 'importo_pagamento_rata',
         'rule': lambda x: x > 0,
         'message': 'L\'importo deve essere maggiore di zero'
     },

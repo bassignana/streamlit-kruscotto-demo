@@ -2,4 +2,6 @@
 .streamlit/*
 fatture_emesse
 fatture_ricevute
+fe_scadenze_multiple
 __pycache__
+OLD.zip

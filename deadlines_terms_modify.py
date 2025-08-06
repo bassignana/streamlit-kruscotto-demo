@@ -15,14 +15,14 @@ CASH_ACCOUNTS = ['Banca Intesa', 'Cassa Contanti', 'Cassa Generica', 'INTESA SAN
 def load_payment_terms_from_db(supabase_client, user_id: str, invoice_id: str) -> List[Dict]:
     """Load payment terms from database for a specific invoice"""
     try:
-        result = supabase_client.table('payment_terms').select('*').eq('user_id', user_id).eq('invoice_id', invoice_id).order('due_date').execute()
+        result = supabase_client.table('payment_terms').select('*').eq('user_id', user_id).eq('invoice_id', invoice_id).order('data_scadenza_pagamento').execute()
 
         terms = []
         for row in result.data:
             terms.append({
                 'id': row['id'],
-                'due_date': datetime.strptime(row['due_date'], '%Y-%m-%d').date(),
-                'amount': float(row['amount']),
+                'data_scadenza_pagamento': datetime.strptime(row['data_scadenza_pagamento'], '%Y-%m-%d').date(),
+                'importo_pagamento_rata': float(row['importo_pagamento_rata']),
                 'payment_method': row['payment_method'],
                 'cash_account': row['cash_account'],
                 'notes': row.get('notes', ''),
@@ -66,7 +66,7 @@ def get_invoice_payment_summary(supabase_client, user_id: str, invoice_id: str) 
                 'total_terms': 0,
                 'paid_terms': 0,
                 'pending_terms': 0,
-                'total_amount': 0,
+                'importo_totale_documento': 0,
                 'paid_amount': 0,
                 'pending_amount': 0,
                 'overdue_terms': 0,
@@ -77,9 +77,9 @@ def get_invoice_payment_summary(supabase_client, user_id: str, invoice_id: str) 
         paid_terms = sum(1 for term in result.data if term['is_paid'])
         pending_terms = total_terms - paid_terms
 
-        total_amount = sum(Decimal(str(term['amount'])) for term in result.data)
-        paid_amount = sum(Decimal(str(term['amount'])) for term in result.data if term['is_paid'])
-        pending_amount = total_amount - paid_amount
+        importo_totale_documento = sum(Decimal(str(term['importo_pagamento_rata'])) for term in result.data)
+        paid_amount = sum(Decimal(str(term['importo_pagamento_rata'])) for term in result.data if term['is_paid'])
+        pending_amount = importo_totale_documento - paid_amount
 
         # Calculate overdue
         today = date.today()
@@ -88,16 +88,16 @@ def get_invoice_payment_summary(supabase_client, user_id: str, invoice_id: str) 
 
         for term in result.data:
             if not term['is_paid']:
-                due_date = datetime.strptime(term['due_date'], '%Y-%m-%d').date()
-                if due_date < today:
+                data_scadenza_pagamento = datetime.strptime(term['data_scadenza_pagamento'], '%Y-%m-%d').date()
+                if data_scadenza_pagamento < today:
                     overdue_terms += 1
-                    overdue_amount += Decimal(str(term['amount']))
+                    overdue_amount += Decimal(str(term['importo_pagamento_rata']))
 
         return {
             'total_terms': total_terms,
             'paid_terms': paid_terms,
             'pending_terms': pending_terms,
-            'total_amount': float(total_amount),
+            'importo_totale_documento': float(importo_totale_documento),
             'paid_amount': float(paid_amount),
             'pending_amount': float(pending_amount),
             'overdue_terms': overdue_terms,
@@ -116,11 +116,11 @@ def render_payment_terms_view(supabase_client, user_id: str, invoice_data: Dict)
     # # Display invoice info
     # col1, col2, col3 = st.columns(3)
     # with col1:
-    #     st.metric("📄 Fattura", invoice_data['invoice_number'])
+    #     st.metric("📄 Fattura", invoice_data['numero_fattura'])
     # with col2:
-    #     st.metric("💰 Importo Totale", f"€ {invoice_data['total_amount']:,.2f}")
+    #     st.metric("💰 Importo Totale", f"€ {invoice_data['importo_totale_documento']:,.2f}")
     # with col3:
-    #     st.metric("📅 Data", invoice_data['document_date'].strftime('%d/%m/%Y'))
+    #     st.metric("📅 Data", invoice_data['data_documento'].strftime('%d/%m/%Y'))
 
     # Load payment terms from database
     payment_terms = load_payment_terms_from_db(supabase_client, user_id, invoice_data['id'])
@@ -168,11 +168,11 @@ def render_payment_terms_view(supabase_client, user_id: str, invoice_data: Dict)
     terms_data = []
     for term in payment_terms:
         status = "✅ Pagato" if term['is_paid'] else "⏳ In Attesa"
-        if not term['is_paid'] and term['due_date'] < date.today():
+        if not term['is_paid'] and term['data_scadenza_pagamento'] < date.today():
             status = "❌ Scaduto"
 
         terms_data.append({
-            'Data Scadenza': term['due_date'].strftime('%d/%m/%Y'),
+            'Data Scadenza': term['data_scadenza_pagamento'].strftime('%d/%m/%Y'),
             'Importo €': f"{term['amount']:,.2f}",
             'Modalità': term['payment_method'],
             'Cassa': term['cash_account'],
@@ -208,12 +208,12 @@ def render_payment_terms_view(supabase_client, user_id: str, invoice_data: Dict)
             #     st.success(f"✅ **Stato attuale**: Pagato")
             # else:
             #     if df.iloc[selected_index]['Data Scadenza']:
-            #         due_date_str = df.iloc[selected_index]['Data Scadenza']
-            #         due_date = datetime.strptime(due_date_str, '%d/%m/%Y').date()
-            #         if due_date < date.today():
-            #             st.error(f"❌ **Stato attuale**: Scaduto (scadenza: {due_date_str})")
+            #         data_scadenza_pagamento_str = df.iloc[selected_index]['Data Scadenza']
+            #         data_scadenza_pagamento = datetime.strptime(data_scadenza_pagamento_str, '%d/%m/%Y').date()
+            #         if data_scadenza_pagamento < date.today():
+            #             st.error(f"❌ **Stato attuale**: Scaduto (scadenza: {data_scadenza_pagamento_str})")
             #         else:
-            #             st.info(f"⏳ **Stato attuale**: In Attesa (scadenza: {due_date_str})")
+            #             st.info(f"⏳ **Stato attuale**: In Attesa (scadenza: {data_scadenza_pagamento_str})")
 
             col1, col2 = st.columns(2)
 
@@ -276,7 +276,7 @@ def render_payment_terms_view(supabase_client, user_id: str, invoice_data: Dict)
         #                 st.warning(f"⚠️ {success_count} di {len(unpaid_terms)} scadenze aggiornate con successo")
         #
         #     with col2:
-        #         overdue_terms = [term for term in unpaid_terms if term['due_date'] < date.today()]
+        #         overdue_terms = [term for term in unpaid_terms if term['data_scadenza_pagamento'] < date.today()]
         #         if overdue_terms:
         #             st.warning(f"**{len(overdue_terms)} scadenze scadute**")
         #             if st.button("⚠️ Marca Solo Scadute Come Pagate", use_container_width=True):
@@ -326,8 +326,8 @@ def main():
 
     try:
         # Load both invoice types
-        emesse_invoices_result = supabase_client.table('fatture_emesse').select('*').eq('user_id', user_id).order('document_date', desc=True).execute()
-        ricevute_invoices_result = supabase_client.table('fatture_ricevute').select('*').eq('user_id', user_id).order('document_date', desc=True).execute()
+        emesse_invoices_result = supabase_client.table('fatture_emesse').select('*').eq('user_id', user_id).order('data_documento', desc=True).execute()
+        ricevute_invoices_result = supabase_client.table('fatture_ricevute').select('*').eq('user_id', user_id).order('data_documento', desc=True).execute()
 
         # Combine both invoice types into a single list with type identifier
         all_invoice_options = []
@@ -336,7 +336,7 @@ def main():
         # Add emesse invoices
         if emesse_invoices_result.data:
             for inv in emesse_invoices_result.data:
-                option_text = f"📤 EMESSA: {inv['invoice_number']} - € {inv['total_amount']:,.2f} ({inv['document_date']})"
+                option_text = f"📤 EMESSA: {inv['numero_fattura']} - € {inv['importo_totale_documento']:,.2f} ({inv['data_documento']})"
                 all_invoice_options.append(option_text)
                 inv['invoice_type'] = 'emesse'  # Add type identifier
                 all_invoice_data.append(inv)
@@ -344,7 +344,7 @@ def main():
         # Add ricevute invoices
         if ricevute_invoices_result.data:
             for inv in ricevute_invoices_result.data:
-                option_text = f"📥 RICEVUTA: {inv['invoice_number']} - € {inv['total_amount']:,.2f} ({inv['document_date']})"
+                option_text = f"📥 RICEVUTA: {inv['numero_fattura']} - € {inv['importo_totale_documento']:,.2f} ({inv['data_documento']})"
                 all_invoice_options.append(option_text)
                 inv['invoice_type'] = 'ricevute'  # Add type identifier
                 all_invoice_data.append(inv)
@@ -362,7 +362,7 @@ def main():
             invoice_data = all_invoice_data[selected_index]
 
             # Convert date string to date object
-            invoice_data['document_date'] = datetime.strptime(invoice_data['document_date'], '%Y-%m-%d').date()
+            invoice_data['data_documento'] = datetime.strptime(invoice_data['data_documento'], '%Y-%m-%d').date()
 
             # Show invoice type info
             invoice_type_emoji = "📤" if invoice_data['invoice_type'] == 'emesse' else "📥"

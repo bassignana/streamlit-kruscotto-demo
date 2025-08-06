@@ -15,7 +15,7 @@ def decimal_round(value: float, places: int = 2) -> Decimal:
     """Safely round a decimal value for financial calculations"""
     return Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-def validate_payment_terms(terms: List[Dict], total_amount: float) -> Tuple[bool, List[str]]:
+def validate_payment_terms(terms: List[Dict], importo_totale_documento: float) -> Tuple[bool, List[str]]:
     """Validate payment terms against total amount"""
     errors = []
 
@@ -23,17 +23,17 @@ def validate_payment_terms(terms: List[Dict], total_amount: float) -> Tuple[bool
         errors.append("Almeno una scadenza di pagamento è richiesta")
         return False, errors
 
-    total_configured = sum(Decimal(str(term.get('amount', 0))) for term in terms)
-    total_decimal = Decimal(str(total_amount))
+    total_configured = sum(Decimal(str(term.get('importo_pagamento_rata', 0))) for term in terms)
+    total_decimal = Decimal(str(importo_totale_documento))
 
     if abs(total_configured - total_decimal) > Decimal('0.01'):
         errors.append(f"La somma delle scadenze (€ {total_configured:.2f}) non corrisponde all'importo totale (€ {total_decimal:.2f})")
 
     for i, term in enumerate(terms):
-        if not term.get('due_date'):
+        if not term.get('data_scadenza_pagamento'):
             errors.append(f"Data scadenza mancante per la scadenza {i+1}")
 
-        if term.get('amount', 0) <= 0:
+        if term.get('importo_pagamento_rata', 0) <= 0:
             errors.append(f"Importo deve essere maggiore di zero per la scadenza {i+1}")
 
         if not term.get('payment_method'):
@@ -44,12 +44,12 @@ def validate_payment_terms(terms: List[Dict], total_amount: float) -> Tuple[bool
 
     return len(errors) == 0, errors
 
-def auto_split_payment(total_amount: float, num_installments: int, start_date: date, interval_days: int = 30) -> List[Dict]:
+def auto_split_payment(importo_totale_documento: float, num_installments: int, start_date: date, interval_days: int = 30) -> List[Dict]:
     """Automatically split payment into equal installments"""
     if num_installments <= 0:
         return []
 
-    total_decimal = Decimal(str(total_amount))
+    total_decimal = Decimal(str(importo_totale_documento))
     amount_per_installment = total_decimal / num_installments
 
     terms = []
@@ -65,8 +65,8 @@ def auto_split_payment(total_amount: float, num_installments: int, start_date: d
             total_allocated += installment_amount
 
         term = {
-            'due_date': start_date + timedelta(days=interval_days * (i + 1)),
-            'amount': float(installment_amount),
+            'data_scadenza_pagamento': start_date + timedelta(days=interval_days * (i + 1)),
+            'importo_pagamento_rata': float(installment_amount),
             'payment_method': 'Bonifico',
             'cash_account': 'Banca Intesa',
             'notes': f'Rata {i + 1} di {num_installments}'
@@ -78,14 +78,14 @@ def auto_split_payment(total_amount: float, num_installments: int, start_date: d
 def load_payment_terms_from_db(supabase_client, user_id: str, invoice_id: str) -> List[Dict]:
     """Load payment terms from database for a specific invoice"""
     try:
-        result = supabase_client.table('payment_terms').select('*').eq('user_id', user_id).eq('invoice_id', invoice_id).order('due_date').execute()
+        result = supabase_client.table('payment_terms').select('*').eq('user_id', user_id).eq('invoice_id', invoice_id).order('data_scadenza_pagamento').execute()
 
         terms = []
         for row in result.data:
             terms.append({
                 'id': row['id'],
-                'due_date': datetime.strptime(row['due_date'], '%Y-%m-%d').date(),
-                'amount': float(row['amount']),
+                'data_scadenza_pagamento': datetime.strptime(row['data_scadenza_pagamento'], '%Y-%m-%d').date(),
+                'importo_pagamento_rata': float(row['importo_pagamento_rata']),
                 'payment_method': row['payment_method'],
                 'cash_account': row['cash_account'],
                 'notes': row.get('notes', ''),
@@ -110,8 +110,8 @@ def save_payment_terms_to_db(supabase_client, user_id: str, invoice_id: str, ter
             payment_term_data = {
                 'user_id': user_id,
                 'invoice_id': invoice_id,
-                'due_date': term['due_date'].isoformat(),
-                'amount': float(decimal_round(term['amount'])),
+                'data_scadenza_pagamento': term['data_scadenza_pagamento'].isoformat(),
+                'importo_pagamento_rata': float(decimal_round(term['importo_pagamento_rata'])),
                 'payment_method': term['payment_method'],
                 'cash_account': term['cash_account'],
                 'notes': term.get('notes', ''),
@@ -159,7 +159,7 @@ def get_invoice_payment_summary(supabase_client, user_id: str, invoice_id: str) 
                 'total_terms': 0,
                 'paid_terms': 0,
                 'pending_terms': 0,
-                'total_amount': 0,
+                'importo_totale_documento': 0,
                 'paid_amount': 0,
                 'pending_amount': 0,
                 'overdue_terms': 0,
@@ -170,9 +170,9 @@ def get_invoice_payment_summary(supabase_client, user_id: str, invoice_id: str) 
         paid_terms = sum(1 for term in result.data if term['is_paid'])
         pending_terms = total_terms - paid_terms
 
-        total_amount = sum(Decimal(str(term['amount'])) for term in result.data)
-        paid_amount = sum(Decimal(str(term['amount'])) for term in result.data if term['is_paid'])
-        pending_amount = total_amount - paid_amount
+        importo_totale_documento = sum(Decimal(str(term['importo_pagamento_rata'])) for term in result.data)
+        paid_amount = sum(Decimal(str(term['importo_pagamento_rata'])) for term in result.data if term['is_paid'])
+        pending_amount = importo_totale_documento - paid_amount
 
         # Calculate overdue
         today = date.today()
@@ -181,8 +181,8 @@ def get_invoice_payment_summary(supabase_client, user_id: str, invoice_id: str) 
 
         for term in result.data:
             if not term['is_paid']:
-                due_date = datetime.strptime(term['due_date'], '%Y-%m-%d').date()
-                if due_date < today:
+                data_scadenza_pagamento = datetime.strptime(term['data_scadenza_pagamento'], '%Y-%m-%d').date()
+                if data_scadenza_pagamento < today:
                     overdue_terms += 1
                     overdue_amount += Decimal(str(term['amount']))
 
@@ -190,7 +190,7 @@ def get_invoice_payment_summary(supabase_client, user_id: str, invoice_id: str) 
             'total_terms': total_terms,
             'paid_terms': paid_terms,
             'pending_terms': pending_terms,
-            'total_amount': float(total_amount),
+            'importo_totale_documento': float(importo_totale_documento),
             'paid_amount': float(paid_amount),
             'pending_amount': float(pending_amount),
             'overdue_terms': overdue_terms,
@@ -208,7 +208,7 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
     if 'current_payment_terms' not in st.session_state or not st.session_state.current_payment_terms:
         st.session_state.current_payment_terms = [
             {
-                'due_date': term['due_date'],
+                'data_scadenza_pagamento': term['data_scadenza_pagamento'],
                 'amount': term['amount'],
                 'payment_method': term['payment_method'],
                 'cash_account': term['cash_account'],
@@ -224,11 +224,11 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
     # # Display invoice info
     # col1, col2, col3 = st.columns(3)
     # with col1:
-    #     st.metric("📄 Fattura", invoice_data['invoice_number'])
+    #     st.metric("📄 Fattura", invoice_data['numero_fattura'])
     # with col2:
-    #     st.metric("💰 Importo Totale", f"€ {invoice_data['total_amount']:,.2f}")
+    #     st.metric("💰 Importo Totale", f"€ {invoice_data['importo_totale_documento']:,.2f}")
     # with col3:
-    #     st.metric("📅 Data", invoice_data['document_date'].strftime('%d/%m/%Y'))
+    #     st.metric("📅 Data", invoice_data['data_documento'].strftime('%d/%m/%Y'))
     #
     # st.markdown("---")
 
@@ -246,8 +246,8 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
         with col1:
             if st.button("📅 Pagamento Unico", use_container_width=True):
                 st.session_state.current_payment_terms = [{
-                    'due_date': invoice_data['document_date'] + timedelta(days=30),
-                    'amount': invoice_data['total_amount'],
+                    'data_scadenza_pagamento': invoice_data['data_documento'] + timedelta(days=30),
+                    'amount': invoice_data['importo_totale_documento'],
                     'payment_method': 'Bonifico',
                     'cash_account': 'Banca Intesa',
                     'notes': 'Pagamento unico',
@@ -259,7 +259,7 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
         with col2:
             if st.button("📊 2 Rate Mensili", use_container_width=True):
                 terms = auto_split_payment(
-                    invoice_data['total_amount'], 2, invoice_data['document_date'], 30
+                    invoice_data['importo_totale_documento'], 2, invoice_data['data_documento'], 30
                 )
                 # Add payment status fields
                 for term in terms:
@@ -271,7 +271,7 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
         with col3:
             if st.button("📈 3 Rate Mensili", use_container_width=True):
                 terms = auto_split_payment(
-                    invoice_data['total_amount'], 3, invoice_data['document_date'], 30
+                    invoice_data['importo_totale_documento'], 3, invoice_data['data_documento'], 30
                 )
                 # Add payment status fields
                 for term in terms:
@@ -293,7 +293,7 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
         with split_col3:
             if st.button("Applica Riconfigurazione", use_container_width=True):
                 terms = auto_split_payment(
-                    invoice_data['total_amount'], num_installments, invoice_data['document_date'], interval_days
+                    invoice_data['importo_totale_documento'], num_installments, invoice_data['data_documento'], interval_days
                 )
                 # Add payment status fields
                 for term in terms:
@@ -304,11 +304,11 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
 
     # Summary
     total_configured = sum(term['amount'] for term in st.session_state.current_payment_terms)
-    remaining = invoice_data['total_amount'] - total_configured
+    remaining = invoice_data['importo_totale_documento'] - total_configured
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Importo Totale", f"€ {invoice_data['total_amount']:,.2f}")
+        st.metric("Importo Totale", f"€ {invoice_data['importo_totale_documento']:,.2f}")
     with col2:
         st.metric("Importo Configurato", f"€ {total_configured:,.2f}")
     with col3:
@@ -326,10 +326,10 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
             with col1:
                 new_date = st.date_input(
                     "Data Scadenza",
-                    value=term['due_date'],
+                    value=term['data_scadenza_pagamento'],
                     key=f"date_{i}"
                 )
-                st.session_state.current_payment_terms[i]['due_date'] = new_date
+                st.session_state.current_payment_terms[i]['data_scadenza_pagamento'] = new_date
 
             with col2:
                 new_amount = st.number_input(
@@ -391,7 +391,7 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
     with col1:
         if st.button("Aggiungi Scadenza", use_container_width=True):
             new_term = {
-                'due_date': invoice_data['document_date'] + timedelta(days=30),
+                'data_scadenza_pagamento': invoice_data['data_documento'] + timedelta(days=30),
                 'amount': 0.0,
                 'payment_method': 'Bonifico',
                 'cash_account': 'Banca Intesa',
@@ -407,9 +407,9 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
             if st.button("Dividi Importo tra scadenze", use_container_width=True):
                 if len(st.session_state.current_payment_terms) > 0:
                     terms = auto_split_payment(
-                        invoice_data['total_amount'],
+                        invoice_data['importo_totale_documento'],
                         len(st.session_state.current_payment_terms),
-                        invoice_data['document_date']
+                        invoice_data['data_documento']
                     )
                     # Add payment status fields
                     for term in terms:
@@ -424,7 +424,7 @@ def render_payment_terms_modification_form(supabase_client, user_id: str, invoic
 
     with col1:
         if st.button("💾 Salva Modifiche", type="primary", use_container_width=True):
-            is_valid, errors = validate_payment_terms(st.session_state.current_payment_terms, invoice_data['total_amount'])
+            is_valid, errors = validate_payment_terms(st.session_state.current_payment_terms, invoice_data['importo_totale_documento'])
 
             if not is_valid:
                 for error in errors:
@@ -450,11 +450,11 @@ def render_payment_terms_view(supabase_client, user_id: str, invoice_data: Dict)
     # # Display invoice info
     # col1, col2, col3 = st.columns(3)
     # with col1:
-    #     st.metric("📄 Fattura", invoice_data['invoice_number'])
+    #     st.metric("📄 Fattura", invoice_data['numero_fattura'])
     # with col2:
-    #     st.metric("💰 Importo Totale", f"€ {invoice_data['total_amount']:,.2f}")
+    #     st.metric("💰 Importo Totale", f"€ {invoice_data['importo_totale_documento']:,.2f}")
     # with col3:
-    #     st.metric("📅 Data", invoice_data['document_date'].strftime('%d/%m/%Y'))
+    #     st.metric("📅 Data", invoice_data['data_documento'].strftime('%d/%m/%Y'))
 
     # Load payment terms from database
     payment_terms = load_payment_terms_from_db(supabase_client, user_id, invoice_data['id'])
@@ -475,8 +475,8 @@ def render_payment_terms_view(supabase_client, user_id: str, invoice_data: Dict)
             if st.button("⚡ Crea Pagamento Unico", use_container_width=True):
                 # Quick create single payment
                 single_term = [{
-                    'due_date': invoice_data['document_date'] + timedelta(days=30),
-                    'amount': invoice_data['total_amount'],
+                    'data_scadenza_pagamento': invoice_data['data_documento'] + timedelta(days=30),
+                    'amount': invoice_data['importo_totale_documento'],
                     'payment_method': 'Bonifico',
                     'cash_account': 'Banca Intesa',
                     'notes': 'Pagamento unico creato rapidamente',
@@ -516,11 +516,11 @@ def render_payment_terms_view(supabase_client, user_id: str, invoice_data: Dict)
     terms_data = []
     for term in payment_terms:
         status = "✅ Pagato" if term['is_paid'] else "⏳ In Attesa"
-        if not term['is_paid'] and term['due_date'] < date.today():
+        if not term['is_paid'] and term['data_scadenza_pagamento'] < date.today():
             status = "❌ Scaduto"
 
         terms_data.append({
-            'Data Scadenza': term['due_date'].strftime('%d/%m/%Y'),
+            'Data Scadenza': term['data_scadenza_pagamento'].strftime('%d/%m/%Y'),
             'Importo €': f"{term['amount']:,.2f}",
             'Modalità': term['payment_method'],
             'Cassa': term['cash_account'],
@@ -628,8 +628,8 @@ def main():
     # Load invoices for selection
     try:
         # Load both invoice types
-        emesse_invoices_result = supabase_client.table('fatture_emesse').select('*').eq('user_id', user_id).order('document_date', desc=True).execute()
-        ricevute_invoices_result = supabase_client.table('fatture_ricevute').select('*').eq('user_id', user_id).order('document_date', desc=True).execute()
+        emesse_invoices_result = supabase_client.table('fatture_emesse').select('*').eq('user_id', user_id).order('data_documento', desc=True).execute()
+        ricevute_invoices_result = supabase_client.table('fatture_ricevute').select('*').eq('user_id', user_id).order('data_documento', desc=True).execute()
 
         # Combine both invoice types into a single list with type identifier
         all_invoice_options = []
@@ -638,7 +638,7 @@ def main():
         # Add emesse invoices
         if emesse_invoices_result.data:
             for inv in emesse_invoices_result.data:
-                option_text = f"📤 EMESSA: {inv['invoice_number']} - € {inv['total_amount']:,.2f} ({inv['document_date']})"
+                option_text = f"📤 EMESSA: {inv['numero_fattura']} - € {inv['importo_totale_documento']:,.2f} ({inv['data_documento']})"
                 all_invoice_options.append(option_text)
                 inv['invoice_type'] = 'emesse'  # Add type identifier
                 all_invoice_data.append(inv)
@@ -646,7 +646,7 @@ def main():
         # Add ricevute invoices
         if ricevute_invoices_result.data:
             for inv in ricevute_invoices_result.data:
-                option_text = f"📥 RICEVUTA: {inv['invoice_number']} - € {inv['total_amount']:,.2f} ({inv['document_date']})"
+                option_text = f"📥 RICEVUTA: {inv['numero_fattura']} - € {inv['importo_totale_documento']:,.2f} ({inv['data_documento']})"
                 all_invoice_options.append(option_text)
                 inv['invoice_type'] = 'ricevute'  # Add type identifier
                 all_invoice_data.append(inv)
@@ -664,7 +664,7 @@ def main():
             invoice_data = all_invoice_data[selected_index]
 
             # Convert date string to date object
-            invoice_data['document_date'] = datetime.strptime(invoice_data['document_date'], '%Y-%m-%d').date()
+            invoice_data['data_documento'] = datetime.strptime(invoice_data['data_documento'], '%Y-%m-%d').date()
 
             # Show invoice type info
             invoice_type_emoji = "📤" if invoice_data['invoice_type'] == 'emesse' else "📥"

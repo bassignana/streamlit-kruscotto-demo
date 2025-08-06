@@ -1,22 +1,22 @@
--- Not used since switching to supabase built-in auth
--- CREATE TABLE public.users (
---   id uuid NOT NULL DEFAULT gen_random_uuid(),
---   email character varying NOT NULL UNIQUE,
---   password_hash character varying NOT NULL,
---   full_name character varying NOT NULL,
---   created_at timestamp with time zone DEFAULT now(),
---   last_login timestamp with time zone,
---   is_active boolean DEFAULT true,
---   CONSTRAINT users_pkey PRIMARY KEY (id)
--- );
-
+-- 1. Nomi inglesi per campi comuni, italiani per campi comuni
+-- 2. nomi univoci che iniziano con le lettere prima degli underscore delle tabelle,
+-- in modo da poter fare un search and replace in caso di cambio nome, o aggiunta.
+-- ? Rompo il sistema di config XML? No, tranne se seleziono un campo sql, che dovra' essere
+--   declinato con il prefisso corretto in ogni operazione
+-- ? Ha senso separare nomi come id, created_at ecc? tutta la tabella deve avere il prefisso,
+--   perche' quando faccio le viste avro' a che fare con campi ti tabelle diverse ma con nome uguale?
+--   Forse no, perche' nelle viste posso specificare il nome della tabella,
+-- 3. Testare il parsing xml con findall
+-- 4. Rifare direttamente il gestore delle scadenze? sicuramente andra' rivisto
+-- Prefix are composed by the first letter of the table and every letter before the underscore,
+-- all in lowercase
 CREATE TABLE public.user_data (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
   -- codice fiscale e partita iva sono necessari per identificare l'azienda
   -- all'interno delle fatture
-  codice_fiscale varchar NOT NULL,
-  partita_iva varchar NOT NULL,
+  ud_codice_fiscale varchar NOT NULL,
+  ud_partita_iva varchar NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_data_pkey PRIMARY KEY (id)
@@ -30,11 +30,21 @@ FOR ALL USING (auth.uid() = user_id);
 CREATE TABLE public.fatture_emesse (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  id_codice varchar NOT NULL,
-  invoice_number varchar NOT NULL,
-  document_date date NOT NULL,
-  total_amount numeric NOT NULL,
-  due_date date,
+  fe_partita_iva_prestatore varchar NOT NULL,
+  fe_numero_fattura varchar NOT NULL,
+  fe_data_documento date NOT NULL,
+  fe_importo_totale_documento numeric NOT NULL,
+  fe_partita_iva_committente numeric,
+  fe_codice_fiscale_committente varchar,
+  fe_nome_committente varchar,
+  fe_cognome_committente varchar,
+  fe_denominazione_committente varchar,
+  -- if there is one data_scadenza_pagamento, it goes in this table, otherwise
+  -- all the dates and respective quantity go as 2 or more 'scadenza' in another table
+  fe_data_scadenza_pagamento date,
+  -- name and IBAN cassa relevant only for Fatture Emesse
+  fe_nome_cassa varchar,
+  fe_IBAN_cassa varchar,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT fatture_emesse_pkey PRIMARY KEY (id)
@@ -48,16 +58,19 @@ FOR ALL USING (auth.uid() = user_id);
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_emesse
 ADD CONSTRAINT emesse_unique_composite_key
-UNIQUE (id_codice, invoice_number, document_date);
+UNIQUE (partita_iva_prestatore, numero_fattura, data_documento);
 
 CREATE TABLE public.fatture_ricevute (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL,
-    id_codice varchar NOT NULL,
-    invoice_number varchar NOT NULL,
-    document_date date NOT NULL,
-    total_amount numeric NOT NULL,
-    due_date date,
+    fr_partita_iva_prestatore varchar NOT NULL,
+    fr_numero_fattura varchar NOT NULL,
+    fr_data_documento date NOT NULL,
+    fr_denominazione_prestatore varchar,
+    fr_importo_totale_documento numeric NOT NULL,
+    -- if there is one data_scadenza_pagamento, it goes in this table, otherwise
+    -- all the dates and respective quantity go as 2 or more 'scadenza' in another table
+    fr_data_scadenza_pagamento date,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT fatture_ricevute_pkey PRIMARY KEY (id)
@@ -71,56 +84,58 @@ FOR ALL USING (auth.uid() = user_id);
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_ricevute
 ADD CONSTRAINT ricevute_unique_composite_key
-UNIQUE (id_codice, invoice_number, document_date);
+UNIQUE (partita_iva_prestatore, numero_fattura, data_documento);
 
-CREATE TABLE public.payment_terms_emesse (
+CREATE TABLE public.rate_fatture_emesse (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  invoice_id uuid NOT NULL,
-  due_date date NOT NULL,
-  amount numeric(10,2) NOT NULL CHECK (amount > 0),
-  payment_method varchar NOT NULL,
-  cash_account varchar NOT NULL,
-  notes text,
-  is_paid boolean DEFAULT false,
-  payment_date date,
+  rfe_numero_fattura uuid NOT NULL,
+  rfe_data_scadenza_rata date NOT NULL,
+  rfe_importo_pagamento_rata numeric(10,2) NOT NULL CHECK (importo_pagamento_rata > 0),
+  rfe_nome_cassa varchar NOT NULL,
+  rfe_IBAN_cassa varchar NOT NULL,
+  rfe_notes text,
+--  rfe_is_paid boolean DEFAULT false,
+-- is_paid can be derived by checking the field rfe_data_pagamento_rata for null
+  rfe_data_pagamento_rata date,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT emesse_payment_terms_pkey PRIMARY KEY (id),
-  CONSTRAINT payment_terms_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES fatture_emesse(id)
+  CONSTRAINT rfe_pkey PRIMARY KEY (id),
+  CONSTRAINT rfe_numero_fattura_fkey FOREIGN KEY (rfe_numero_fattura) REFERENCES fatture_emesse(fe_numero_fattura)
 );
 
-ALTER TABLE public.payment_terms_emesse ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rate_fatture_emesse ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.payment_terms_emesse
+CREATE POLICY "Users can manage only their own data" ON public.rate_fatture_emesse
 FOR ALL USING (auth.uid() = user_id);
 
-CREATE TABLE public.payment_terms_ricevute (
+CREATE TABLE public.rate_fatture_ricevute (
  id uuid NOT NULL DEFAULT gen_random_uuid(),
  user_id uuid NOT NULL,
- invoice_id uuid NOT NULL,
- due_date date NOT NULL,
- amount numeric(10,2) NOT NULL CHECK (amount > 0),
- payment_method varchar NOT NULL,
- cash_account varchar NOT NULL,
- notes text,
- is_paid boolean DEFAULT false,
- payment_date date,
+ rfr_numero_fattura uuid NOT NULL,
+ rfr_data_scadenza_rata date NOT NULL,
+ rfr_importo_pagamento_rata numeric(10,2) NOT NULL CHECK (importo_pagamento_rata > 0),
+-- Here, casse will have to be inputted by hand, since is the cassa from which I pay the
+-- fattura ricevuta.
+ rfr_nome_cassa varchar NOT NULL,
+ rfr_IBAN_cassa varchar NOT NULL,
+ rfr_notes text,
+ rfr_data_pagamento_rata date,
  created_at timestamp with time zone DEFAULT now(),
  updated_at timestamp with time zone DEFAULT now(),
- CONSTRAINT ricevute_payment_terms_pkey PRIMARY KEY (id),
- CONSTRAINT payment_terms_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES fatture_ricevute(id)
+ CONSTRAINT rfr_pkey PRIMARY KEY (id),
+ CONSTRAINT rfr_numero_fattura_fkey FOREIGN KEY (rfr_numero_fattura) REFERENCES fatture_ricevute(fr_numero_fattura)
 );
 
-ALTER TABLE public.payment_terms_ricevute ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rate_fatture_ricevute ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.payment_terms_ricevute
+CREATE POLICY "Users can manage only their own data" ON public.rate_fatture_ricevute
 FOR ALL USING (auth.uid() = user_id);
 
 -- Add indexes for better performance
 -- CREATE INDEX idx_payment_terms_user_id ON public.payment_terms(user_id);
 -- CREATE INDEX idx_payment_terms_invoice_id ON public.payment_terms(invoice_id);
--- CREATE INDEX idx_payment_terms_due_date ON public.payment_terms(due_date);
+-- CREATE INDEX idx_payment_terms_data_scadenza_pagamento ON public.payment_terms(data_scadenza_pagamento);
 -- CREATE INDEX idx_payment_terms_is_paid ON public.payment_terms(is_paid);
 
 -- -- Add RLS (Row Level Security) policies
@@ -158,12 +173,12 @@ $$ language 'plpgsql';
 
 -- Create trigger to automatically update updated_at
 CREATE TRIGGER update_payment_terms_updated_at
-    BEFORE UPDATE ON public.payment_terms_emesse
+    BEFORE UPDATE ON public.rate_fatture_emesse
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_payment_terms_updated_at
-    BEFORE UPDATE ON public.payment_terms_ricevute
+    BEFORE UPDATE ON public.rate_fatture_ricevute
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
@@ -188,12 +203,12 @@ $$ language 'plpgsql';
 
 -- Create trigger for INSERT operations
 CREATE TRIGGER set_payment_terms_created_at
-    BEFORE INSERT ON public.payment_terms_emesse
+    BEFORE INSERT ON public.rate_fatture_emesse
     FOR EACH ROW
     EXECUTE FUNCTION set_created_at_column();
 
 CREATE TRIGGER set_payment_terms_created_at
-    BEFORE INSERT ON public.payment_terms_ricevute
+    BEFORE INSERT ON public.rate_fatture_ricevute
     FOR EACH ROW
     EXECUTE FUNCTION set_created_at_column();
 

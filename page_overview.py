@@ -21,11 +21,11 @@ def get_invoices_statistics(supabase_client, user_id):
 
         total_invoices_count = emesse_invoices_count + ricevute_invoices_count
 
-        emesse_with_terms_result = supabase_client.table('payment_terms_emesse').select('DISTINCT invoice_id').eq('user_id', user_id).execute()
+        emesse_with_terms_result = supabase_client.table('rate_fatture_emesse').select('DISTINCT invoice_id').eq('user_id', user_id).execute()
         emesse_with_terms = emesse_with_terms_result.data or []
         emesse_with_terms_count = len(emesse_with_terms)
 
-        ricevute_with_terms_result = supabase_client.table('payment_terms_ricevute').select('DISTINCT invoice_id').eq('user_id', user_id).execute()
+        ricevute_with_terms_result = supabase_client.table('rate_fatture_ricevute').select('DISTINCT invoice_id').eq('user_id', user_id).execute()
         ricevute_with_terms = ricevute_with_terms_result.data or []
         ricevute_with_terms_count = len(ricevute_with_terms)
 
@@ -63,19 +63,19 @@ def get_monthly_terms_projection(supabase_client, user_id, months_ahead = 12):
 
         # Load payment terms within the date range
         # terms_result = supabase_client.table('payment_terms').select('''
-        #     due_date, amount, invoice_id
-        # ''').eq('user_id', user_id).gte('due_date', start_date.isoformat()).lt('due_date', end_date.isoformat()).execute()
+        #     data_scadenza_pagamento, amount, invoice_id
+        # ''').eq('user_id', user_id).gte('data_scadenza_pagamento', start_date.isoformat()).lt('data_scadenza_pagamento', end_date.isoformat()).execute()
         #
         # terms_data = terms_result.data or []
 
-        emesse_terms_result = supabase_client.table('payment_terms_emesse').select('''
-            due_date, amount
-        ''').eq('user_id', user_id).gte('due_date', start_date.isoformat()).lt('due_date', end_date.isoformat()).execute()
+        emesse_terms_result = supabase_client.table('rate_fatture_emesse').select('''
+            data_scadenza_pagamento, importo_pagamento_rata
+        ''').eq('user_id', user_id).gte('data_scadenza_pagamento', start_date.isoformat()).lt('data_scadenza_pagamento', end_date.isoformat()).execute()
         emesse_terms = emesse_terms_result.data or []
 
-        ricevute_terms_result = supabase_client.table('payment_terms_ricevute').select('''
-            due_date, amount
-        ''').eq('user_id', user_id).gte('due_date', start_date.isoformat()).lt('due_date', end_date.isoformat()).execute()
+        ricevute_terms_result = supabase_client.table('rate_fatture_ricevute').select('''
+            data_scadenza_pagamento, importo_pagamento_rata
+        ''').eq('user_id', user_id).gte('data_scadenza_pagamento', start_date.isoformat()).lt('data_scadenza_pagamento', end_date.isoformat()).execute()
         ricevute_terms = ricevute_terms_result.data or []
 
 
@@ -106,11 +106,11 @@ def get_monthly_terms_projection(supabase_client, user_id, months_ahead = 12):
             ricevute_total = Decimal('0')
 
             for term in terms_data:
-                term_date = datetime.strptime(term['due_date'], '%Y-%m-%d').date()
+                term_date = datetime.strptime(term['data_scadenza_pagamento'], '%Y-%m-%d').date()
                 term_month = term_date.strftime('%Y-%m')
 
                 if term_month == month_year:
-                    amount = Decimal(str(term['amount']))
+                    amount = Decimal(str(term['importo_pagamento_rata']))
                     if term['invoice_id'] in emesse_ids:
                         emesse_total += amount
                     elif term['invoice_id'] in ricevute_ids:

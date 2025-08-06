@@ -90,10 +90,10 @@ def render_add_form(supabase_client, table_name, fields_config, display_name = N
                             # todo: for resetting fields on reload I have to delete these
                             # keys in the session state, or understand where they are formed
                             # and clean them up some other way.
-                            # "invoice_number_add_fatture_emesse":"1"
-                            # "id_codice_add_fatture_emesse":"1"
-                            # "due_date_add_fatture_emesse":NULL
-                            # "document_date_add_fatture_emesse":"datetime.date(2025, 7, 31)"
+                            # "numero_fattura_add_fatture_emesse":"1"
+                            # "partita_iva_prestatore_add_fatture_emesse":"1"
+                            # "data_scadenza_pagamento_add_fatture_emesse":NULL
+                            # "data_documento_add_fatture_emesse":"datetime.date(2025, 7, 31)"
                             st.rerun()
                         except Exception as e:
                             st.error("Error inserting data:", e)
@@ -609,7 +609,7 @@ def render_data_table(supabase_client, user_id, table_name, fields_config, displ
 
             for idx, row in data_df.iterrows():
                 # Create a readable identifier
-                identifier_fields = ['invoice_number', 'name', 'numero', 'cliente']
+                identifier_fields = ['numero_fattura', 'name', 'numero', 'cliente']
                 identifier = None
 
                 for field in identifier_fields:
@@ -702,3 +702,141 @@ def get_field_label(fields_config, field_name):
     """Get display label for field"""
     config = fields_config.get(field_name, {})
     return config.get('label', field_name.replace('_', ' ').title())
+
+def render_generic_xml_upload_section(supabase_client, table_name, fields_config, display_name):
+    """Render XML file upload and processing section"""
+    st.subheader(f"Caricamento fatture formato XML")
+
+    if 'xml_processing_results' not in st.session_state:
+        st.session_state.xml_processing_results = None
+    if 'xml_processing_stage' not in st.session_state:
+        st.session_state.xml_processing_stage = 'upload'  # upload -> processed -> saved
+
+    uploaded_files = st.file_uploader(
+        "Trascina qui le tue fatture in formato XML o clicca per selezionare",
+        type=['xml'],
+        accept_multiple_files=True,
+        help="Carica fino a 20 fatture XML contemporaneamente"
+    )
+
+    if uploaded_files:
+        st.success(f"{len(uploaded_files)} file pronti per il caricamento.")
+
+        with st.expander("📋 File da elaborare", expanded=True):
+            for i, file in enumerate(uploaded_files, 1):
+                st.write(f"**{i}.** {file.name} ({file.size} bytes)")
+
+        col1, col2 = st.columns([1, 3])
+
+        with col1:
+            process_button = st.button("Elabora Fatture", type="primary", use_container_width=True)
+
+        with col2:
+            if st.button("Annulla", use_container_width=True):
+                st.rerun()
+
+        if process_button:
+            with st.spinner("Elaborazione XML in corso..."):
+                results = process_xml_list(uploaded_files)
+                st.session_state.xml_processing_results = results
+                st.session_state.xml_processing_stage = 'processed'
+                st.rerun()  # Rerun to show results
+
+        if st.session_state.xml_processing_results and st.session_state.xml_processing_stage == 'processed':
+            results = st.session_state.xml_processing_results
+
+            # Show processing results
+            successful_results = [r for r in results if r['status'] == 'success']
+            error_results = [r for r in results if r['status'] == 'error']
+
+            st.write("---")
+            st.subheader("📊 Risultati Elaborazione")
+
+            # Summary metrics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Totale File", len(results))
+            with col2:
+                st.metric("Elaborati", len(successful_results), delta=f"+{len(successful_results)}")
+            with col3:
+                st.metric("Errori", len(error_results), delta=f"+{len(error_results)}" if error_results else None)
+
+            # Show errors if any
+            if error_results:
+                st.error("⚠️ Alcuni file presentano errori:")
+                # for error_result in error_results:
+                #     st.write(f"❌ **{error_result['filename']}**: {error_result['error']}")
+
+            # Show successful results for preview
+            if successful_results:
+                st.success("✅ File elaborati con successo:")
+
+                # Create preview dataframe
+                preview_data = []
+                for result in successful_results:
+                    row = result['data'].copy()
+                    row['filename'] = result['filename']
+                    preview_data.append(row)
+
+                preview_df = pd.DataFrame(preview_data)
+
+                # Format preview data for display
+                display_df = preview_df.copy()
+                # for col in display_df.columns:
+                #     if col in fields_config:
+                #         field_type = get_field_type(fields_config, col)
+                #         if field_type == 'decimal':
+                #             display_df[col] = display_df[col].apply(
+                #                 lambda x: f"€ {float(x):,.2f}" if pd.notna(x) and x != '' else ""
+                #             )
+                #         elif field_type == 'date':
+                #             display_df[col] = pd.to_datetime(display_df[col], errors='coerce').dt.strftime('%d/%m/%Y')
+                #
+                # # Rename columns for display
+                # display_columns = {'filename': 'Nome File'}
+                # for col in display_df.columns:
+                #     if col in fields_config:
+                #         display_columns[col] = get_field_label(fields_config, col)
+                #
+                # display_df = display_df.rename(columns=display_columns)
+                st.dataframe(display_df, use_container_width=True)
+
+                # Confirmation to save to database
+                st.write("---")
+                st.subheader("💾 Salvataggio nel Database")
+
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button("✅ Conferma e Salva nel Database", type="primary", use_container_width=True):
+                        with st.spinner("Salvataggio in corso..."):
+                            try:
+
+                                # Data preprocessing before insert in DB
+                                # Copying data in case I'll use successful_results for visualization.
+                                data_to_insert = [ r['data'] for r in successful_results]
+                                for data in data_to_insert:
+                                    # With postgres triggers, created_at and updated_at should be
+                                    # automatically updated by the database.
+                                    # data['data']['created_at'] = datetime.now().isoformat()
+                                    # data['data']['updated_at'] = datetime.now().isoformat()
+                                    data['user_id'] = st.session_state['user']['id']
+
+                                result = supabase_client.table(table_name).insert(data_to_insert).execute()
+                                print("Insert successful:", result.data)
+                                st.success("Fatture salvate con successo nel database!")
+
+                                # Clear session state after successful save
+                                st.session_state.xml_processing_results = None
+                                st.session_state.xml_processing_stage = 'saved'
+
+                                time.sleep(2)
+                                st.rerun()
+
+                            except Exception as e:
+                                st.error(f"❌ Errore durante il salvataggio: {str(e)}")
+                                print(f"Save error: {str(e)}")
+                                raise
+
+                with col2:
+                    if st.button("❌ Annulla", use_container_width=True):
+                        st.rerun()

@@ -1,29 +1,27 @@
 """
-# todo: update docs
-
-Parses xml files to appropriate data structure below, all in strings.
+Parses xml files to appropriate data structure below,
+all in strings. <- todo check this
 The conversion is not handled here. UNIX. Testable. All strings.
 
 input: [file1.xml, ..., ] at least one file.
+todo: checking that the list is not empty could be a good example of
+      global error to handle with golang style errors.
 output:
-    extracted_data = {}
-    extracted_data[sql_field_name] = tag_value
 
     xmls = []
     xmls.append({
                     'filename': filename,
                     'data': extracted_data,
                     'status' : 'success'
+                    'error_message': ''
                 })
-
-extracted_data['status'] = 'success'
 
 If run in streamlit app, reads from uploader,
 if run manually via terminal, will read via hardcoded folder.
 
 REPEATED STRUCTURES:
-For now, don't manage repeated nested structure. But in the future,
-the following should be valid also.
+Should manage both unique and not unique tags. For not unique tags, values are
+appended in a list.
 
 STREAMLIT UPLOADER COMPONENT:
 Streamlit file uploader returns a list of files,
@@ -31,17 +29,9 @@ even if there is just one file uploaded if the option
 accept_multiple_files = True.
 
 STANDALONE TESTING:
-Usage: python3 components/xml_processing/invoice_xml_processor.py
+Usage: python3 invoice_xml_processor.py
 The edge case where I want to test just one file outside of a streamlit
 application, has to be solved by putting a single file in one folder for now.
-
-NO CONVERSIONS IN THIS FILE:
-Conversion can be tricky, for example in the tag Numero
-can be present values like 2/PA, so
-1. doing two things, parsing and converting, is against unix philosophy
-2. conversion is hard and used only where string is not a viable option.
-
-DONE: add handling of failed processing without blocking successful uploads.
 """
 
 import xml.etree.ElementTree as ET
@@ -49,7 +39,7 @@ import os
 import glob
 from xml_mapping_emesse import XML_FIELD_MAPPING
 
-def process_xml_list(xml_files: list) -> list:
+def process_xml_list(xml_files: list) -> (list, str):
     """
     Take a list of xml files paths or a Streamlit UploadedFile object.
     For each file extract data based on config,
@@ -57,59 +47,98 @@ def process_xml_list(xml_files: list) -> list:
     of extraction operation and uploaded file name.
     """
     extracted_info = []
-
+    default_error_message = 'Unknown error'
     for file in xml_files:
-
-        # Check if it's a Streamlit UploadedFile object
-        if hasattr(file, 'name') and hasattr(file, 'read'):
-            filename = file.name
-            xml_content = file.read()
-            file.seek(0)  # Reset file pointer
-            xml_tree = ET.ElementTree(ET.fromstring(xml_content))
-        else:
-            # It's an os file path
-            filename = os.path.basename(file)
-            xml_tree = ET.parse(file)
-
+        # Pattern: I prefer having a clearer exit structure from the nested loop
+        # in case of error, paying with a more inefficient access structure.
+        # Below the default case that, if not modified, will be returned for this XML file.
+        #
+        # I can refer to this current_file_data directly because it will reference
+        # directly the item appended in the list.
+        current_file_data = {
+            'filename': None,
+            'data': {},
+            'status': 'error',
+            'error_message': default_error_message
+        }
+        extracted_info.append(current_file_data)
 
         try:
-            extracted_xml_data = {}
+            # Check if it's a Streamlit UploadedFile object or a file path
+            if hasattr(file, 'name') and hasattr(file, 'read'):
+                filename = file.name
+                current_file_data['filename'] = filename
+                xml_content = file.read()
+                file.seek(0)  # Reset file pointer
+                xml_tree = ET.ElementTree(ET.fromstring(xml_content))
+            else: #Os file path
+                filename = os.path.basename(file)
+                current_file_data['filename'] = filename
+                xml_tree = ET.parse(file)
+        except Exception as e:
+            current_file_data['error_message'] = f"XML Parsing Error: {str(e)}"
+            # Don't return, but continue to the next file.
+            continue
+
+        try:
             for sql_field_name, sql_field_config in XML_FIELD_MAPPING.items():
                 full_path = sql_field_config['xml_path']
+                is_tag_required = sql_field_config['required']
                 root_element = xml_tree.getroot()
 
-                # Here I expect that the tag that I want to extract
-                # the text from, is unique in the whole xml file.
-                # Currently there is no automatic check for that, instead you have
-                # to look at the documentation at
-                # https://www.fatturapa.gov.it/it/norme-e-regole/documentazione-fattura-elettronica/
-                # and be sure that the field that you are searching for will be present 0 or 1 times.
-                #
-                # Also, given the examples that I've been provided,
+                # Given the examples that I've been provided,
                 # I expect one single, and useless, namespace at the root element level.
-                try:
-                    expected_tag = root_element.find(full_path)
-                    if expected_tag is not None:
-                        tag_value = expected_tag.text
-                        extracted_xml_data[sql_field_name] = tag_value
-                except:
-                    print(f'Error on full path: {full_path}')
+                #
+                # ? In case of no tag present, does findall returns and empty []?
+                expected_tags = root_element.findall(full_path)
+                if len(expected_tags) == 0:
+                    if is_tag_required:
+                        print(f"ERROR: Required tag {full_path}, is not present in invoice {filename}")
+                        current_file_data['data'] = {}
+                        current_file_data['error_message'] = f"ERROR: Required tag {full_path}, is not present in invoice {filename}"
 
-            extracted_info.append({
-                'filename': filename,
-                'data': extracted_xml_data,
-                'status' : 'success'
-            })
+                        # This break will result in the next file being processed,
+                        # since we have changed the error_message checked below.
+                        break
+                    else:
+                        print(f"TAG NOT FOUND: Not required tag {full_path}, is not present in invoice {filename}")
+                        continue # to the next field for this file
 
-        except Exception as e:  # More specific exception handling
-            extracted_info.append({
-                'filename': filename,
-                'data': {},
-                'status': 'error',
-                'error_message': str(e)
-            })
+                # Here I deal with possible multiple tags with the same path in the invoice.
+                # I just put the values in an array that will be manage in another program.
+                elif len(expected_tags) == 1:
+                    tag_value = expected_tags[0].text
+                    current_file_data['data'][sql_field_name] = tag_value
+                elif len(expected_tags) > 1:
+                    current_file_data['data'][sql_field_name] = [tag.text for tag in expected_tags]
 
-    return extracted_info
+            # When we break or when we finish the loop we get here.
+            # The case in which the operation was successful for all fields is the one
+            # where the error_message is still default_error_message
+            if current_file_data['error_message'] == default_error_message:
+                current_file_data['error_message'] = ''
+                current_file_data['status'] = 'success'
+
+        except Exception as e:
+            current_file_data['error_message'] = f"Tag Searching Error: {str(e)}"
+            continue # to the next file.
+
+    # Here golang style errors makes little sense because I'm choosing to always returning a list of
+    # results. I could implement golang style for global errors, for example if the XMLFIELDCONFIG is
+    # corrupted or I cannot access the file system. These errors would impact the whole processing batch.
+    # Just for reminder:
+    # Usage:
+    # def use_go_style():
+    #     xml = "<root><child>value</child></root>"
+    #     data, error = parse_xml_go_style(xml)
+    #
+    #     if error:
+    #         print(f"Error: {error}")
+    #         return False
+    #
+    #     print(f"Success: {data}")
+    #     return True
+    return extracted_info, None
 
 def print_processed_xml(xml_array):
     for xml in xml_array:
@@ -118,11 +147,10 @@ def print_processed_xml(xml_array):
             print(f"{sql_name}: {xml_tag_value}")
 
 if __name__ == "__main__":
-    
+    print("\n"*3)
     print("XML Processor manual execution.")
-    print("="*60)
-    
-    test_folder = f"fatture_emesse/"
+
+    test_folder = f"fe_scadenze_multiple/"
     if not os.path.exists(test_folder):
         raise Exception(f"Folder not found: {test_folder}")
 
@@ -131,11 +159,15 @@ if __name__ == "__main__":
         raise Exception(f"No XML files found in: {test_folder}")
 
     print(f"Found {len(xml_files)} XML files in {test_folder}")
-    print("-" * 50)
+    print("\n")
 
     # todo: in streamlit, add warning that if I don't find the list of file,
     # especially with one single file, I have to set the upload_multiple_files
     # to True in the uploader component.
-    xmls = process_xml_list(xml_files)
-    print_processed_xml(xmls)
-    # print(xmls)
+    xmls, error = process_xml_list(xml_files)
+    if not error:
+        print_processed_xml(xmls)
+        print(f"Found {len(xml_files)} XML files in {test_folder}")
+        print(f"Created unsuccessful or successful entries for {len(xmls)} XML files")
+    else:
+        print(error)

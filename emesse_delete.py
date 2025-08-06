@@ -70,7 +70,7 @@ from xml_mapping_emesse import XML_FIELD_MAPPING as fields_config
 #
 #             for idx, row in data_df.iterrows():
 #                 # Create a readable identifier
-#                 identifier_fields = ['invoice_number', 'name', 'numero', 'cliente']
+#                 identifier_fields = ['numero_fattura', 'name', 'numero', 'cliente']
 #                 identifier = None
 #
 #                 for field in identifier_fields:

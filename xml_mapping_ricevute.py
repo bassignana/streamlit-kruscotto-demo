@@ -26,7 +26,7 @@ XML_FIELD_MAPPING = {
         'help': 'Numero identificativo univoco del trasmittente',
         'xml_path': 'FatturaElettronicaHeader/DatiTrasmissione/IdTrasmittente/IdCodice'
     },
-    'invoice_number': {
+    'numero_fattura': {
         'data_type': 'string',
         'required': True,
         'label': 'Numero Fattura',
@@ -34,21 +34,21 @@ XML_FIELD_MAPPING = {
         'help': 'Numero identificativo della fattura',
         'xml_path': 'FatturaElettronicaBody/DatiGenerali/DatiGeneraliDocumento/Numero',
     },
-    'document_date': {
+    'data_documento': {
         'data_type': 'date',
         'required': True,
         'label': 'Data Documento',
         'help': 'Data di emissione della fattura',
         'xml_path': 'FatturaElettronicaBody/DatiGenerali/DatiGeneraliDocumento/Data'
     },
-    'total_amount': {
+    'importo_totale_documento': {
         'data_type': 'decimal',
         'required': True,
         'label': 'Importo Totale',
         'help': 'Importo totale della fattura in Euro',
         'xml_path': 'FatturaElettronicaBody/DatiGenerali/DatiGeneraliDocumento/ImportoTotaleDocumento'
     },
-    'due_date': {
+    'data_scadenza_pagamento': {
         'data_type': 'date',
         'required': False,
         'label': 'Data Scadenza',
