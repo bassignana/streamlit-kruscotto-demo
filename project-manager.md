@@ -284,3 +284,59 @@ for later:
   of the component inside the global session state
 - auto gen test data
 
+NOTE FOR FUTURE DEV:
+MAYBE, there is un unspoken assumption in the way that I've coded so far:
+there cannot be a column in a database that it is not present in the XML_FIELD_MAPPING?
+If I use the xml_mapping to check things, then I incour the risk of leaving columns out.
+This is bad.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

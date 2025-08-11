@@ -1,11 +1,15 @@
 """
 Using full xml path, the first tag is not the root, but one of it immediate children.
 
+In generale, il campo della fattura elettronica
+FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/IdFiscaleIVA/IdCodice
+deve essere obbligatoriamente valorizzato con il valore della partita IVA, attraverso la quale
+posso verificare che si tratta di una fattura emessa.
+Infatti mi aspetto che un Prestatore d'opera debba sempre avere P IVA, a differenza del committente.
+
+
 Casistiche:
 Se sono Cedente/Prestatore -> EMESSE:
-- Il campo della fattura elettronica FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/IdFiscaleIVA/IdCodice
-  deve essere obbligatoriamente valorizzato con il valore della partita IVA, attraverso la quale
-  posso verificare che si tratta di una fattura emessa.
 - Le informazioni del committente che estraggo sono le seguenti, per ora.
 -- FatturaElettronicaHeader/CessionarioCommittente/DatiAnagrafici/IdFiscaleIVA/IdCodice
    campo obbligatorio SOLO nel caso in cui il CessionarioCommittente sia titolare di partita IVA
@@ -19,16 +23,10 @@ Se sono Cedente/Prestatore -> EMESSE:
 
 Se sono CessionarioCommittente -> RICEVUTE:
 - Il campo della fattura elettronica FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/IdFiscaleIVA/IdCodice
-  deve essere obbligatoriamente valorizzato con il valore di una diversa partita IVA, attraverso la quale
-  posso verificare che si tratta di una fattura ricevuta.
+  potrebbe non essere valorizzato.
 - Le informazioni del prestatore che estraggo sono le seguenti, per ora.
 -- FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/IdFiscaleIVA/IdCodice: partita IVA prestatore
 -- FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/Anagrafica/Denominazione
-   campo obbligatorio, credo, dato che il prestatore ha partita IVA.
-
-Quindi, estraggo i campi di cui sopra, e poi, NON IN QUESTO MODULO,
-- faccio un controllo sulla partita iva del Cedente/Prestatore,
-- da li, capisco in che tabella inserire la fattura
 
 Per le scadenze dei pagamenti:
 per emesse e per ricevute indistintamente
@@ -54,10 +52,20 @@ FatturaElettronicaBody/DatiPagamento/DettaglioPagamento/IBAN NON OBBLIGATORIO
 altrimenti: "non specificata"
 
 XML_FIELD_MAPPING = {
-    'name_of_sql_column': {
+    'name_of_sql_column without prefix': {
         'xml_path': 'FatturaElettronicaBody/DatiGenerali/DatiGeneraliDocumento/Numero',
-        'data_type': sql data type. I need to know what casting to apply to xml data.
-                                    This should be the supabase types, like decimal, money, timestampz...
+        'data_type': it is, and will be, used for different pourposes.
+                    - casting from and to query results into and to python datatypes, although not always necessary
+                    - deciding what widget to show in forms
+                    I don't like this coupling, but also I don't want to add too many fields in the below
+                    config, and, at the same time, I don't want to do automatic type conversion.
+                    I want to give them easy to understand names:
+                    - string
+                    - int: all integer number, STILL NOT USED IN THE PROJECT
+                    - money: appropriate datatype for handling precision, ops and rounding
+                    - date
+                    I should not have any floating point number outside of money
+        
         'required': True, Required for both the table and forms, visualizations, etc...
         'placeholder': placeholder text that is displayed where you type values
         'help': text displayed when hovering over '?' symbol in some components
@@ -85,30 +93,28 @@ XML_FIELD_MAPPING = {
         'xml_path': 'FatturaElettronicaBody/DatiGenerali/DatiGeneraliDocumento/Data'
     },
     'importo_totale_documento': {
-        'data_type': 'decimal',
+        'data_type': 'money',
         'required': True,
         'label': 'Importo Totale',
         'help': 'Importo totale della fattura in Euro',
         'xml_path': 'FatturaElettronicaBody/DatiGenerali/DatiGeneraliDocumento/ImportoTotaleDocumento'
     },
 
+    # partita iva dtype: string because with int is not easy to deal with trailing 0s.
     'partita_iva_prestatore': {
-        'data_type': 'numeric',
+        'data_type': 'string',
         'required': True,
         'label': 'P. IVA Prestatore',
         'placeholder': 'es. 09876543210',
         'help': 'Partita IVA del Prestatore',
-        # The new version uses the CedentePrestatore and CessionarioCommittente separately
-        # 'xml_path': 'FatturaElettronicaHeader/DatiTrasmissione/IdTrasmittente/IdCodice'
         'xml_path': 'FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/IdFiscaleIVA/IdCodice'
     },
 
     # Not required fields in all invoices
 
-
-
     # Can be present more than one time in case of multiple terms.
     # In the rate_* tables, this field is called data_scadenza_rata
+    # todo: WHY THIS DIFFERENCE IN NAME?
     'data_scadenza_pagamento': {
         'data_type': 'date',
         'required': False,
@@ -119,7 +125,7 @@ XML_FIELD_MAPPING = {
 
     # Can be present more than one time in case of multiple terms.
     'importo_pagamento_rata': {
-        'data_type': 'numeric',
+        'data_type': 'money',
         'required': False,
         'label': 'Importo Rata',
         'help': 'Importo della rata',
@@ -180,7 +186,7 @@ XML_FIELD_MAPPING = {
         'xml_path': 'FatturaElettronicaBody/DatiPagamento/DettaglioPagamento/IstitutoFinanziario'
     },
 
-    'IBAN_cassa': {
+    'iban_cassa': {
         'data_type': 'string',
         'required': False,
         'label': "IBAN",

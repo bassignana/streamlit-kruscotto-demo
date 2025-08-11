@@ -1,6 +1,5 @@
 import streamlit as st
-from invoice_utils import render_xml_upload_section
-from xml_mapping_emesse import XML_FIELD_MAPPING
+from invoice_utils import render_generic_xml_upload_section
 
 
 def main():
@@ -20,7 +19,7 @@ def main():
         st.stop()
     supabase_client = st.session_state.client
 
-    render_xml_upload_section(supabase_client, 'fatture_emesse', XML_FIELD_MAPPING, 'Fatture Emesse')
+    render_generic_xml_upload_section(supabase_client)
 
 if __name__ == "__main__":
     main()

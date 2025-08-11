@@ -1,3 +1,14 @@
+
+-- Drop tables in correct order (foreign keys first)
+DROP TABLE IF EXISTS public.user_data CASCADE;
+DROP TABLE IF EXISTS public.fatture_emesse CASCADE;
+DROP TABLE IF EXISTS public.fatture_ricevute CASCADE;
+DROP TABLE IF EXISTS public.payment_terms_ricevute CASCADE;
+DROP TABLE IF EXISTS public.payment_terms_emesse CASCADE;
+DROP TABLE IF EXISTS public.rate_fatture_emesse CASCADE;
+DROP TABLE IF EXISTS public.rate_fatture_ricevute CASCADE;
+
+
 -- 1. Nomi inglesi per campi comuni, italiani per campi comuni
 -- 2. nomi univoci che iniziano con le lettere prima degli underscore delle tabelle,
 -- in modo da poter fare un search and replace in caso di cambio nome, o aggiunta.
@@ -42,9 +53,11 @@ CREATE TABLE public.fatture_emesse (
   -- if there is one data_scadenza_pagamento, it goes in this table, otherwise
   -- all the dates and respective quantity go as 2 or more 'scadenza' in another table
   fe_data_scadenza_pagamento date,
-  -- name and IBAN cassa relevant only for Fatture Emesse
+  -- name and iban cassa are relevant for Fatture Emesse
+  -- AND for Fatture Ricevute. Only for fatture emesse will
+  -- be present in the invoice though.
   fe_nome_cassa varchar,
-  fe_IBAN_cassa varchar,
+  fe_iban_cassa varchar,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT fatture_emesse_pkey PRIMARY KEY (id)
@@ -58,7 +71,7 @@ FOR ALL USING (auth.uid() = user_id);
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_emesse
 ADD CONSTRAINT emesse_unique_composite_key
-UNIQUE (partita_iva_prestatore, numero_fattura, data_documento);
+UNIQUE (fe_partita_iva_prestatore, fe_numero_fattura, fe_data_documento);
 
 CREATE TABLE public.fatture_ricevute (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -71,6 +84,8 @@ CREATE TABLE public.fatture_ricevute (
     -- if there is one data_scadenza_pagamento, it goes in this table, otherwise
     -- all the dates and respective quantity go as 2 or more 'scadenza' in another table
     fr_data_scadenza_pagamento date,
+    fr_nome_cassa varchar,
+    fr_iban_cassa varchar,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT fatture_ricevute_pkey PRIMARY KEY (id)
@@ -84,25 +99,28 @@ FOR ALL USING (auth.uid() = user_id);
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_ricevute
 ADD CONSTRAINT ricevute_unique_composite_key
-UNIQUE (partita_iva_prestatore, numero_fattura, data_documento);
+UNIQUE (fr_partita_iva_prestatore, fr_numero_fattura, fr_data_documento);
 
 CREATE TABLE public.rate_fatture_emesse (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  rfe_numero_fattura uuid NOT NULL,
+  rfe_numero_fattura varchar NOT NULL,
   rfe_data_scadenza_rata date NOT NULL,
-  rfe_importo_pagamento_rata numeric(10,2) NOT NULL CHECK (importo_pagamento_rata > 0),
-  rfe_nome_cassa varchar NOT NULL,
-  rfe_IBAN_cassa varchar NOT NULL,
+  rfe_importo_pagamento_rata numeric(10,2) NOT NULL, -- CHECK (importo_pagamento_rata > 0),
+  -- is casse nullable?
+  rfe_nome_cassa varchar,
+  rfe_iban_cassa varchar,
   rfe_notes text,
 --  rfe_is_paid boolean DEFAULT false,
 -- is_paid can be derived by checking the field rfe_data_pagamento_rata for null
   rfe_data_pagamento_rata date,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT rfe_pkey PRIMARY KEY (id),
-  CONSTRAINT rfe_numero_fattura_fkey FOREIGN KEY (rfe_numero_fattura) REFERENCES fatture_emesse(fe_numero_fattura)
-);
+  CONSTRAINT rfe_pkey PRIMARY KEY (id)
+  -- CONSTRAINT rfe_numero_fattura_fkey FOREIGN KEY (rfe_numero_fattura) REFERENCES fatture_emesse(fe_numero_fattura)
+  -- todo: there is no unique constraint matching given keys for referenced table "fatture_emesse"
+  -- i.e. the fkey must be unique in the refereced table
+  );
 
 ALTER TABLE public.rate_fatture_emesse ENABLE ROW LEVEL SECURITY;
 
@@ -112,19 +130,21 @@ FOR ALL USING (auth.uid() = user_id);
 CREATE TABLE public.rate_fatture_ricevute (
  id uuid NOT NULL DEFAULT gen_random_uuid(),
  user_id uuid NOT NULL,
- rfr_numero_fattura uuid NOT NULL,
+ rfr_numero_fattura varchar NOT NULL,
  rfr_data_scadenza_rata date NOT NULL,
- rfr_importo_pagamento_rata numeric(10,2) NOT NULL CHECK (importo_pagamento_rata > 0),
+ rfr_importo_pagamento_rata numeric(10,2) NOT NULL, -- CHECK (importo_pagamento_rata > 0),
 -- Here, casse will have to be inputted by hand, since is the cassa from which I pay the
 -- fattura ricevuta.
- rfr_nome_cassa varchar NOT NULL,
- rfr_IBAN_cassa varchar NOT NULL,
+
+    -- is cassa nullable?
+ rfr_nome_cassa varchar,
+ rfr_iban_cassa varchar,
  rfr_notes text,
  rfr_data_pagamento_rata date,
  created_at timestamp with time zone DEFAULT now(),
  updated_at timestamp with time zone DEFAULT now(),
- CONSTRAINT rfr_pkey PRIMARY KEY (id),
- CONSTRAINT rfr_numero_fattura_fkey FOREIGN KEY (rfr_numero_fattura) REFERENCES fatture_ricevute(fr_numero_fattura)
+ CONSTRAINT rfr_pkey PRIMARY KEY (id)
+ -- CONSTRAINT rfr_numero_fattura_fkey FOREIGN KEY (rfr_numero_fattura) REFERENCES fatture_ricevute(fr_numero_fattura)
 );
 
 ALTER TABLE public.rate_fatture_ricevute ENABLE ROW LEVEL SECURITY;
@@ -221,3 +241,211 @@ CREATE TRIGGER set_payment_terms_created_at
     BEFORE INSERT ON public.fatture_ricevute
     FOR EACH ROW
     EXECUTE FUNCTION set_created_at_column();
+
+
+
+-- Function to manage the insertion of both invoices and
+-- terms in a single transactions, since Postgres functions
+-- are wrapped in a single transaction by default.
+--
+-- The idea here is that I don't have to specify either
+-- column names or values, using the incoming data structure
+-- to parse the filed's name and values.
+--
+-- Note that for now, I'm ignoring the fact that I'm returning
+-- the record id in the result.
+CREATE OR REPLACE FUNCTION insert_record_fixed(
+    table_name TEXT,
+    record_data JSONB,
+    terms_table_name TEXT DEFAULT NULL,
+    terms_data JSONB[] DEFAULT NULL,
+    test_user_id TEXT DEFAULT NULL
+) RETURNS JSONB AS $$
+DECLARE
+    -- We no longer need these variables since jsonb_populate_record handles the mapping
+    -- columns_list TEXT;
+    -- placeholders_list TEXT;
+    -- values_array TEXT[];
+    sql_query TEXT;
+    record_id UUID;
+    current_user_id UUID;
+    cleaned_data JSONB := '{}'::JSONB;
+    -- We no longer need these for the loop since jsonb_populate_record does the work
+    key TEXT;
+    value JSONB;
+    insertable_columns TEXT;
+    -- counter INTEGER := 1;
+    term JSONB;
+    -- We no longer need result_record since we can use INTO directly
+    -- result_record RECORD;
+BEGIN
+    -- This is for testing the function without an authenticated user.
+    IF test_user_id IS NULL THEN
+    -- Get authenticated user ID
+        current_user_id := auth.uid();
+    ELSE
+        current_user_id := test_user_id::UUID; -- casting from TEXT to avoid errors.
+    END IF;
+
+    -- Just to be sure, double checking that the user is logged in.
+    IF current_user_id IS NULL THEN
+        RETURN jsonb_build_object(
+            'success', false,
+            'error', 'User not authenticated - auth.uid() returned NULL'
+        );
+    END IF;
+
+    -- Force add/override user_id (remove existing first, then add).
+    -- Note that the - and || operators have not the meaning of SQL syntax,
+    -- but of JSONB management.
+    --
+    -- - 'id' - 'created_at' - 'updated_at': because these are autogenerated with
+    -- functions or triggers, I have to remove them from the list of fields inserted
+    -- in the table, otherwise I get errors.
+--     record_data := (record_data - 'user_id' - 'id' - 'created_at' - 'updated_at') || jsonb_build_object('user_id', current_user_id);
+
+    -- Debug: Log what we're about to insert
+    -- RAISE NOTICE 'About to insert: %', record_data;
+    -- RAISE NOTICE 'User ID: %', current_user_id;
+
+    -- Instead of building dynamic column lists and values manually,
+    -- we use jsonb_populate_record which automatically maps JSONB keys to table columns.
+    -- This replaces the entire loop that was building:
+    -- columns_list = 'numero, cliente, importo'
+    -- placeholders_list = '$1, $2, $3'
+    -- values_array = ['2024-001', 'ABC Corp', '1500.50']
+    --
+    -- jsonb_populate_record(NULL::table_name, record_data) creates a record
+    -- with the structure of table_name, populated with values from record_data
+    --
+    -- The old approach was:
+    -- sql_query = 'INSERT INTO fatture_emesse (numero, cliente, importo) VALUES ($1, $2, $3) RETURNING id'
+    -- EXECUTE sql_query USING VARIADIC values_array
+    --
+    -- The new approach is much simpler:
+--     sql_query := format('
+--         INSERT INTO %I
+--         SELECT * FROM jsonb_populate_record(NULL::%I, $1)
+--         RETURNING id', table_name, table_name);
+
+--     sql_query := format('
+--         INSERT INTO %I
+--         SELECT * FROM jsonb_populate_record(NULL::%I, $1)', table_name, table_name);
+
+
+    -- We no longer need the complex loop for building columns/values:
+    -- FOR key, value IN SELECT * FROM jsonb_each(record_data) LOOP
+    --     -- Skip NULL values (but keep empty strings).
+    --     IF value = 'null'::JSONB THEN
+    --         CONTINUE;
+    --     END IF;
+    --     -- Add comma if not first
+    --     IF columns_list != '' THEN
+    --         columns_list := columns_list || ', ';
+    --         placeholders_list := placeholders_list || ', ';
+    --     END IF;
+    --     columns_list := columns_list || quote_ident(key);
+    --     placeholders_list := placeholders_list || '$' || counter;
+    --     values_array := values_array || ARRAY[value #>> '{}'];
+    --     counter := counter + 1;
+    -- END LOOP;
+
+    -- Debug: Log the simplified SQL
+    -- RAISE NOTICE 'SQL: %', sql_query;
+    -- RAISE NOTICE 'Record data: %', record_data;
+
+    -- Execute the simplified query - no more VARIADIC issues!
+    -- The old problematic line was:
+    -- EXECUTE sql_query USING VARIADIC values_array INTO record_id;
+    -- The new simple line is:
+--     EXECUTE sql_query USING record_data INTO record_id;
+
+
+
+
+
+
+-- Clean data: remove nulls and auto-generated fields
+FOR key, value IN SELECT * FROM jsonb_each(record_data)
+    LOOP
+    IF key NOT IN ('id', 'created_at', 'updated_at', 'user_id') AND value != 'null'::JSONB THEN
+            cleaned_data := cleaned_data || jsonb_build_object(key, value);
+END IF;
+END LOOP;
+
+    cleaned_data := cleaned_data || jsonb_build_object('user_id', current_user_id);
+
+    -- Get only the columns we're actually providing data for
+                 -- using j.key because, if not,  'column reference "key" is ambiguous',
+SELECT string_agg(quote_ident(j.key), ', ' ORDER BY j.key) INTO insertable_columns
+FROM jsonb_each_text(cleaned_data) j;
+
+-- Build INSERT that only specifies the columns we have data for
+sql_query := format('
+        INSERT INTO %I (%s)
+        SELECT %s FROM jsonb_populate_record(NULL::%I, $1)
+        RETURNING id',
+        table_name,
+        insertable_columns,
+        insertable_columns,
+        table_name
+    );
+
+EXECUTE sql_query USING cleaned_data INTO record_id;
+
+
+
+
+
+-- Handle terms.
+    IF terms_table_name IS NOT NULL AND terms_data IS NOT NULL AND array_length(terms_data, 1) > 0 THEN
+        FOR i IN 1..array_length(terms_data, 1) LOOP
+            term := terms_data[i];
+
+            term := (term - 'user_id' - 'id' - 'created_at' - 'updated_at') ||
+                   jsonb_build_object('user_id', current_user_id);
+
+            PERFORM insert_record_fixed(terms_table_name, term, NULL, NULL, test_user_id);
+        END LOOP;
+    END IF;
+
+-- RETURN jsonb_build_object(
+--         'success', true,
+--         'id', record_id,
+--         'table', table_name,
+--         'user_id', current_user_id,
+--         'terms_count', COALESCE(array_length(terms_data, 1), 0)
+--        );
+
+RETURN jsonb_build_object(
+        'success', true,
+    -- only available in except blocks
+--         'error', SQLERRM,
+--         'error_detail', SQLSTATE,
+        'table_name', table_name,
+        'original_record_data', record_data,
+        'current_user_id', current_user_id,
+        'test_user_id', test_user_id,
+        'sql_query', sql_query
+       );
+
+EXCEPTION WHEN OTHERS THEN
+--     RETURN jsonb_build_object(
+--         'success', false,
+--         'error', SQLERRM,
+--         'error_detail', SQLSTATE,
+--         'sql_query', sql_query
+--     );
+
+RETURN jsonb_build_object(
+        'success', false,
+        'error', SQLERRM,
+        'error_detail', SQLSTATE,
+        'table_name', table_name,
+        'original_record_data', record_data,
+        'current_user_id', current_user_id,
+        'test_user_id', test_user_id,
+        'sql_query', sql_query
+       );
+END;
+$$ LANGUAGE plpgsql SECURITY INVOKER;

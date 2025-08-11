@@ -42,7 +42,7 @@ XML_FIELD_MAPPING = {
         'xml_path': 'FatturaElettronicaBody/DatiGenerali/DatiGeneraliDocumento/Data'
     },
     'importo_totale_documento': {
-        'data_type': 'decimal',
+        'data_type': 'money',
         'required': True,
         'label': 'Importo Totale',
         'help': 'Importo totale della fattura in Euro',

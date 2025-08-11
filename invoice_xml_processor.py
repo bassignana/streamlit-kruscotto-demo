@@ -38,6 +38,7 @@ import xml.etree.ElementTree as ET
 import os
 import glob
 from xml_mapping_emesse import XML_FIELD_MAPPING
+from pprint import pprint
 
 def process_xml_list(xml_files: list) -> (list, str):
     """
@@ -71,7 +72,7 @@ def process_xml_list(xml_files: list) -> (list, str):
                 xml_content = file.read()
                 file.seek(0)  # Reset file pointer
                 xml_tree = ET.ElementTree(ET.fromstring(xml_content))
-            else: #Os file path
+            else: # Os file path
                 filename = os.path.basename(file)
                 current_file_data['filename'] = filename
                 xml_tree = ET.parse(file)
@@ -101,7 +102,16 @@ def process_xml_list(xml_files: list) -> (list, str):
                         # since we have changed the error_message checked below.
                         break
                     else:
-                        print(f"TAG NOT FOUND: Not required tag {full_path}, is not present in invoice {filename}")
+                        # todo: uncomment line below after debug
+                        # print(f"TAG NOT FOUND: Not required tag {full_path}, is not present in invoice {filename}")
+                        # We add the tag not found nonetheless valued with null, otherwise we have problems doing
+                        # other types of checks.
+                        # We can put all fields this way in an extraction, even if different fields belong to
+                        # different tables: In the record creation phase, only the fields present in the sql create
+                        # table file will be extracted from the xml parsing result.
+                        # TODO: IMPORTANT: if we value not found tags with None, will they be converted
+                        # correctly to postgres NONE?
+                        current_file_data['data'][sql_field_name] = None
                         continue # to the next field for this file
 
                 # Here I deal with possible multiple tags with the same path in the invoice.
@@ -111,6 +121,8 @@ def process_xml_list(xml_files: list) -> (list, str):
                     current_file_data['data'][sql_field_name] = tag_value
                 elif len(expected_tags) > 1:
                     current_file_data['data'][sql_field_name] = [tag.text for tag in expected_tags]
+                else:
+                    assert False, "This branch should be unreachable."
 
             # When we break or when we finish the loop we get here.
             # The case in which the operation was successful for all fields is the one
@@ -142,9 +154,8 @@ def process_xml_list(xml_files: list) -> (list, str):
 
 def print_processed_xml(xml_array):
     for xml in xml_array:
-        print(f"Filename: {xml.get('filename')}")
-        for sql_name, xml_tag_value in xml.get('data').items():
-            print(f"{sql_name}: {xml_tag_value}")
+        print(f"\n\n Filename: {xml.get('filename')}")
+        pprint(xml)
 
 if __name__ == "__main__":
     print("\n"*3)
@@ -169,5 +180,25 @@ if __name__ == "__main__":
         print_processed_xml(xmls)
         print(f"Found {len(xml_files)} XML files in {test_folder}")
         print(f"Created unsuccessful or successful entries for {len(xmls)} XML files")
+        print('\n\n\n\n')
+        for xml_full in xmls:
+            xml = xml_full['data']
+
+            assert len(xml) == len(XML_FIELD_MAPPING.items()), "All fields in config must be present, at least with None, in the extracted data."
+            assert xml['partita_iva_committente'] != xml['partita_iva_prestatore'], "P IVA Prestatore e Committente non possono coincidere."
+
+            print(xml_full['filename'])
+            if xml.get('partita_iva_committente', None):
+                print(f'P IVA Committente {xml['partita_iva_committente']}')
+            print(f'P IVA Prestatore {xml['partita_iva_prestatore']}')
+            if isinstance(xml['data_scadenza_pagamento'], list):
+                print('terms: YES')
+            else:
+                print('terms: NO')
+        print('\n')
+
+
     else:
         print(error)
+
+

@@ -42,7 +42,7 @@ from xml_mapping_emesse import XML_FIELD_MAPPING as fields_config
 #         # for col in display_df.columns:
 #         #     if col in fields_config:
 #         #         field_type = get_field_type(fields_config, col)
-#         #         if field_type == 'decimal':
+#         #         if field_type == 'money':
 #         #             display_df[col] = display_df[col].apply(
 #         #                 lambda x: f"€ {float(x):,.2f}" if pd.notna(x) else ""
 #         #             )
