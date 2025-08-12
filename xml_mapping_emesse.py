@@ -8,7 +8,7 @@ posso verificare che si tratta di una fattura emessa.
 Infatti mi aspetto che un Prestatore d'opera debba sempre avere P IVA, a differenza del committente.
 
 
-Casistiche:
+Casistiche: (gestite in invoice_record_creation.py)
 Se sono Cedente/Prestatore -> EMESSE:
 - Le informazioni del committente che estraggo sono le seguenti, per ora.
 -- FatturaElettronicaHeader/CessionarioCommittente/DatiAnagrafici/IdFiscaleIVA/IdCodice
@@ -113,8 +113,8 @@ XML_FIELD_MAPPING = {
     # Not required fields in all invoices
 
     # Can be present more than one time in case of multiple terms.
-    # In the rate_* tables, this field is called data_scadenza_rata
-    # todo: WHY THIS DIFFERENCE IN NAME?
+    # In the rate_* tables, this field is called data_scadenza_pagamento
+    # todo: WHY THIS DIFFERENCE IN NAME? I've changed it but check that everything is correct.
     'data_scadenza_pagamento': {
         'data_type': 'date',
         'required': False,

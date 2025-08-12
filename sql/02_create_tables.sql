@@ -105,7 +105,8 @@ CREATE TABLE public.rate_fatture_emesse (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
   rfe_numero_fattura varchar NOT NULL,
-  rfe_data_scadenza_rata date NOT NULL,
+    -- rfe_data_scadenza_pagamento is the old and confusing data_scadenza_rata
+  rfe_data_scadenza_pagamento date NOT NULL,
   rfe_importo_pagamento_rata numeric(10,2) NOT NULL, -- CHECK (importo_pagamento_rata > 0),
   -- is casse nullable?
   rfe_nome_cassa varchar,
@@ -131,7 +132,7 @@ CREATE TABLE public.rate_fatture_ricevute (
  id uuid NOT NULL DEFAULT gen_random_uuid(),
  user_id uuid NOT NULL,
  rfr_numero_fattura varchar NOT NULL,
- rfr_data_scadenza_rata date NOT NULL,
+ rfr_data_scadenza_pagamento date NOT NULL,
  rfr_importo_pagamento_rata numeric(10,2) NOT NULL, -- CHECK (importo_pagamento_rata > 0),
 -- Here, casse will have to be inputted by hand, since is the cassa from which I pay the
 -- fattura ricevuta.

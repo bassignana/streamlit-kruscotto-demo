@@ -1,7 +1,14 @@
 """
 Parses xml files to appropriate data structure below,
-all in strings. <- todo check this
-The conversion is not handled here. UNIX. Testable. All strings.
+with possible types:
+- string for the single values
+- list for lists of values
+- Nonetype for None
+
+Any other conversion is not handled here. UNIX. Testable.
+
+If run in streamlit app, reads from uploader,
+if run manually via terminal, will read via hardcoded folder.
 
 input: [file1.xml, ..., ] at least one file.
 todo: checking that the list is not empty could be a good example of
@@ -16,8 +23,24 @@ output:
                     'error_message': ''
                 })
 
-If run in streamlit app, reads from uploader,
-if run manually via terminal, will read via hardcoded folder.
+    extracted_data example:
+    {
+          'codice_fiscale_committente': None,
+          'cognome_committente': None,
+          'data_documento': '2025-03-31',
+          'data_scadenza_pagamento': None,
+          'denominazione_committente': 'Caseificio Campanale di Campanale '
+                                       'Andrea & C. S.A.S.',
+          'denominazione_prestatore': None,
+          'iban_cassa': None,
+          'importo_pagamento_rata': None,
+          'importo_totale_documento': '155.67',
+          'nome_cassa': None,
+          'nome_committente': None,
+          'numero_fattura': '68/2025',
+          'partita_iva_committente': '08498730723',
+          'partita_iva_prestatore': '04228480408'
+    }
 
 REPEATED STRUCTURES:
 Should manage both unique and not unique tags. For not unique tags, values are
@@ -43,9 +66,10 @@ from pprint import pprint
 def process_xml_list(xml_files: list) -> (list, str):
     """
     Take a list of xml files paths or a Streamlit UploadedFile object.
-    For each file extract data based on config,
-    augmenting extracted data with information about success or failure
-    of extraction operation and uploaded file name.
+    For each file:
+    - extract data based on config,
+    - augment extracted data with information about success or failure
+      of extraction operation and uploaded file name.
     """
     extracted_info = []
     default_error_message = 'Unknown error'
@@ -54,8 +78,8 @@ def process_xml_list(xml_files: list) -> (list, str):
         # in case of error, paying with a more inefficient access structure.
         # Below the default case that, if not modified, will be returned for this XML file.
         #
-        # I can refer to this current_file_data directly because it will reference
-        # directly the item appended in the list.
+        # After the append, I can reference current_file_data directly because it will reference
+        # the item appended in the list.
         current_file_data = {
             'filename': None,
             'data': {},
@@ -82,6 +106,16 @@ def process_xml_list(xml_files: list) -> (list, str):
             continue
 
         try:
+            # We extract all fields specified in the xml config, regardless of the which table(s)
+            # the field will be inserted in.
+            # In the record creation phase, only the fields present in the sql create
+            # table file will be extracted from this parsing.
+            #
+            # THIS LOGIC CAN BE VERY ERROR PRONE. If a field is defined in the sql table definition,
+            # but not in the config, what would happen at each step of the processing pipeline?
+            # This is a concern for the invoice_record_creation.py (mainly) and for the invoice_db_insert.py,
+            # because here I want to focus only on parsing the xml given the config constraints, so
+            # it makes sense to be dependent on the config.
             for sql_field_name, sql_field_config in XML_FIELD_MAPPING.items():
                 full_path = sql_field_config['xml_path']
                 is_tag_required = sql_field_config['required']
@@ -90,7 +124,7 @@ def process_xml_list(xml_files: list) -> (list, str):
                 # Given the examples that I've been provided,
                 # I expect one single, and useless, namespace at the root element level.
                 #
-                # ? In case of no tag present, does findall returns and empty []?
+                # In case of no tag present, we force the result to None.
                 expected_tags = root_element.findall(full_path)
                 if len(expected_tags) == 0:
                     if is_tag_required:
@@ -102,15 +136,14 @@ def process_xml_list(xml_files: list) -> (list, str):
                         # since we have changed the error_message checked below.
                         break
                     else:
-                        # todo: uncomment line below after debug
                         # print(f"TAG NOT FOUND: Not required tag {full_path}, is not present in invoice {filename}")
+
                         # We add the tag not found nonetheless valued with null, otherwise we have problems doing
                         # other types of checks.
-                        # We can put all fields this way in an extraction, even if different fields belong to
-                        # different tables: In the record creation phase, only the fields present in the sql create
-                        # table file will be extracted from the xml parsing result.
-                        # TODO: IMPORTANT: if we value not found tags with None, will they be converted
-                        # correctly to postgres NONE?
+                        #
+                        # todo IMPORTANT: tags with None as value, will be converted correctly to postgres NONE
+                        # by the python supabase API, but I have to check more carefully what happens in stored
+                        # procedures.
                         current_file_data['data'][sql_field_name] = None
                         continue # to the next field for this file
 
@@ -124,9 +157,9 @@ def process_xml_list(xml_files: list) -> (list, str):
                 else:
                     assert False, "This branch should be unreachable."
 
-            # When we break or when we finish the loop we get here.
+            # When we break or when we finish the inner loop we get here.
             # The case in which the operation was successful for all fields is the one
-            # where the error_message is still default_error_message
+            # where the error_message is still default_error_message.
             if current_file_data['error_message'] == default_error_message:
                 current_file_data['error_message'] = ''
                 current_file_data['status'] = 'success'
@@ -137,25 +170,17 @@ def process_xml_list(xml_files: list) -> (list, str):
 
     # Here golang style errors makes little sense because I'm choosing to always returning a list of
     # results. I could implement golang style for global errors, for example if the XMLFIELDCONFIG is
-    # corrupted or I cannot access the file system. These errors would impact the whole processing batch.
+    # corrupted or if I cannot access the file system. These errors would impact the whole processing batch.
     # Just for reminder:
     # Usage:
     # def use_go_style():
-    #     xml = "<root><child>value</child></root>"
     #     data, error = parse_xml_go_style(xml)
     #
     #     if error:
-    #         print(f"Error: {error}")
-    #         return False
+    #         return None, error
     #
-    #     print(f"Success: {data}")
-    #     return True
+    #     return data, None
     return extracted_info, None
-
-def print_processed_xml(xml_array):
-    for xml in xml_array:
-        print(f"\n\n Filename: {xml.get('filename')}")
-        pprint(xml)
 
 if __name__ == "__main__":
     print("\n"*3)
@@ -177,28 +202,29 @@ if __name__ == "__main__":
     # to True in the uploader component.
     xmls, error = process_xml_list(xml_files)
     if not error:
-        print_processed_xml(xmls)
-        print(f"Found {len(xml_files)} XML files in {test_folder}")
-        print(f"Created unsuccessful or successful entries for {len(xmls)} XML files")
+        for xml in xmls:
+            print(f"\n\n Filename: {xml.get('filename')}")
+            pprint(xml)
+            for k,v in xml['data'].items():
+                print(type(v))
+                assert type(v) in [type('strings'),type(['lists']), type(None)], "Unexpected type in parsing output."
         print('\n\n\n\n')
+
         for xml_full in xmls:
             xml = xml_full['data']
 
             assert len(xml) == len(XML_FIELD_MAPPING.items()), "All fields in config must be present, at least with None, in the extracted data."
             assert xml['partita_iva_committente'] != xml['partita_iva_prestatore'], "P IVA Prestatore e Committente non possono coincidere."
 
-            print(xml_full['filename'])
-            if xml.get('partita_iva_committente', None):
-                print(f'P IVA Committente {xml['partita_iva_committente']}')
-            print(f'P IVA Prestatore {xml['partita_iva_prestatore']}')
-            if isinstance(xml['data_scadenza_pagamento'], list):
-                print('terms: YES')
-            else:
-                print('terms: NO')
+            # print(xml_full['filename'])
+            # if xml.get('partita_iva_committente', None):
+            #     print(f'P IVA Committente {xml['partita_iva_committente']}')
+            # print(f'P IVA Prestatore {xml['partita_iva_prestatore']}')
+            # if isinstance(xml['data_scadenza_pagamento'], list):
+            #     print('terms: YES')
+            # else:
+            #     print('terms: NO')
         print('\n')
-
 
     else:
         print(error)
-
-

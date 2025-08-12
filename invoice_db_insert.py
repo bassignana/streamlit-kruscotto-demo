@@ -35,16 +35,11 @@ if __name__ == '__main__':
     if parsing_results:
         xml_records = extract_xml_records(parsing_results, partita_iva_azienda)
 
-        # successful_xml_parsings = [r for r in results if r['status'] == 'success']
-        # error_xml_parsings = [r for r in results if r['status'] == 'error']
-        #
-        # successful_inserts_count = 0
-        # error_inserts_data = []
-
         # Here the core logic is:
         # The data structure of xml below will contain fields for both
         # the single record to insert and the optional terms.
-        # I can just check whether the terms field is empty.
+        # I can just check whether the terms field is empty to know if an invoice
+        # has terms.
         #
         # The field 'data_scadenza_pagamento' will be NULL
         # in case of terms.
@@ -68,7 +63,7 @@ if __name__ == '__main__':
                     continue # to the next invoice record(s)
 
                 if out['invoice_type'] == 'emessa':
-                    record_to_insert = out['record'].copy() # todo: copy necessary?
+                    record_to_insert = out['record'].copy()
 
                     # User id is also inserted inside the following postgres function.
                     # I leave this here in case we might change approach so that
@@ -76,6 +71,13 @@ if __name__ == '__main__':
                     # NOTE; this is a dirty way of doing it, because this is NOT the
                     # record that will be inserted. That record is created in the
                     # RPC function.
+                    #
+                    # Todo: related to the "issue" of adding user_id both here and
+                    # in the procedure, it has to be clear what implicit rules are
+                    # respected inside the RPC function, for example if triggers for
+                    # created_at and updated_at will function correctly, and if the
+                    # automatic id setting with get_random_uuid() will work etc.
+                    # The best thing should be that all RPC functions will work the same.
                     record_to_insert['user_id'] = USER_ID
 
                     result = supabase_client.rpc('insert_record_fixed', {
@@ -87,19 +89,12 @@ if __name__ == '__main__':
                     }).execute()
 
                     if result.data and result.data.get('success'):
-                        #todo: rerun on success?
-                        # st.rerun()
-
                         out['inserted_record'] = record_to_insert
                         outs.append(out)
                         print('SUCCESS')
                         pprint(result.data)
 
                     else:
-                        # xml['insert_table'] = 'fatture_emesse'
-                        # xml['insert_result'] = result
-                        # error_inserts_data.append(xml)
-
                         out['status'] = 'error'
                         out['error_message'] = f'Error during invoice INSERT for xml_record {result.data}'
                         print('ERROR')
@@ -107,39 +102,8 @@ if __name__ == '__main__':
                         outs.append(out)
                         continue # to the next file
 
-                    # All this branch is not needed anymore since I use the logic in the RPC function instead.
-                    #
-                    # if out['terms']:
-                    #     terms_to_insert = out['terms'].copy()
-                    #     for term in terms_to_insert:
-                    #         term['user_id'] = USER_ID
-                    #
-                    #     # bulk insert
-                    #     result = supabase_client.table('rate_fatture_emesse').insert(terms_to_insert).execute()
-                    #     #
-                    #     #
-                    #     # TODO; IMPORTANT: USE TRANSACTION WHEN INSERTTING TERMS OR I"LL CREATE ORPHANS RECORDS
-                    #     #
-                    #     #
-                    #     if len(result.data) == len(terms_to_insert):
-                    #         # successful_inserts_count += 1
-                    #         #todo: rerun on success?
-                    #         # st.rerun()
-                    #
-                    #         out['inserted_terms'] = terms_to_insert
-                    #         outs.append(out)
-                    #     else:
-                    #         # xml['insert_table'] = 'fatture_emesse'
-                    #         # xml['insert_result'] = result
-                    #         # error_inserts_data.append(xml)
-                    #
-                    #         out['status'] = 'error'
-                    #         out['error_message'] = f'Error during terms INSERT for xml_record {out}'
-                    #         outs.append(out)
-                    #         continue # to the next file
-
                 elif out['invoice_type'] == 'ricevuta':
-                    record_to_insert = out['record'].copy() # todo: copy necessary?
+                    record_to_insert = out['record'].copy()
                     record_to_insert['user_id'] = USER_ID
 
                     result = supabase_client.rpc('insert_record_fixed', {

@@ -67,7 +67,17 @@ secrets.toml file.
 - altri movimenti anche positivi, come ordini
 - Visione: saro' in grado di pagare?
 
-# Features
+# Features - Design
+Design decision: It would be more natural on a db perspective to treat every 
+term due date the same: if an invoice has 0,1 or more terms, they all get 
+inserted in the rate_fatture_* tables.
+BUT for now I want to keep them separate. If the invoice has only one term, 
+then the term will be set in the fatture_* table, if the invoice has multiple terms,
+then they will be set in the rate_fatture_* table. This is a weird distinction,
+but I want to code more of the front end to understand all the tradeoffs
+
+
+
 UPLOADER
 - get info on anagrafica cliente / profilo
 - one single uploader for emesse / ricevute
