@@ -1,3 +1,7 @@
+"""
+Test file to run locally without streamlit.
+Production logic in render_generic_xml_upload_section() in invoice_utils.py
+"""
 
 from invoice_xml_processor import process_xml_list
 from invoice_record_creation import extract_xml_records
@@ -35,14 +39,6 @@ if __name__ == '__main__':
     if parsing_results:
         xml_records = extract_xml_records(parsing_results, partita_iva_azienda)
 
-        # Here the core logic is:
-        # The data structure of xml below will contain fields for both
-        # the single record to insert and the optional terms.
-        # I can just check whether the terms field is empty to know if an invoice
-        # has terms.
-        #
-        # The field 'data_scadenza_pagamento' will be NULL
-        # in case of terms.
         for xml in xml_records:
 
             out = {

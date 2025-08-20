@@ -1,6 +1,6 @@
 """
 Configuration mapping for payment terms fields
-Follows the same pattern as xml_mapping_emesse.py
+Follows the same pattern as invoice_xml_mapping.py
 """
 
 from datetime import date, timedelta

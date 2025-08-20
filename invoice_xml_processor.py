@@ -60,7 +60,7 @@ application, has to be solved by putting a single file in one folder for now.
 import xml.etree.ElementTree as ET
 import os
 import glob
-from xml_mapping_emesse import XML_FIELD_MAPPING
+from invoice_xml_mapping import XML_FIELD_MAPPING
 from pprint import pprint
 
 def process_xml_list(xml_files: list) -> (list, str):
@@ -113,7 +113,7 @@ def process_xml_list(xml_files: list) -> (list, str):
             #
             # THIS LOGIC CAN BE VERY ERROR PRONE. If a field is defined in the sql table definition,
             # but not in the config, what would happen at each step of the processing pipeline?
-            # This is a concern for the invoice_record_creation.py (mainly) and for the invoice_db_insert.py,
+            # This is a concern for the invoice_record_creation.py (mainly) and for the local_invoice_uploader.py,
             # because here I want to focus only on parsing the xml given the config constraints, so
             # it makes sense to be dependent on the config.
             for sql_field_name, sql_field_config in XML_FIELD_MAPPING.items():
@@ -142,8 +142,8 @@ def process_xml_list(xml_files: list) -> (list, str):
                         # other types of checks.
                         #
                         # todo IMPORTANT: tags with None as value, will be converted correctly to postgres NONE
-                        # by the python supabase API, but I have to check more carefully what happens in stored
-                        # procedures.
+                        #  by the python supabase API, but I have to check more carefully what happens in stored
+                        #  procedures.
                         current_file_data['data'][sql_field_name] = None
                         continue # to the next field for this file
 

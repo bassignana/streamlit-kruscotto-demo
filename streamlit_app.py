@@ -99,7 +99,7 @@ def main():
             if st.session_state.login_processing:
                 st.info("Accesso in corso...")
                 # Small delay to prevent UI flicker
-                time.sleep(0.1)
+                time.sleep(2)
                 st.session_state.login_processing = False
                 st.rerun()
             else:
@@ -182,31 +182,36 @@ def main():
 
         anagrafica_azienda = st.Page("page_anagrafica_azienda.py", title="Azienda", icon=":material/search:")
 
-        fatture_emesse_uploader = st.Page("emesse_uploader.py", title="Upload XML", icon=":material/search:")
-        fatture_emesse_add = st.Page("emesse_add.py", title="Aggiungi", icon=":material/search:")
-        fatture_emesse_modify = st.Page("emesse_modify.py", title="Modifica", icon=":material/search:")
-        fatture_emesse_delete = st.Page("emesse_delete.py", title="Elimina", icon=":material/search:")
+        fatture_upload = st.Page("invoice_uploader.py", title="Carica", icon=":material/search:")
+        fatture_overview = st.Page("invoice_overview.py", title="Sommario", icon=":material/search:")
 
-        fatture_ricevute_uploader = st.Page("ricevute_uploader.py", title="Upload XML", icon=":material/search:")
-        fatture_ricevute_add = st.Page("ricevute_add.py", title="Aggiungi", icon=":material/search:")
-        fatture_ricevute_modify = st.Page("ricevute_modify.py", title="Modifica", icon=":material/search:")
-        fatture_ricevute_delete = st.Page("ricevute_delete.py", title="Elimina", icon=":material/search:")
 
-        fatture_emesse_deadlines_add = st.Page("deadlines_add.py", title="Aggiungi", icon=":material/search:")
-        fatture_emesse_deadlines_modify = st.Page("deadlines_modify.py", title="Modifica", icon=":material/search:")
-        fatture_emesse_deadlines_delete = st.Page("deadlines_delete.py", title="Rimuovi", icon=":material/search:")
-        fatture_emesse_deadlines_term_modify = st.Page("deadlines_terms_modify.py", title="Aggiorna Stato Pagamento", icon=":material/search:")
+
+    # fatture_emesse_uploader = st.Page("invoice_uploader.py", title="Upload XML", icon=":material/search:")
+        fatture_emesse_add = st.Page("invoice_add.py", title="Aggiungi", icon=":material/search:")
+        fatture_emesse_modify = st.Page("invoice_modify.py", title="Modifica", icon=":material/search:")
+        fatture_emesse_delete = st.Page("invoice_delete.py", title="Elimina", icon=":material/search:")
+        fatture_deadlines_manage = st.Page("invoice_deadlines.py", title="Gestisci Rate", icon=":material/search:")
+
+        # fatture_ricevute_uploader = st.Page("ricevute_uploader.py", title="Upload XML", icon=":material/search:")
+        # fatture_ricevute_add = st.Page("ricevute_add.py", title="Aggiungi", icon=":material/search:")
+        # fatture_ricevute_modify = st.Page("ricevute_modify.py", title="Modifica", icon=":material/search:")
+        # fatture_ricevute_delete = st.Page("ricevute_delete.py", title="Elimina", icon=":material/search:")
+
+        # fatture_emesse_deadlines_modify = st.Page("deadlines_modify.py", title="Modifica", icon=":material/search:")
+        # fatture_emesse_deadlines_delete = st.Page("deadlines_delete.py", title="Rimuovi", icon=":material/search:")
+        # fatture_emesse_deadlines_term_modify = st.Page("deadlines_terms_modify.py", title="Aggiorna Stato Pagamento", icon=":material/search:")
 
         feedback = st.Page("page_feedback.py", title="Contattaci", icon=":material/search:")
 
 
         pg = st.navigation(
             {
-            "Sommario": [overview],
+            # "Sommario": [overview],
             "Anagrafiche": [anagrafica_azienda],
-            "Fatture Emesse": [fatture_emesse_uploader, fatture_emesse_add, fatture_emesse_modify, fatture_emesse_delete],
-            "Fatture Ricevute": [fatture_ricevute_uploader, fatture_ricevute_add, fatture_ricevute_modify, fatture_ricevute_delete],
-            "Scadenze" : [fatture_emesse_deadlines_add, fatture_emesse_deadlines_modify, fatture_emesse_deadlines_delete, fatture_emesse_deadlines_term_modify],
+            "Fatture": [fatture_overview, fatture_upload, fatture_emesse_add, fatture_emesse_modify, fatture_emesse_delete, fatture_deadlines_manage],
+            # "Fatture Ricevute": [fatture_ricevute_uploader, fatture_ricevute_add, fatture_ricevute_modify, fatture_ricevute_delete],
+            # "Scadenze" : [fatture_emesse_deadlines_add, fatture_emesse_deadlines_modify, fatture_emesse_deadlines_delete, fatture_emesse_deadlines_term_modify],
             "Comunicazioni": [feedback]
             }
         )

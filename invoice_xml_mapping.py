@@ -81,7 +81,7 @@ XML_FIELD_MAPPING = {
         'data_type': 'string',
         'required': True,
         'label': 'Numero Fattura',
-        'placeholder': 'es. 2024-001',
+        # 'placeholder': 'es. 2024-001',
         'help': 'Numero identificativo della fattura',
         'xml_path': 'FatturaElettronicaBody/DatiGenerali/DatiGeneraliDocumento/Numero',
     },
@@ -105,7 +105,7 @@ XML_FIELD_MAPPING = {
         'data_type': 'string',
         'required': True,
         'label': 'P. IVA Prestatore',
-        'placeholder': 'es. 09876543210',
+        # 'placeholder': 'es. 09876543210',
         'help': 'Partita IVA del Prestatore',
         'xml_path': 'FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/IdFiscaleIVA/IdCodice'
     },
@@ -137,7 +137,7 @@ XML_FIELD_MAPPING = {
         'data_type': 'string',
         'required': False,
         'label': 'P. IVA Committente',
-        'placeholder': 'es. 09876543210',
+        # 'placeholder': 'es. 09876543210',
         'help': 'Partita IVA del Committente',
         'xml_path': 'FatturaElettronicaHeader/CessionarioCommittente/DatiAnagrafici/IdFiscaleIVA/IdCodice'
     },
@@ -146,7 +146,7 @@ XML_FIELD_MAPPING = {
         'data_type': 'string',
         'required': False,
         'label': 'CF Committente',
-        'placeholder': 'es. BSSTMS96T27B885E',
+        # 'placeholder': 'es. BSSTMS96T27B885E',
         'help': 'Codice Fiscale del Committente',
         'xml_path': 'FatturaElettronicaHeader/CessionarioCommittente/DatiAnagrafici/CodiceFiscale'
     },
@@ -155,7 +155,7 @@ XML_FIELD_MAPPING = {
         'data_type': 'string',
         'required': False,
         'label': 'Denominazione Committente',
-        'placeholder': 'Ditta ACME Srl',
+        # 'placeholder': 'Ditta ACME Srl',
         'help': 'Denominazione del soggetto giuridico committente',
         'xml_path': 'FatturaElettronicaHeader/CessionarioCommittente/DatiAnagrafici/Anagrafica/Denominazione'
     },
@@ -164,7 +164,7 @@ XML_FIELD_MAPPING = {
         'data_type': 'string',
         'required': False,
         'label': 'Nome Committente',
-        'placeholder': 'Mario',
+        # 'placeholder': 'Mario',
         'help': 'Nome del committente',
         'xml_path': 'FatturaElettronicaHeader/CessionarioCommittente/DatiAnagrafici/Anagrafica/Nome'
     },
@@ -173,7 +173,7 @@ XML_FIELD_MAPPING = {
         'data_type': 'string',
         'required': False,
         'label': 'Cognome Committente',
-        'placeholder': 'Rossi',
+        # 'placeholder': 'Rossi',
         'help': 'Cognome del committente',
         'xml_path': 'FatturaElettronicaHeader/CessionarioCommittente/DatiAnagrafici/Anagrafica/Cognome'
     },
@@ -199,7 +199,7 @@ XML_FIELD_MAPPING = {
         'data_type': 'string',
         'required': False,
         'label': 'Denominazione Prestatore',
-        'placeholder': 'Ditta ACME Srl',
+        # 'placeholder': 'Ditta ACME Srl',
         'help': 'Denominazione del soggetto giuridico prestatore',
         'xml_path': 'FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/Anagrafica/Denominazione'
     },

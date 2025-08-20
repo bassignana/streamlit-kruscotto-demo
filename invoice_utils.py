@@ -6,11 +6,9 @@ from datetime import datetime, date
 from decimal import Decimal, getcontext
 from invoice_xml_processor import process_xml_list
 from invoice_record_creation import extract_xml_records
-from xml_mapping_emesse import XML_FIELD_MAPPING
+from utils import extract_field_names, extract_prefixed_field_names
 
-def render_add_form(supabase_client, table_name, fields_config, display_name = None):
-    display_name = display_name or table_name.replace('_', ' ').title()
-    st.subheader(f"Aggiungi {display_name}")
+def render_add_form(supabase_client, table_name, fields_config, prefix):
 
     with st.form(f"add_{table_name}_form",
                  clear_on_submit=True,
@@ -19,30 +17,23 @@ def render_add_form(supabase_client, table_name, fields_config, display_name = N
         form_data = {}
         field_items = list(fields_config.items())
 
+        sql_table_fields_names = extract_field_names('sql/02_create_tables.sql', prefix)
 
-        # Render fields in columns if many fields
-        if len(field_items) > 4:
-            # Use columns for better layout
-            cols = st.columns(2)
-            for i, (field_name, field_config) in enumerate(field_items):
-                with cols[i % 2]:
+        cols = st.columns(2)
+        for i, (field_name, field_config) in enumerate(field_items):
+            with cols[i % 2]:
+                if field_name in sql_table_fields_names:
                     form_data[field_name] = render_field_widget(
                         field_name, field_config, key_suffix=f"add_{table_name}"
                     )
-        else:
-            # Single column layout
-            for field_name, field_config in field_items:
-                form_data[field_name] = render_field_widget(
-                    field_name, field_config, key_suffix=f"add_{table_name}"
-                )
 
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            submitted = st.form_submit_button("💾 Salva", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("Salva", type="primary", use_container_width=True)
 
         with col2:
-            cancelled = st.form_submit_button("🚫 Annulla", use_container_width=True)
+            cancelled = st.form_submit_button("Annulla", use_container_width=True)
 
         if cancelled:
             st.rerun()
@@ -56,7 +47,6 @@ def render_add_form(supabase_client, table_name, fields_config, display_name = N
                         st.error(error)
                 else:
                     processed_data = {}
-                    processed_data['user_id'] = st.session_state.user.id
                     # todo: the correct thing should be creating
                     # default values for all non required fields,
                     # that is consistent throughout all fields and
@@ -71,11 +61,18 @@ def render_add_form(supabase_client, table_name, fields_config, display_name = N
                             # for field_name, value in form_data.items():
                             processed_data[field_name] = str(value)
 
+
+                    prefixed_processed_data = {}
+                    for k,v in processed_data.items():
+                        prefixed_processed_data[prefix + k] = v
+                    prefixed_processed_data['user_id'] = st.session_state.user.id
+
+
                     # Correct format to use for save_to_database()
                     # todo: now that I don't use save_to_database() anymore
                     # do I have to keep this format?
                     data_to_upload = {}
-                    data_to_upload['data'] = processed_data
+                    data_to_upload['data'] = prefixed_processed_data
                     data_to_upload['status'] = 'success'
                     list_data = []
                     list_data.append(data_to_upload)
@@ -472,42 +469,66 @@ def render_xml_upload_section(supabase_client, table_name, fields_config, displa
                     if st.button("❌ Annulla", use_container_width=True):
                         st.rerun()
 
-def render_modify_form(supabase_client, user_id, table_name, fields_config, record_id, display_name = None):
-    """Render modify form for a specific record"""
-    display_name = display_name or table_name.replace('_', ' ').title()
-    # st.subheader(f"✏️ Modifica {display_name}")
+def render_modify_form(supabase_client, user_id, table_name, fields_config, data_df, record_id, prefix):
+    # TODO; can I use unprefixed fields everywhere in all these functions?
 
-    # Get record from database
-    data_df = fetch_all_records(supabase_client, table_name, user_id)
+    # TODO
+    # if data_df.empty or record_id not in data_df['id'].values:
+    #     st.error("Nessuna fattura trovata")
+    #     return
 
-    if data_df.empty or record_id not in data_df['id'].values:
-        st.error("Nessuna fattura trovata")
-        return
+    # Ensure snake_case for column names, otherwise problems with standard naming in the
+    # following operations.
+    data_df.columns = [
+        col.replace(' ', '_' ).lower() if isinstance(col, str) else str(col)
+        for col in data_df.columns
+    ]
 
-    record = data_df[data_df['id'] == record_id].iloc[0].to_dict()
+    record = data_df[data_df['id'] == record_id]
+
+    # I want to show in the modify form only the field relevant to the invoice, and not
+    # the tech fileds like id, created at etc.
+    # In order to do that I select only the column that starts with the prefix.
+    cols = [c for c in data_df.columns if c.startswith(prefix)]
+    record = record[cols]
+
+    # Ensure column names are not prefixed, otherwise getting the value from each column will fail.
+    record.columns = [
+        col[(len(prefix)):] if col.startswith(prefix) else col
+        for col in record.columns
+    ]
+
+    # For some reason, the below will create nested dicts, where each value is a dict with one element.
+    # record = record.to_dict()
+
+    record_data = {}
+    for col in record.columns:
+        record_data[col] = record[col].iloc[0]
 
     with st.form(f"modify_{table_name}_form"):
+        # form_data will hold the updated value of the form when I click on the
+        # Aggiorna button. This is because, for some reason, the code below will rerun
+        # and update form_data.
         form_data = {}
 
-        # Render fields with existing values
         field_items = list(fields_config.items())
 
-        if len(field_items) > 4:
-            cols = st.columns(2)
-            for i, (field_name, field_config) in enumerate(field_items):
-                with cols[i % 2]:
-                    default_value = record.get(field_name)
+        sql_table_fields_names = extract_field_names('sql/02_create_tables.sql', prefix)
+
+        cols = st.columns(2)
+        for i, (field_name, field_config) in enumerate(field_items):
+            with cols[i % 2]:
+                if field_name in sql_table_fields_names:
+                    # TODO; how do I manage the case where the record has not a value?
+                    #  I can try with None, but I have to test this more thoroughly.
+                    record_value = record_data.get(field_name, None)
+
+                    #TODO; another problem here is the data format, that has to be enforced.
+                    # somehow, for example, one PIVA is in string the other is a float.
                     form_data[field_name] = render_field_widget(
-                        field_name, field_config, default_value,
+                        field_name, field_config, record_value,
                         key_suffix=f"modify_{table_name}"
                     )
-        else:
-            for field_name, field_config in field_items:
-                default_value = record.get(field_name)
-                form_data[field_name] = render_field_widget(
-                    field_name, field_config, default_value,
-                    key_suffix=f"modify_{table_name}"
-                )
 
         col1, col2 = st.columns([1, 1])
 
@@ -523,17 +544,20 @@ def render_modify_form(supabase_client, user_id, table_name, fields_config, reco
         if submitted:
             try:
                 is_valid, errors = validate_required_form_data(fields_config, form_data)
-
                 if not is_valid:
                     for error in errors:
                         st.error(error)
+
                 else:
                     processed_data = {}
                     processed_data['user_id'] = st.session_state.user.id
-                    for field_name, field_config in fields_config.items():
-                        if field_config.get('required', False):
-                            value = form_data.get(field_name)
-                            processed_data[field_name] = str(value)
+
+                    # From the code above, we know that form_data will hold either a value or None,
+                    # and we know that if we pass None, the supabase API will convert to NONE or
+                    # default value.
+                    for name, value in form_data.items():
+                        # All string otherwise 'Object of type date is not JSON serializable'
+                        processed_data[prefix + name] = str(value)
 
                     with st.spinner("Salvataggio in corso..."):
                         result = supabase_client.table(table_name).update(processed_data).eq('id', record_id).execute()
@@ -644,38 +668,32 @@ def render_data_table(supabase_client, user_id, table_name, fields_config, displ
 
     return None
 
-def render_delete_confirmation(supabase_client, user_id, table_name, fields_config, record_id, display_name = None):
-    """Render delete confirmation dialog"""
-    display_name = display_name or table_name.replace('_', ' ').title()
+def render_delete_confirmation(supabase_client, user_id, table_name, fields_config, data_df, record_ids:list[str]):
+    #
+    # if data_df.empty or record_id not in data_df['id'].values:
+    #     st.error("Record non trovato")
+    #     return
 
-    # Get record from database
-    data_df = fetch_all_records(supabase_client, table_name, user_id)
+    st.warning(f"Selezionate {len(record_ids)} fatture. Sei sicuro di voler eliminare questa fattura? L'operazione non può essere annullata.")
 
-    if data_df.empty or record_id not in data_df['id'].values:
-        st.error("Record non trovato")
-        return
-
-    record = data_df[data_df['id'] == record_id].iloc[0].to_dict()
-
-    st.warning("Sei sicuro di voler eliminare questa fattura? L'operazione non può essere annullata.")
-
-    # Show record details
-    with st.expander("Visualizza dettagli fattura"):
-        for field_name, field_config in fields_config.items():
-            field_label = get_field_label(fields_config, field_name)
-            field_value = record.get(field_name, "")
-
-            # Format value based on type
-            field_type = fields_config.get(field_name, {}).get('data_type', 'string')
-            if field_type == 'money' and field_value:
-                field_value = f"€ {float(field_value):,.2f}"
-            elif field_type == 'date' and field_value:
-                if isinstance(field_value, (date, datetime)):
-                    field_value = field_value.strftime('%d/%m/%Y')
-            elif field_type == 'boolean':
-                field_value = "Sì" if field_value else "No"
-
-            st.write(f"**{field_label}:** {field_value}")
+    # # Show record details
+    # with st.expander("Visualizza dettagli fattura"):
+    #     for id in record_ids:
+    #
+    #         field_label = get_field_label(fields_config, field_name)
+    #         field_value = record.get(field_name, "")
+    #
+    #         # Format value based on type
+    #         field_type = fields_config.get(field_name, {}).get('data_type', 'string')
+    #         if field_type == 'money' and field_value:
+    #             field_value = f"€ {float(field_value):,.2f}"
+    #         elif field_type == 'date' and field_value:
+    #             if isinstance(field_value, (date, datetime)):
+    #                 field_value = field_value.strftime('%d/%m/%Y')
+    #         elif field_type == 'boolean':
+    #             field_value = "Sì" if field_value else "No"
+    #
+    #         st.write(f"**{field_label}:** {field_value}")
 
     col1, col2 = st.columns([1, 1])
 
@@ -686,11 +704,13 @@ def render_delete_confirmation(supabase_client, user_id, table_name, fields_conf
                 with st.spinner("Salvataggio in corso..."):
                     # todo: check this.
                     # Supabase delete always returns empty data, so we check for no exception
-                    result = supabase_client.table(table_name).delete().eq('id', record_id).execute()
-                    if result:
-                        st.success("Fattura eliminata con successo dal database!")
-                        time.sleep(2)
-                        st.rerun()
+                    for id in record_ids:
+                        result = supabase_client.table(table_name).delete().eq('id', id).execute()
+                        if result:
+                            pass
+                    st.success("Fatture eliminate con successo")
+                    time.sleep(2)
+                    st.rerun()
             except Exception as e:
                 print(f'Error deleting fattura: {e}')
                 raise
@@ -705,7 +725,7 @@ def get_field_label(fields_config, field_name):
     config = fields_config.get(field_name, {})
     return config.get('label', field_name.replace('_', ' ').title())
 
-# todo: For now I'll not use this. Implement later.
+# For now I'll not use this. Implement later if needed.
 def xml_to_db_cleaning(parsed_xml_data: dict[str,str], field_mappings) -> (dict, str):
     """
     # todo: maybe this function is only used in one case, from xml to db op. Because
@@ -770,8 +790,15 @@ def xml_to_db_cleaning(parsed_xml_data: dict[str,str], field_mappings) -> (dict,
 
     return result, None
 
-def render_generic_xml_upload_section(supabase_client):
-    st.subheader(f"Caricamento fatture formato XML")
+def render_generic_xml_upload_section(supabase_client, user_id):
+    # TODO: comunicare all'utente l'inserimento di una fattura duplicata.
+
+    partita_iva_result = supabase_client.table('user_data').select('ud_partita_iva').eq('user_id',user_id).execute()
+    partita_iva_azienda = partita_iva_result.data[0].get('ud_partita_iva', None)
+    if not isinstance(partita_iva_azienda, str):
+        st.error("La partita IVA dell'azienda e' in un formato inatteso.")
+
+    st.subheader(f"Carica fatture in formato XML")
 
     uploaded_files = st.file_uploader(
         "Trascina qui le tue fatture in formato XML o clicca per selezionare",
@@ -782,10 +809,6 @@ def render_generic_xml_upload_section(supabase_client):
 
     if uploaded_files:
         st.info(f"{len(uploaded_files)} file pronti per il caricamento.")
-
-        # with st.expander("📋 File da elaborare", expanded=True):
-        #     for i, file in enumerate(uploaded_files, 1):
-        #         st.write(f"**{i}.** {file.name} ({file.size} bytes)")
 
         col1, col2 = st.columns([1, 3])
 
@@ -800,155 +823,117 @@ def render_generic_xml_upload_section(supabase_client):
 
         if process_button:
             with st.spinner("Elaborazione XML in corso..."):
-                results, xml_error = process_xml_list(uploaded_files)
+                parsing_results, error = process_xml_list(uploaded_files)
 
-            # POSSIBLE PATTERN: Exceptions should be not blocking, custom errors should be blocking.
-            outs = []
-            if results:
-                xml_records = extract_xml_records(results,'04228480408')
+                outs = []
+                if parsing_results:
+                    xml_records = extract_xml_records(parsing_results, partita_iva_azienda)
 
-                # successful_xml_parsings = [r for r in results if r['status'] == 'success']
-                # error_xml_parsings = [r for r in results if r['status'] == 'error']
-                #
-                # successful_inserts_count = 0
-                # error_inserts_data = []
+                    for xml in xml_records:
 
-                # Here the core logic is:
-                # The data structure of xml below will contain fields for both
-                # the single record to insert and the optional terms.
-                # I can just check whether the terms field is empty.
-                #
-                # The field 'data_scadenza_pagamento' will be NULL
-                # in case of terms.
-                for xml in xml_records:
+                        out = {
+                            'filename': xml['filename'],
+                            'data': xml['data'],
+                            'status': xml['status'],
+                            'error_message': xml['error_message'],
+                            'record': xml['record'],
+                            'terms': xml['terms'],
+                            'invoice_type': xml['invoice_type'],
+                            'inserted_record': {},
+                            'inserted_terms': [],
+                        }
 
-                    out = {
-                        'filename': xml['filename'],
-                        'data': xml['data'],
-                        'status': xml['status'],
-                        'error_message': xml['error_message'],
-                        'record': xml['record'],
-                        'terms': xml['terms'],
-                        'invoice_type': xml['invoice_type'],
-                        'inserted_record': {},
-                        'inserted_terms': [],
-                    }
+                        try:
+                            if out['status'] == 'error':
+                                outs.append(out)
+                                continue # to the next invoice record(s)
 
-                    try:
-                        if out['status'] == 'error':
+                            if out['invoice_type'] == 'emessa':
+                                record_to_insert = out['record'].copy()
+
+                                # User id is also inserted inside the following postgres function.
+                                # I leave this here in case we might change approach so that
+                                # we don't forget to add the user id.
+                                # NOTE; this is a dirty way of doing it, because this is NOT the
+                                # record that will be inserted. That record is created in the
+                                # RPC function.
+                                #
+                                # Todo: related to the "issue" of adding user_id both here and
+                                # in the procedure, it has to be clear what implicit rules are
+                                # respected inside the RPC function, for example if triggers for
+                                # created_at and updated_at will function correctly, and if the
+                                # automatic id setting with get_random_uuid() will work etc.
+                                # The best thing should be that all RPC functions will work the same.
+                                record_to_insert['user_id'] = user_id
+
+                                result = supabase_client.rpc('insert_record_fixed', {
+                                    'table_name': 'fatture_emesse',
+                                    'record_data': out['record'],
+                                    'terms_table_name': 'rate_fatture_emesse',
+                                    'terms_data': out['terms'],
+                                    'test_user_id': user_id
+                                }).execute()
+
+                                if result.data and result.data.get('success'):
+                                    out['inserted_record'] = record_to_insert
+                                    outs.append(out)
+
+                                else:
+                                    out['status'] = 'error'
+                                    out['error_message'] = f'Error during invoice INSERT for xml_record {result.data}'
+                                    print('ERROR')
+                                    continue # to the next file
+
+                            elif out['invoice_type'] == 'ricevuta':
+                                record_to_insert = out['record'].copy()
+                                record_to_insert['user_id'] = user_id
+
+                                result = supabase_client.rpc('insert_record_fixed', {
+                                    'table_name': 'fatture_ricevute',
+                                    'record_data': out['record'],
+                                    'terms_table_name': 'rate_fatture_ricevute',
+                                    'terms_data': out['terms'],
+                                    'test_user_id': user_id
+                                }).execute()
+
+                                if result.data and result.data.get('success'):
+                                    out['inserted_record'] = record_to_insert
+                                    outs.append(out)
+                                else:
+                                    out['status'] = 'error'
+                                    out['error_message'] = f'Error during invoice INSERT for xml_record {out}'
+                                    outs.append(out)
+                                    continue # to the next file
+
+                            else:
+                                raise Exception(f"This branch should not be able to run, since there should be an early return for invoice not emessa and not ricevuta.")
+
+                        except Exception as e:
+                            # todo: should this kind of error shown to the user, probably not
+                            # print(f"Errore durante l'upload di {pprint(out)} nel database: {str(e)}")
+                            # error_inserts_data.append(xml)
+                            print(f'EXCEPTION: {e}')
                             outs.append(out)
-                            continue # to the next invoice record(s)
+                            continue # to the next xml
 
-                        if out['invoice_type'] == 'emessa':
-                            record_to_insert = out['record'].copy() # todo: copy necessary?
-                            record_to_insert['user_id'] = st.session_state.user.id
+                    successful_upload_count = len([res for res in outs if res['status'] == 'success'])
+                    st.info(f"Caricate correttamente {successful_upload_count} nuove fatture.")
+                else:
+                    st.error(f"Errore durante l'estrazione XML delle fatture: {error}")
 
-                            result = supabase_client.table('fatture_emesse').insert(record_to_insert).execute()
-                            #todo: len(result.data) should be == 1 in case of successful single invoice insert?
-                            if len(result.data) == 1:
-                                # successful_inserts_count += 1
-                                #todo: rerun on success?
-                                # st.rerun()
+def render_selectable_dataframe(query_result_data, selection_mode = 'single_row', on_select = 'rerun'):
+    df = pd.DataFrame(query_result_data)
 
-                                out['inserted_record'] = record_to_insert
-                                outs.append(out)
-                            else:
-                                # xml['insert_table'] = 'fatture_emesse'
-                                # xml['insert_result'] = result
-                                # error_inserts_data.append(xml)
+    # Assumning that I force the first column of the view to be the index one.
+    # df = df.set_index(df.columns[0])
+    # TODO; df.columns = ["Voce"] + df.columns[1:]
 
-                                out['status'] = 'error'
-                                out['error_message'] = f'Error during invoice INSERT for xml_record {out}'
-                                outs.append(out)
-                                continue # to the next file
+    df.columns = [
+        col.replace('_', ' ').title() if isinstance(col, str) else str(col)
+        for col in df.columns
+    ]
 
-                            if out['terms']:
-                                terms_to_insert = out['terms'].copy()
-                                for term in terms_to_insert:
-                                    term['user_id'] = st.session_state.user.id
+    # TODO: scroll bar always preset, auto formatting everything to euro.
+    selection = st.dataframe(df, use_container_width=True, selection_mode = selection_mode, on_select=on_select)
 
-                                # bulk insert
-                                result = supabase_client.table('rate_fatture_emesse').insert(terms_to_insert).execute()
-                                #
-                                #
-                                # TODO; IMPORTANT: USE TRANSACTION WHEN INSERTTING TERMS OR I"LL CREATE ORPHANS RECORDS
-                                #
-                                #
-                                if len(result.data) == len(terms_to_insert):
-                                    # successful_inserts_count += 1
-                                    #todo: rerun on success?
-                                    # st.rerun()
-
-                                    out['inserted_terms'] = terms_to_insert
-                                    outs.append(out)
-                                else:
-                                    # xml['insert_table'] = 'fatture_emesse'
-                                    # xml['insert_result'] = result
-                                    # error_inserts_data.append(xml)
-
-                                    out['status'] = 'error'
-                                    out['error_message'] = f'Error during terms INSERT for xml_record {out}'
-                                    outs.append(out)
-                                    continue # to the next file
-
-                        elif out['invoice_type'] == 'ricevuta':
-                            record_to_insert = out['record'].copy()
-                            record_to_insert['user_id'] = st.session_state.user.id
-
-                            result = supabase_client.table('fatture_ricevute').insert(record_to_insert).execute()
-                            if len(result.data) == 1:
-                                out['inserted_record'] = record_to_insert
-                                outs.append(out)
-
-                            else:
-                                out['status'] = 'error'
-                                out['error_message'] = f'Error during invoice INSERT for xml_record {out}'
-                                outs.append(out)
-                                continue # to the next file
-
-                            if out['terms']:
-                                terms_to_insert = out['terms'].copy()
-                                for term in terms_to_insert:
-                                    term['user_id'] = st.session_state.user.id
-
-                                # bulk insert
-                                result = supabase_client.table('rate_fatture_ricevute').insert(terms_to_insert).execute()
-                                if len(result.data) == len(terms_to_insert):
-                                    out['inserted_terms'] = terms_to_insert
-                                    outs.append(out)
-                                else:
-                                    out['status'] = 'error'
-                                    out['error_message'] = f'Error during terms INSERT for xml_record {out}'
-                                    outs.append(out)
-                                    continue # to the next file
-
-                        else:
-                            raise Exception(f"This branch should not be able to run, since there should be an early return for invoice not emessa and not ricevuta.")
-
-                    except Exception as e:
-                        # todo: should this kind of error shown to the user, probably not
-                        st.error(f"Errore durante l'upload nel database: {str(e)}")
-                        print(f"Errore durante l'upload nel database: {str(e)}")
-                        # error_inserts_data.append(xml)
-                        outs.append(out)
-                        continue # to the next xml
-
-                # Probably I should tell the user only about errors that he/she can understand,
-                # # like missing fields in XML files. Other than that only in logs or prints.
-                # if successful_inserts_count > 0:
-                #     st.success(f"{successful_inserts_count}/{len(uploaded_files)} fatture caricate con successo")
-                #
-                # if len(error_xml_parsings) > 0:
-                #     st.warning(f"Leggendo l'XML delle seguenti {len(error_xml_parsings)} fatture si sono riscontrati errori")
-                #     with st.expander('Dettagli errori lettura XML', expanded = False):
-                #         for xml in error_xml_parsings:
-                #             st.write(f"File: {xml['filename']}, errore: {xml['error_message']}")
-                #
-                # if len(error_inserts_data) > 0:
-                #     st.warning(f"Caricando sul database le seguenti {len(error_xml_parsings)} fatture si sono riscontrati errori")
-                #     with st.expander('Dettagli errori caricamento XML', expanded = False):
-                #         for xml in error_inserts_data:
-                #             st.write(f"File: {xml['filename']}, tabella: {xml['insert_table']}, risultato: {xml['insert_result']}")
-
-            else:
-                st.error(f"Errore durante l'elaborazione delle fatture caricate: {str(xml_error)}")
+    return selection

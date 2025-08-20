@@ -5,10 +5,12 @@ from datetime import date, datetime
 import plotly.graph_objects as go
 from dateutil.relativedelta import relativedelta
 
+from utils import setup_page
+
 getcontext().prec = 2
 
 def get_invoices_statistics(supabase_client, user_id):
-    """Get overview of all invoices and their terms status"""
+
     try:
         # todo: use count if I don't need the full data.
         emesse_result = supabase_client.table('fatture_emesse').select('id').eq('user_id', user_id).execute()
@@ -329,50 +331,35 @@ def render_monthly_charts(monthly_df: pd.DataFrame):
 
 def main():
 
-    st.set_page_config(
-        page_title="Riepilogo Fatture",
-        page_icon="📊",
-        layout="wide"
-    )
-
     getcontext().prec = 2
 
-    if 'user' not in st.session_state or not st.session_state.user:
-        st.error("🔐 Effettuare il login per accedere a questa pagina")
-        st.stop()
+    user_id, supabase_client, page_can_render = setup_page("Sommario")
 
-    user_id = st.session_state.user.id
+    if page_can_render:
 
-    if 'client' not in st.session_state:
-        st.error("❌ Errore di connessione al database")
-        st.stop()
+        with st.spinner("📊 Caricamento dati..."):
+            invoices_statistics = get_invoices_statistics(supabase_client, user_id)
+            # monthly_df = get_monthly_terms_projection(supabase_client, user_id)
 
-    supabase_client = st.session_state.client
+        # Render terms status breakdown
+        if invoices_statistics['total_invoices_count'] > 0:
+            # render_monthly_projection_table(monthly_df)
+            st.markdown("---")
+            # render_monthly_charts(monthly_df)
 
-    # Load data
-    with st.spinner("📊 Caricamento dati..."):
-        invoices_statistics = get_invoices_statistics(supabase_client, user_id)
-        monthly_df = get_monthly_terms_projection(supabase_client, user_id)
+            without_terms = invoices_statistics['invoices_without_terms_count']
+            if without_terms > 0:
+                st.warning(f"""{without_terms} fatture sono sprovviste di scadenze.
+    Solo le fatture con scadenze configurate saranno prese in considerazione
+    per il riepilogo presente in questa pagina.""")
 
-    # Render terms status breakdown
-    if invoices_statistics['total_invoices_count'] > 0:
-        render_monthly_projection_table(monthly_df)
-        st.markdown("---")
-        render_monthly_charts(monthly_df)
-
-        without_terms = invoices_statistics['invoices_without_terms_count']
-        if without_terms > 0:
-            st.warning(f"""{without_terms} fatture sono sprovviste di scadenze.
-Solo le fatture con scadenze configurate saranno prese in considerazione
-per il riepilogo presente in questa pagina.""")
-
-    else:
-        st.markdown("""
-        Per vedere la dashboard completa:
-        1. 📄 Crea alcune fatture (emesse o ricevute)
-        2. ⏰ Configura le scadenze di pagamento
-        3. 📊 Torna qui per vedere l'analisi completa
-        """)
+        else:
+            st.markdown("""
+            Per vedere la dashboard completa:
+            1. Carica alcune fatture (emesse o ricevute)
+            2. Configura le scadenze di pagamento
+            3. orna qui per vedere l'analisi completa
+            """)
 
 if __name__ == "__main__":
     main()
