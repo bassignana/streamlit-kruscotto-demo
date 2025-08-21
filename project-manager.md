@@ -284,3 +284,11 @@ In sql file:
 
 Test sql file
 
+For generating CRUD elements:
+Since I don't want to mess with the whole xml config needed to 
+render elements correctly, for altri_movimenti I'll create a
+separate config: altri_movimenti_config.py
+
+Some utils are taken from invoice_utils.py others from altri_movimenti_utils.py
+
+

@@ -1,62 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import setup_page
-import plotly.graph_objects as go
-
-
-def create_monthly_line_chart(df, sales_row_name="Fatture di Vendita", purchase_row_name="Fatture di Acquisto"):
-    """
-    Create a simple line chart from a DataFrame with monthly data.
-
-    Args:
-        df: DataFrame with months as columns and invoice types as index
-        sales_row_name: Name of the sales row in the DataFrame index
-        purchase_row_name: Name of the purchase row in the DataFrame index
-
-    Returns:
-        plotly Figure object
-    """
-
-    # Get x-axis (column names)
-    months = df.columns.tolist()
-
-    # Create figure
-    fig = go.Figure()
-
-    # Green line for sales
-    if sales_row_name in df.index:
-        sales_values = df.loc[sales_row_name].tolist()
-        fig.add_trace(go.Scatter(
-            x=months,
-            y=sales_values,
-            mode='lines+markers',
-            name=sales_row_name,
-            line=dict(color='green', width=3),
-            marker=dict(size=8)
-        ))
-
-    # Red line for purchases
-    if purchase_row_name in df.index:
-        purchase_values = df.loc[purchase_row_name].tolist()
-        fig.add_trace(go.Scatter(
-            x=months,
-            y=purchase_values,
-            mode='lines+markers',
-            name=purchase_row_name,
-            line=dict(color='red', width=3),
-            marker=dict(size=8)
-        ))
-
-    # Basic layout
-    fig.update_layout(
-        xaxis_title="Mesi",
-        yaxis_title="Importo (€)",
-        legend=dict(orientation="h", y=1.02),
-        height=400
-    )
-
-    return fig
-
+from utils import setup_page, create_monthly_line_chart
 
 
 def main():
@@ -89,7 +33,7 @@ def main():
                 # TODO: scroll bar always preset, auto formatting everything to euro, remove some options.
                 st.dataframe(df, use_container_width=True)
 
-                fig = create_monthly_line_chart(df)
+                fig = create_monthly_line_chart(df,"Fatture di Vendita", "Fatture di Acquisto")
                 st.plotly_chart(fig)
 
         with emesse:

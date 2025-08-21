@@ -102,6 +102,7 @@ def save_payment_terms_to_db(supabase_client, user_id: str, invoice_key: Dict, p
         st.error(f"Errore nel salvataggio: {str(e)}")
         return False
 
+# TODO: this is only for EMESSE!!!!!!
 def load_existing_payment_terms(supabase_client, user_id: str, invoice_key: Dict) -> List[Dict]:
     """Load existing payment terms for an invoice"""
     try:

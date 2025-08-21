@@ -6,7 +6,7 @@ from datetime import datetime, date
 from decimal import Decimal, getcontext
 from invoice_xml_processor import process_xml_list
 from invoice_record_creation import extract_xml_records
-from utils import extract_field_names, extract_prefixed_field_names
+from utils import extract_field_names
 
 def render_add_form(supabase_client, table_name, fields_config, prefix):
 
@@ -266,7 +266,6 @@ def process_form_data(fields_config, form_data):
     return processed_data
 
 def fetch_all_records(supabase_client, table_name: str, user_id: str):
-    """Fetch all records from database for the user"""
     try:
         result = supabase_client.table(table_name).select('*').eq('user_id', user_id).execute()
 
@@ -933,7 +932,21 @@ def render_selectable_dataframe(query_result_data, selection_mode = 'single_row'
         for col in df.columns
     ]
 
+    df = df.drop(['Id', 'User Id', 'Created At', 'Updated At'], axis = 1)
+
+    uppercase_prefixes = ['Fe ', 'Fr ', 'Rfe ', 'Rfr ', 'Ma ', 'Mp ', 'Rma ', 'Rmp ']
+    def remove_prefix(col_name, prefixes):
+        for prefix in prefixes:
+            if col_name.startswith(prefix):
+                return col_name[len(prefix):]
+        return col_name  # Return original if no prefix found
+
+    df.columns = [remove_prefix(col, uppercase_prefixes) for col in df.columns]
+
     # TODO: scroll bar always preset, auto formatting everything to euro.
-    selection = st.dataframe(df, use_container_width=True, selection_mode = selection_mode, on_select=on_select)
+    selection = st.dataframe(df, use_container_width=True,
+                             selection_mode = selection_mode,
+                             on_select=on_select,
+                             hide_index = True)
 
     return selection

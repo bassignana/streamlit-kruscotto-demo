@@ -2,6 +2,30 @@ import streamlit as st
 from supabase import create_client
 import re
 import time
+import logging
+import os
+
+def setup_logging():
+    log_level = os.getenv('LOG_LEVEL', 'DEBUG').upper()
+
+    logging.basicConfig(
+        level=getattr(logging, log_level, logging.INFO),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s',
+        handlers=[
+            logging.StreamHandler(),
+            # logging.FileHandler('cashflow_app.log')
+        ]
+    )
+
+setup_logging()
+# Development: LOG_LEVEL=DEBUG streamlit run app.py
+# Production: LOG_LEVEL=INFO streamlit run app.py
+# logging.basicConfig(level=logging.DEBUG)    # Shows everything
+# logging.basicConfig(level=logging.INFO)     # Shows info, warning, error, critical
+# logging.basicConfig(level=logging.WARNING)  # Shows warning, error, critical (default)
+# logging.basicConfig(level=logging.ERROR)    # Shows error, critical only
+# logging.basicConfig(level=logging.CRITICAL) # Shows critical only
+
 @st.cache_resource
 def init_supabase():
     url = st.secrets["SUPABASE_URL"]
@@ -184,23 +208,14 @@ def main():
 
         fatture_upload = st.Page("invoice_uploader.py", title="Carica", icon=":material/search:")
         fatture_overview = st.Page("invoice_overview.py", title="Sommario", icon=":material/search:")
-
-
-
-    # fatture_emesse_uploader = st.Page("invoice_uploader.py", title="Upload XML", icon=":material/search:")
         fatture_emesse_add = st.Page("invoice_add.py", title="Aggiungi", icon=":material/search:")
         fatture_emesse_modify = st.Page("invoice_modify.py", title="Modifica", icon=":material/search:")
         fatture_emesse_delete = st.Page("invoice_delete.py", title="Elimina", icon=":material/search:")
         fatture_deadlines_manage = st.Page("invoice_deadlines.py", title="Gestisci Rate", icon=":material/search:")
 
-        # fatture_ricevute_uploader = st.Page("ricevute_uploader.py", title="Upload XML", icon=":material/search:")
-        # fatture_ricevute_add = st.Page("ricevute_add.py", title="Aggiungi", icon=":material/search:")
-        # fatture_ricevute_modify = st.Page("ricevute_modify.py", title="Modifica", icon=":material/search:")
-        # fatture_ricevute_delete = st.Page("ricevute_delete.py", title="Elimina", icon=":material/search:")
+        altri_movimenti_manage = st.Page("altri_movimenti_manage.py", title="Gestisci Movimenti", icon=":material/search:")
 
-        # fatture_emesse_deadlines_modify = st.Page("deadlines_modify.py", title="Modifica", icon=":material/search:")
-        # fatture_emesse_deadlines_delete = st.Page("deadlines_delete.py", title="Rimuovi", icon=":material/search:")
-        # fatture_emesse_deadlines_term_modify = st.Page("deadlines_terms_modify.py", title="Aggiorna Stato Pagamento", icon=":material/search:")
+        flussi_di_cassa = st.Page("cash_flow.py", title="Flussi di Cassa", icon=":material/search:")
 
         feedback = st.Page("page_feedback.py", title="Contattaci", icon=":material/search:")
 
@@ -210,8 +225,8 @@ def main():
             # "Sommario": [overview],
             "Anagrafiche": [anagrafica_azienda],
             "Fatture": [fatture_overview, fatture_upload, fatture_emesse_add, fatture_emesse_modify, fatture_emesse_delete, fatture_deadlines_manage],
-            # "Fatture Ricevute": [fatture_ricevute_uploader, fatture_ricevute_add, fatture_ricevute_modify, fatture_ricevute_delete],
-            # "Scadenze" : [fatture_emesse_deadlines_add, fatture_emesse_deadlines_modify, fatture_emesse_deadlines_delete, fatture_emesse_deadlines_term_modify],
+            "Altri Movimenti": [altri_movimenti_manage],
+            "Flussi di Cassa": [flussi_di_cassa],
             "Comunicazioni": [feedback]
             }
         )
