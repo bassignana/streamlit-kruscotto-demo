@@ -70,23 +70,6 @@ def main():
             st.subheader('Totale')
             st.dataframe(saldo, use_container_width=True, hide_index=True)
 
-            # # Convert all columns to numeric, filling NaN with 0
-            # for col in active_totals.columns:
-            #     active_totals[col] = pd.to_numeric(active_totals[col], errors='coerce').fillna(0)
-            #
-            # for col in passive_totals.columns:
-            #     passive_totals[col] = pd.to_numeric(passive_totals[col], errors='coerce').fillna(0)
-            #
-            # # Align dataframes by columns (ensures same column structure)
-            # active_totals, passive_totals = active_totals.align(passive_totals, fill_value=0)
-            #
-            # # Calculate net cashflow (active - passive)
-            # net_df = active_totals - passive_totals
-            # net_df.index = ['Netto']
-            #
-            # st.subheader("💰 Riepilogo Netto Totale")
-            # st.dataframe(net_df, use_container_width=True)
-
         except Exception as e:
             st.error(f"Errore nel calcolo del netto: {str(e)}")
     else:

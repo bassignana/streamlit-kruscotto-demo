@@ -878,10 +878,14 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                                     outs.append(out)
 
                                 else:
-                                    out['status'] = 'error'
-                                    out['error_message'] = f'Error during invoice INSERT for xml_record {result.data}'
-                                    print('ERROR')
-                                    continue # to the next file
+                                    if 'duplicate key value violates unique constraint' in result.data['error']:
+                                        st.info(f'La fattura {xml['filename']} è già presente nel database.')
+                                    else:
+                                        err_msg = f'Error during invoice INSERT for xml_record {result.data}'
+                                        out['status'] = 'error'
+                                        out['error_message'] = err_msg
+                                        print(f'ERROR: {err_msg}')
+                                        continue # to the next file
 
                             elif out['invoice_type'] == 'ricevuta':
                                 record_to_insert = out['record'].copy()

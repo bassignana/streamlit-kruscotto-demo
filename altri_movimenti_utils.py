@@ -4,6 +4,7 @@ import pandas as pd
 import time
 from datetime import datetime, timedelta
 from decimal import Decimal, getcontext, ROUND_HALF_UP
+from dateutil.relativedelta import relativedelta
 from invoice_utils import render_field_widget, render_selectable_dataframe
 from utils import extract_prefixed_field_names
 
@@ -127,37 +128,68 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
                     for name, value in form_data.items():
                         processed_data[name] = str(value)
 
-                    processed_data['user_id'] = st.session_state.user.id
-
-                    # Correct format to use for save_to_database()
-                    # todo: now that I don't use save_to_database() anymore
-                    # do I have to keep this format?
-                    # data_to_upload = {}
-                    # data_to_upload['data'] = processed_data
-                    # data_to_upload['status'] = 'success'
-                    # list_data = []
-                    # list_data.append(data_to_upload)
+                    # When using the rpc function, user_id is added automatically.
+                    # processed_data['user_id'] = st.session_state.user.id
 
                     with st.spinner("Salvataggio in corso..."):
-                        # successful_results = [r.get('data') for r in list_data if r['status'] == 'success']
 
                         try:
-                            result = supabase_client.table(table_name).insert(processed_data).execute()
-                            st.success("Fattura salvata con successo nel database!")
-                            time.sleep(2)
-                            # todo: for resetting fields on reload I have to delete these
-                            # keys in the session state, or understand where they are formed
-                            # and clean them up some other way.
-                            # "numero_fattura_add_fatture_emesse":"1"
-                            # "partita_iva_prestatore_add_fatture_emesse":"1"
-                            # "data_scadenza_pagamento_add_fatture_emesse":NULL
-                            # "data_documento_add_fatture_emesse":"datetime.date(2025, 7, 31)"
-                            st.rerun()
+                            # I need to ensure to:
+                            # 1. Always create a record in the rate_* table
+                            # 2. Use a transaction
+                            # In order to use the same Postgres function, I need to manually
+                            # create the term record. In this record, I don't need to add
+                            # special fields like user or *_at because the function and the
+                            # triggers will take care of it.
+                            #
+                            # factor out?
+                            MONTHS_IN_ADVANCE = 1
+                            data_documento_date = datetime.fromisoformat(processed_data['ma_data'])
+                            first_day = datetime(data_documento_date.year, data_documento_date.month, 1)
+                            last_day_next_X_months = first_day + relativedelta(months=MONTHS_IN_ADVANCE + 1, days=-1)
+                            # terms_due_date = [last_day_next_X_months.date().isoformat()]
+                            terms_due_date = last_day_next_X_months.date().isoformat() # Not a list!
+
+                            term = {}
+                            if table_name == 'movimenti_attivi':
+                                term['rma_numero'] = processed_data['ma_numero']
+                                term['rma_data'] = processed_data['ma_data']
+                                term['rma_importo_pagamento'] = processed_data['ma_importo_totale']
+                                term['rma_data_scadenza'] = terms_due_date
+                            elif table_name != 'movimenti_passivi':
+                                term['rmp_numero'] = processed_data['mp_numero']
+                                term['rmp_data'] = processed_data['mp_data']
+                                term['rmp_importo_pagamento'] = processed_data['mp_importo_totale']
+                                term['rmp_data_scadenza'] = terms_due_date
+                            else:
+                                raise Exception("Uniche tabelle supportate: movimenti_attivi, movimenti_passivi.")
+
+                            # TODO; I have two insert_record_fixed functions in the db!
+                            #  Remove them, but before save their definition in case I had
+                            #  always used the wrong one.
+                            # SELECT routine_name, routine_definition
+                            # FROM information_schema.routines
+                            # WHERE routine_name = 'insert_record_fixed';
+
+                            result = supabase_client.rpc('insert_record_fixed', {
+                                'table_name': table_name,
+                                'record_data': processed_data,
+                                'terms_table_name': 'rate_' + table_name,
+                                'terms_data': [term],
+                                'test_user_id': None
+                            }).execute()
+
+                            if result.data.get('success', False):
+                                st.success("Movimento salvato con successo")
+                                time.sleep(2)
+                                st.rerun()
+                            else:
+                                st.error(f'Error during movement INSERT, result: {result}')
                         except Exception as e:
                             st.error("Error inserting data:", e)
 
             except Exception as e:
-                print(f'Error adding invoice manually: {e}')
+                print(f'Error adding movimento manually: {e}')
 
 @st.dialog("Rimuovi movimento")
 def render_delete_modal(supabase_client, table_name, record_id:str):
@@ -637,4 +669,3 @@ def render_movimenti_crud_page(supabase_client, user_id,
                     st.rerun()
                 else:
                     st.warning('Seleziona un movimento di cui modificare le rate')
-

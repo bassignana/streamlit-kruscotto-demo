@@ -1,5 +1,9 @@
 import streamlit as st
 import time
+import pandas as pd
+import numpy as np
+from utils import setup_page
+
 
 def render_anagrafica_azienda_form(client, user_id):
 
@@ -59,24 +63,16 @@ def render_anagrafica_azienda_form(client, user_id):
                 st.error(f"Errore upsert anagrafica azienda: {str(e)}")
 
 def main():
+    user_id, supabase_client, page_can_render = setup_page("Anagrafica Azienda")
 
-    st.set_page_config(
-        page_title="Anagrafica azienda",
-        page_icon="",
-        layout="wide"
-    )
+    df = pd.DataFrame()
+    for i in range(40):
+        df[f'col_{i}'] = np.random.randn(100)
 
-    if 'user' not in st.session_state or not st.session_state.user:
-        st.error("🔐 Please login first")
-        st.stop()
-    user_id = st.session_state.user.id
+    # st.dataframe(df)
 
-    if 'client' not in st.session_state:
-        st.error("Please create the client for pate_test_uploader")
-        st.stop()
-    supabase_client = st.session_state.client
-
-    render_anagrafica_azienda_form(supabase_client, user_id)
+    if page_can_render:
+        render_anagrafica_azienda_form(supabase_client, user_id)
 
 if __name__ == "__main__":
     main()
