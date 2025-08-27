@@ -69,6 +69,70 @@ secrets.toml file.
 - altri movimenti anche positivi, come ordini
 - Visione: saro' in grado di pagare?
 
+## Mar 26 Agosto 2025
+CASSE:
+- Nelle fatture ricevute, la cassa che vado ad indicare quando imposto
+  le scadenze di pagamento saranno le MIE, non quelle del fornitore?
+- Nel tab delle casse posso fare un crud completo sulle casse che imposto
+  io manualmente, ma se un iban e' stato letto da fattura, potrei in teoria,
+  solo modificarne il nome, ma anche qui ci sarebbe un po' di lavoro da fare,
+  perche' nella fattura ci sarebbe un nome diverso.
+- Queste operazioni sulle casse le potrei fare solo perche' userei l'iban come
+  id unico per identificare una cassa
+ANAGRAFICHE:
+- Stesso discorso sopra per le anagrafiche, ma con una domanda: dove le uso le 
+  anagrafiche in questo momento? Sono essenziali?
+- Possiamo comunque conservare le informazioni dei clienti dalle fatture emesse,
+  in modo da poter fare, ad esempio, una classifica dei clienti che mi devono 
+  di piu' come nell'attuale dashboard, ma comunque senza dare la possibilita' 
+  di modificare o aggiungere anagrafiche, al piu' leggerle, ma non saprei a che pro.
+ALTRI MOVIMENTI:
+- in una primissima fase, nessuna connessione con le fatture. si carica la fattura 
+  e si elimina il movimento.
+FLUSSI DI CASSA
+- come fare l'impostazione del saldo iniziale? magari solo al primo mese?
+  potrei fare un riquadro dove per ogni cassa imputo di default il flusso
+  di cassa del mese precedente, ma modificabile in modo da poter sovrascrivere
+  il saldo iniziale. Al termine del mese, i valori verranno riaggiornati, anche
+  se erano stati valorizzati manualmente. Mettere un avviso magari.
+- a 60 gg vuol dire solo il secondo mese, non cumulativo corretto?
+
+Casse:
+Iban | nome | descrizione
+posso aggiungere cassa, anche senza iban (contanti)
+Nei campi che leggo da fattura posso solo modificare la descrizione.
+Nei campi che aggiungo io posso modificare tutto?
+Faro' sempre una query da questa tabella, che risultera' in una sola colonna:
+coalesce(descrizione, nome, iban), che utilizzero' nei menu' a scelta multipla e 
+nelle altre visualizzazioni.
+Nelle fatture ricevute mi devo assicurare di utilizzare le mie casse!
+
+A tendere:
+Anagrafiche aziende: leggere CF e PIVA e aggiornare con l'ultimo nome disponibile
+Mantenere storico scadenza originaria nel database, lato statistiche.
+filtro altri movimenti x tipo nel sommario
+movimenti passivi categoria iVA ALERT
+
+Flussi di cassa:
+flussi di cassa come mvp DAL MESE CORRENTE, parte bloccata scaduti,
+e saldi iniziali selezionabili nell'anagrafica azienda con avviso ogni primo
+del mese se cambiarli o lasciarli uguali.
+numeri allineati a dx, tutte le cose allineate a dx.
+eliminare opzioni di visualizzazione / sort nelle tabelle.
+no euro 6.000,cents
+stesse dimensioni delle colonne tra le varie tabelle
+Intestazione colonne centrate
+
+varie:
+TEMPLATES
+alert utente iscritto
+altri movimenti: menu a tendina blindata
+
+## Successiva:
+- Nella gestione scadenze, per ora avviso discrepanza tra impostato e totale. 
+  Differenza sempre presente occludeva un po' l'interfaccia.
+- Potrebbe essere utile una finestra o un dropdown con un video gif delle operazioni 
+  che si possono fare?
 # Features - Design
 data -> filter() => op() with views!
 
@@ -292,3 +356,20 @@ separate config: altri_movimenti_config.py
 Some utils are taken from invoice_utils.py others from altri_movimenti_utils.py
 
 
+
+
+# Security
+- In order for views to 'inherit' the RLS policies, I have to use the
+  WITH (security_invoker = true) clause, but I don't know exactly how this works
+  and it can be super dangerous. 
+  The manual says: If any of the underlying base relations has row-level security enabled, 
+  then by default, the row-level security policies of the view owner are applied, 
+  and access to any additional relations referred to by those policies is determined 
+  by the permissions of the view owner. 
+  However, if the view has security_invoker set to true, 
+  then the policies and permissions of the invoking user are used instead,
+  as if the base relations had been referenced directly from the query using the view.
+  But I don't really understand this and messing with roles will also possibly mess with 
+  this. So, until I find time to sort this out, I'll specify both WITH (security_invoker = true)
+  and WHERE clauses that will identify the authenticated user.
+- 

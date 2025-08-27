@@ -174,8 +174,7 @@ def feedback_form():
         # Submit button
         submitted = st.form_submit_button(
             "📤 Invia Feedback",
-            type="primary",
-            use_container_width=True
+            type="primary"
         )
         
         if submitted:
@@ -253,7 +252,7 @@ def feedback_sidebar():
             placeholder="per risposta"
         )
         
-        if st.form_submit_button("Invia", use_container_width=True):
+        if st.form_submit_button("Invia"):
             if quick_message.strip():
                 feedback_data = {
                     'type': '💬 Feedback Rapido',

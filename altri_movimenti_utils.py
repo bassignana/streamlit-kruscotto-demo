@@ -112,7 +112,7 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            submitted = st.form_submit_button("Salva", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("Salva", type="primary")
 
         with col2:
             pass # For space in dialog, for now at least that the dialog is set to dismissable.
@@ -222,7 +222,7 @@ def render_delete_modal(supabase_client, table_name, record_id:str):
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        if st.button("Conferma Eliminazione", type="primary", use_container_width=True):
+        if st.button("Conferma Eliminazione", type="primary"):
             try:
 
                 with st.spinner("Eliminazione in corso..."):
@@ -270,7 +270,7 @@ def render_modify_modal(supabase_client, table_name, fields_config, record_data,
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            submitted = st.form_submit_button("💾 Aggiorna", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("💾 Aggiorna", type="primary")
 
         if submitted:
             try:
@@ -392,7 +392,7 @@ def render_terms_form(supabase_client, user_id,
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Aggiungi o Modifica Movimento", type="primary", use_container_width=True):
+        if st.button("Aggiungi o Modifica Movimento", type="primary"):
             st.session_state.edit_movimenti_attivi_terms = True
             # CRITICAL: Reset current terms to existing data when entering edit mode
             st.session_state.current_movimenti_attivi_terms = existing_terms.copy() if existing_terms else [{
@@ -416,7 +416,7 @@ def render_terms_form(supabase_client, user_id,
                 interval_days = st.number_input("Giorni tra rate", min_value=1, max_value=365, value=30, step=15)
 
             with split_col3:
-                if st.button("Applica Configurazione", use_container_width=True):
+                if st.button("Applica Configurazione"):
                     st.session_state.current_movimenti_attivi_terms = auto_split_payment_movimenti(
                         importo_totale_movimento, num_installments,
                         data_movimento, rate_prefix, interval_days)
@@ -487,7 +487,7 @@ def render_terms_form(supabase_client, user_id,
 
         col1, col2 = st.columns([1, 1])
         with col1:
-            if st.button("Aggiungi Scadenza", use_container_width=True):
+            if st.button("Aggiungi Scadenza"):
                 new_term = {
                     rate_prefix + 'data_scadenza': datetime.strptime(data_movimento, '%Y-%m-%d').date() + timedelta(days=30),
                     rate_prefix + 'importo_pagamento': 0.0,
@@ -500,7 +500,7 @@ def render_terms_form(supabase_client, user_id,
 
         with col2:
             if st.session_state.current_movimenti_attivi_terms:
-                if st.button("Dividi Importo tra scadenze", use_container_width=True):
+                if st.button("Dividi Importo tra scadenze"):
                     if len(st.session_state.current_movimenti_attivi_terms) > 0:
                         # Keep existing payment dates but recalculate amounts
                         payment_dates = [term[rate_prefix + 'data_pagamento'] for term in st.session_state.current_movimenti_attivi_terms]
@@ -526,7 +526,7 @@ def render_terms_form(supabase_client, user_id,
             col1, col2 = st.columns(2)
 
             with col1:
-                if st.button("💾 Salva Scadenze", type="primary", use_container_width=True):
+                if st.button("💾 Salva Scadenze", type="primary"):
                     is_valid, errors = validate_payment_terms(st.session_state.current_movimenti_attivi_terms,
                                                               importo_totale_movimento,
                                                               rate_prefix)
@@ -568,7 +568,7 @@ def render_terms_form(supabase_client, user_id,
                             st.rerun()
 
             with col2:
-                if st.button("❌ Annulla", use_container_width=True):
+                if st.button("❌ Annulla"):
                     st.session_state.edit_movimenti_attivi_terms = False
                     if 'current_movimenti_attivi_terms' in st.session_state:
                         del st.session_state.current_movimenti_attivi_terms
@@ -624,13 +624,12 @@ def render_movimenti_crud_page(supabase_client, user_id,
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
-            add = st.button("Aggiungi Movimento", type='primary', use_container_width=True
-                           , key = table_name + 'add')
+            add = st.button("Aggiungi Movimento", type='primary', key = table_name + 'add')
             if add:
                 render_add_modal(supabase_client, table_name, config, prefix)
 
         with col2:
-            modify = st.button("Modifica Movimento", use_container_width=True, key = table_name + 'modify')
+            modify = st.button("Modifica Movimento", key = table_name + 'modify')
             if modify:
                 if selection.selection['rows']:
                     selected_index = selection.selection['rows'][0]
@@ -641,7 +640,7 @@ def render_movimenti_crud_page(supabase_client, user_id,
                     st.warning('Seleziona un movimento da modificare')
 
         with col3:
-            delete = st.button("Rimuovi Movimento", use_container_width=True, key = table_name + 'delete')
+            delete = st.button("Rimuovi Movimento", key = table_name + 'delete')
             if delete:
                 if selection.selection['rows']:
                     selected_index = selection.selection['rows'][0]
@@ -651,7 +650,7 @@ def render_movimenti_crud_page(supabase_client, user_id,
                     st.warning('Seleziona un movimento da eliminare')
 
         with col4:
-            manage_terms = st.button("Gestisci Scadenze", use_container_width=True, key = table_name + 'manage')
+            manage_terms = st.button("Gestisci Scadenze", key = table_name + 'manage')
             if manage_terms:
                 if selection.selection['rows']:
                     selected_index = selection.selection['rows'][0]

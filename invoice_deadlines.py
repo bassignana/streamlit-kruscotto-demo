@@ -190,7 +190,7 @@ def render_payment_terms_form(supabase_client, user_id: str, importo_totale_docu
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("Aggiungi o Modifica Scadenze", type="primary", use_container_width=True):
+        if st.button("Aggiungi o Modifica Scadenze", type="primary"):
             st.session_state.edit_payment_terms = True
             st.session_state.current_payment_terms = existing_terms.copy()
             st.rerun()
@@ -207,7 +207,7 @@ def render_payment_terms_form(supabase_client, user_id: str, importo_totale_docu
                 interval_days = st.number_input("Giorni tra rate", min_value=1, max_value=365, value=30, step=15)
 
             with split_col3:
-                if st.button("Applica Configurazione", use_container_width=True):
+                if st.button("Applica Configurazione"):
                     st.session_state.current_payment_terms = auto_split_payment(
                         importo_totale_documento, num_installments, data_documento, interval_days
                     )
@@ -308,7 +308,7 @@ def render_payment_terms_form(supabase_client, user_id: str, importo_totale_docu
         # Add new payment term button
         col1, col2 = st.columns([1, 1])
         with col1:
-            if st.button("Aggiungi Scadenza", use_container_width=True):
+            if st.button("Aggiungi Scadenza"):
                 new_term = {
                     'rfe_data_scadenza_pagamento': data_documento + timedelta(days=30),
                     'rfe_importo_pagamento_rata': 0.0,
@@ -321,7 +321,7 @@ def render_payment_terms_form(supabase_client, user_id: str, importo_totale_docu
 
         with col2:
             if st.session_state.current_payment_terms:
-                if st.button("Dividi Importo tra scadenze", use_container_width=True):
+                if st.button("Dividi Importo tra scadenze"):
                     if len(st.session_state.current_payment_terms) > 0:
                         # Keep existing payment dates but recalculate amounts
                         payment_dates = [term['rfe_data_pagamento_rata'] for term in st.session_state.current_payment_terms]
@@ -342,7 +342,7 @@ def render_payment_terms_form(supabase_client, user_id: str, importo_totale_docu
             col1, col2 = st.columns(2)
 
             with col1:
-                if st.button("💾 Salva Scadenze", type="primary", use_container_width=True):
+                if st.button("💾 Salva Scadenze", type="primary"):
                     is_valid, errors = validate_payment_terms(st.session_state.current_payment_terms, importo_totale_documento)
 
                     if not is_valid:
@@ -358,7 +358,7 @@ def render_payment_terms_form(supabase_client, user_id: str, importo_totale_docu
                             st.rerun()
 
             with col2:
-                if st.button("❌ Annulla", use_container_width=True):
+                if st.button("❌ Annulla"):
                     # Clear edit mode and temp data
                     st.session_state.edit_payment_terms = False
                     if 'current_payment_terms' in st.session_state:

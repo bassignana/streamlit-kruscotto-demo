@@ -492,12 +492,109 @@ END;
 $$ LANGUAGE plpgsql SECURITY INVOKER;
 
 
+-- Use for testing, while impersonating.
+-- SELECT upsert_terms(
+--                'rate_movimenti_attivi',
+--                '{"rma_numero": "2024-001", "rma_data": "2024-01-15"}',
+--                ARRAY[
+--                    '{"user_id": "test-user", "rma_numero": "2024-001", "rma_data": "2024-01-15", "rma_data_scadenza": "2024-02-15", "rma_importo_pagamento": 1250.50, "rma_nome_cassa": "Conto Corrente Principale", "rma_notes": "Prima rata pagamento", "created_at": "2024-01-01T10:00:00Z", "updated_at": null}'::JSONB,
+--                '{"user_id": "test-user", "rma_numero": "2024-001", "rma_data": "2024-01-15", "rma_data_scadenza": "2024-03-15", "rma_importo_pagamento": 850.75, "rma_nome_cassa": "Cassa Contanti", "rma_notes": "Seconda rata pagamento", "rma_data_pagamento": "2024-03-10"}'::JSONB
+-- ]
+--        );
+CREATE OR REPLACE FUNCTION upsert_terms(
+       table_name TEXT,
+       delete_key JSONB,
+       terms JSONB[]
+) RETURNS JSONB AS $$
+DECLARE
+user_id UUID;
+key TEXT;
+        term JSONB;
+        field JSONB;
+        cleaned_data JSONB[] := ARRAY[]::JSONB[];  -- This creates an empty array;
+        cleaned_term JSONB;
+        delete_where_clause TEXT;
+        delete_query TEXT;
+        insertable_columns TEXT;
+        insert_query TEXT;
+BEGIN
+        user_id := auth.uid();
+
+
+        -- Remove nulls and auto-generated fields if present.
+        FOREACH term IN ARRAY terms LOOP
+            cleaned_term := '{}'::JSONB;
+FOR key, field IN SELECT * FROM jsonb_each(term)
+                                    LOOP
+    IF key NOT IN ('id', 'created_at', 'updated_at', 'user_id') AND field != 'null'::JSONB THEN
+                        cleaned_term := cleaned_term || jsonb_build_object(key, field);
+END IF;
+END LOOP;
+            cleaned_term := cleaned_term || jsonb_build_object('user_id', user_id);
+            cleaned_data := array_append(cleaned_data, cleaned_term);
+END LOOP;
+
+        -- Test with:
+        -- SELECT string_agg(dk.key || ' = ' || dk.value, ' AND ')
+        -- FROM jsonb_each_text('{"rma_numero": "2024-001", "rma_data": "2024-01-15"}') dk;
+        delete_key := delete_key || jsonb_build_object('user_id', user_id);
+SELECT string_agg(dk.key || ' = ' || quote_literal(dk.value), ' AND ') INTO delete_where_clause
+FROM jsonb_each_text(delete_key) dk;
+
+delete_query := format('
+            DELETE FROM %I
+            WHERE %s',
+            table_name,
+            delete_where_clause
+        );
+EXECUTE delete_query;
+
+SELECT string_agg(quote_ident(col.key), ', ' ORDER BY col.key) INTO insertable_columns
+FROM jsonb_each_text(cleaned_data[1]) col;
+
+insert_query := format('
+            INSERT INTO %I (%s)
+            SELECT %s FROM jsonb_populate_record(NULL::%I, $1)',
+            table_name,
+            insertable_columns,
+            insertable_columns,
+            table_name);
+
+        IF terms IS NOT NULL AND array_length(cleaned_data, 1) > 0 THEN
+        FOR i IN 1..array_length(cleaned_data, 1) LOOP
+            term := cleaned_data[i];
+EXECUTE insert_query USING term;
+END LOOP;
+END IF;
+
+        -- RAISE EXCEPTION 'insert_query: %', insert_query;
+
+RETURN jsonb_build_object(
+        'success', true,
+        'table_name', table_name,
+        'original_record_data', terms
+       );
+
+EXCEPTION WHEN OTHERS THEN
+
+        RETURN jsonb_build_object(
+                'success', false,
+                'error', SQLERRM,
+                'error_detail', SQLSTATE,
+                'cleaned_data', cleaned_data,
+                'table_name', table_name,
+                'original_record_data', terms
+            );
+
+END
+$$ LANGUAGE plpgsql SECURITY INVOKER;
 
 
 
 
 -- FATTURE EMESSE CASH FLOW
-CREATE OR REPLACE VIEW cashflow_next_12_months AS
+DROP VIEW IF EXISTS cashflow_next_12_months;
+CREATE VIEW cashflow_next_12_months WITH (security_invoker = true) AS
 WITH date_calculations AS (
     SELECT
         CURRENT_DATE AS today,
@@ -662,109 +759,10 @@ SELECT
 FROM unpaid_invoices;
 
 
-
-
--- FATTURE EMESSE CASH FLOW GROUP BY CASSE
--- Cashflow View for next 12 months grouped by bank accounts
--- CREATE OR REPLACE VIEW cashflow_next_12_months_groupby AS
--- WITH date_calc AS (
---     SELECT
---         CURRENT_DATE AS today,
---         DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day' AS m1_end,
---         DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '2 months' - INTERVAL '1 day' AS m2_end,
---         DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '3 months' - INTERVAL '1 day' AS m3_end,
---         DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '4 months' - INTERVAL '1 day' AS m4_end,
---         DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '5 months' - INTERVAL '1 day' AS m5_end,
---         DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '6 months' - INTERVAL '1 day' AS m6_end
--- ),
--- unpaid AS (
---     SELECT
---         rfe.*,
---         dc.*,
---         rfe_data_scadenza_pagamento < dc.today AS is_overdue,
---         dc.today - rfe_data_scadenza_pagamento AS overdue_days,
---         COALESCE(NULLIF(TRIM(rfe_nome_cassa), ''), NULLIF(TRIM(rfe_iban_cassa), ''), 'Non specificato') AS cassa
---     FROM rate_fatture_emesse rfe
---     CROSS JOIN date_calc dc
---     WHERE rfe_data_pagamento_rata IS NULL
--- ),
--- cassa_data AS (
---     SELECT
---         cassa,
---         CASE
---             WHEN cassa = 'Non specificato' THEN '2_'
---             ELSE '1_'
---         END || cassa AS sort_key,
---
---         -- Future collections
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento <= m1_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_30gg,
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m1_end AND rfe_data_scadenza_pagamento <= m2_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_60gg,
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m2_end AND rfe_data_scadenza_pagamento <= m3_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_90gg,
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m3_end AND rfe_data_scadenza_pagamento <= m4_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_120gg,
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m4_end AND rfe_data_scadenza_pagamento <= m5_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_150gg,
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m5_end AND rfe_data_scadenza_pagamento <= m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_180gg,
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_oltre,
---
---         -- Overdue collections
---         ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
---         ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
---         ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
---         ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
---
---         -- Totals
---         ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_incassare,
---         ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_scaduti,
---         ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2) AS totale_generale,
---
---         COUNT(*) AS numero_rate_totali,
---         COUNT(CASE WHEN is_overdue THEN 1 END) AS numero_rate_scadute,
---         MAX(today) AS data_calcolo
---     FROM unpaid
---     GROUP BY cassa
---
---     UNION ALL
---
---     -- Totals row
---     SELECT
---         'Totali' AS cassa,
---         '3_Totali' AS sort_key,
---
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento <= m1_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m1_end AND rfe_data_scadenza_pagamento <= m2_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m2_end AND rfe_data_scadenza_pagamento <= m3_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m3_end AND rfe_data_scadenza_pagamento <= m4_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m4_end AND rfe_data_scadenza_pagamento <= m5_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m5_end AND rfe_data_scadenza_pagamento <= m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---
---         ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---
---         ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
---         ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2),
---
---         COUNT(*),
---         COUNT(CASE WHEN is_overdue THEN 1 END),
---         MAX(today)
---     FROM unpaid
--- )
--- SELECT
---     cassa,
---     incassare_30gg, incassare_60gg, incassare_90gg, incassare_120gg, incassare_150gg, incassare_180gg, incassare_oltre,
---     scaduti_30gg, scaduti_60gg, scaduti_90gg, scaduti_oltre,
---     totale_da_incassare, totale_scaduti, totale_generale,
---     numero_rate_totali, numero_rate_scadute, data_calcolo
--- FROM cassa_data
--- ORDER BY sort_key;
-
-
 -- MAIN DASHBOARD CASHFLOW
 -- GROUP BY CASSE - COMBINES rate_fatture_emesse AND rate_movimenti_attivi
 DROP VIEW IF EXISTS active_cashflow_next_12_months_groupby_casse;
-CREATE VIEW active_cashflow_next_12_months_groupby_casse AS
+CREATE VIEW active_cashflow_next_12_months_groupby_casse WITH (security_invoker = true) AS
 WITH date_calc AS (
     SELECT
                 CURRENT_DATE AS today,
@@ -874,7 +872,7 @@ ORDER BY sort_key;
 -- PAYABLES DASHBOARD CASHFLOW
 -- GROUP BY CASSE - COMBINES rate_fatture_ricevute AND rate_movimenti_passivi
 DROP VIEW IF EXISTS passive_cashflow_next_12_months_groupby_casse;
-CREATE VIEW passive_cashflow_next_12_months_groupby_casse AS
+CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker = true) AS
 WITH date_calc AS (
     SELECT
                 CURRENT_DATE AS today,
@@ -983,7 +981,8 @@ ORDER BY sort_key;
 -- FATTURE EMESSE MAIN DASHBOARD
 -- Invoice Payment Summary View
 -- Shows invoice details with payment status from both tables
-CREATE OR REPLACE VIEW invoice_payment_summary AS
+DROP VIEW IF EXISTS invoice_payment_summary;
+CREATE VIEW invoice_payment_summary WITH (security_invoker = true) AS
 WITH payment_aggregates AS (
     SELECT
         rfe_partita_iva_prestatore,
@@ -1073,14 +1072,14 @@ ORDER BY
 
 
 -- EMESSE SIMPLE DASHBOARD
-CREATE OR REPLACE VIEW fatture_emesse_overview AS
+DROP VIEW IF EXISTS fatture_emesse_overview;
+CREATE VIEW fatture_emesse_overview WITH (security_invoker = true) AS
 WITH payment_aggregates AS (
     SELECT
         rfe_partita_iva_prestatore,
         rfe_numero_fattura,
         rfe_data_documento,
 
-        -- IPORTANT BUSINESS CONSTRAINTS TO VERIFY:
         -- Total amount already paid (where payment date is not null)
         ROUND(COALESCE(SUM(
             CASE
@@ -1097,18 +1096,16 @@ WITH payment_aggregates AS (
                 THEN rfe_importo_pagamento_rata
                 ELSE 0
             END
-        ), 0)::numeric, 2) AS totale_saldo,
+        ), 0)::numeric, 2) AS totale_saldo
 
         -- Latest payment date for this invoice
-        MAX(rfe_data_pagamento_rata) AS ultima_data_pagamento
+        -- MAX(rfe_data_pagamento_rata) AS ultima_data_pagamento
 
     FROM rate_fatture_emesse
     GROUP BY rfe_partita_iva_prestatore, rfe_numero_fattura, rfe_data_documento
 )
 SELECT
-    -- IPORTANT BUSINESS CONSTRAINTS TO VERIFY:
-    -- Use payment date if available, otherwise use document date
-    COALESCE(pa.ultima_data_pagamento, fe.fe_data_documento) AS data,
+    fe.fe_data_documento AS data,
 
     fe.fe_numero_fattura AS numero,
 
@@ -1130,25 +1127,25 @@ SELECT
 
     COALESCE(pa.totale_incassato, 0.00) AS incassato,
 
-    COALESCE(pa.totale_saldo, 0.00) AS saldo,
+    COALESCE(pa.totale_saldo, 0.00) AS saldo
 
-    -- Additional useful fields
-    fe.fe_data_documento AS data_fattura,
-    pa.ultima_data_pagamento AS data_ultimo_pagamento,
-
-    -- Payment status indicator
-    CASE
-        WHEN pa.totale_saldo = 0 OR pa.totale_saldo IS NULL THEN 'Completamente Pagata'
-        WHEN pa.totale_incassato = 0 OR pa.totale_incassato IS NULL THEN 'Non Pagata'
-        ELSE 'Parzialmente Pagata'
-        END AS stato_pagamento,
-
-    -- Percentage paid
-    CASE
-        WHEN fe.fe_importo_totale_documento > 0
-            THEN ROUND((COALESCE(pa.totale_incassato, 0) / fe.fe_importo_totale_documento * 100)::numeric, 1)
-        ELSE 0
-        END AS percentuale_incassata
+--     -- Additional useful fields
+--     fe.fe_data_documento AS data_fattura,
+--     pa.ultima_data_pagamento AS data_ultimo_pagamento,
+--
+--     -- Payment status indicator
+--     CASE
+--         WHEN pa.totale_saldo = 0 OR pa.totale_saldo IS NULL THEN 'Completamente Pagata'
+--         WHEN pa.totale_incassato = 0 OR pa.totale_incassato IS NULL THEN 'Non Pagata'
+--         ELSE 'Parzialmente Pagata'
+--         END AS stato_pagamento,
+--
+--     -- Percentage paid
+--     CASE
+--         WHEN fe.fe_importo_totale_documento > 0
+--             THEN ROUND((COALESCE(pa.totale_incassato, 0) / fe.fe_importo_totale_documento * 100)::numeric, 1)
+--         ELSE 0
+--         END AS percentuale_incassata
 
 FROM fatture_emesse fe
          LEFT JOIN payment_aggregates pa ON (
@@ -1157,20 +1154,20 @@ FROM fatture_emesse fe
         AND fe.fe_data_documento = pa.rfe_data_documento
     )
 ORDER BY
-    COALESCE(pa.ultima_data_pagamento, fe.fe_data_documento) DESC,
+    fe.fe_data_documento DESC,
     fe.fe_numero_fattura;
 
 
 
 -- RICEVUTE SIMPLE DASHBOARD
-CREATE OR REPLACE VIEW fatture_ricevute_overview AS
+DROP VIEW IF EXISTS fatture_ricevute_overview;
+CREATE VIEW fatture_ricevute_overview WITH (security_invoker = true) AS
 WITH payment_aggregates AS (
     SELECT
         rfr_partita_iva_prestatore,
         rfr_numero_fattura,
         rfr_data_documento,
 
-        -- IPORTANT BUSINESS CONSTRAINTS TO VERIFY:
         -- Total amount already paid (where payment date is not null)
         ROUND(COALESCE(SUM(
             CASE
@@ -1178,7 +1175,7 @@ WITH payment_aggregates AS (
                 THEN rfr_importo_pagamento_rata
                 ELSE 0
             END
-        ), 0)::numeric, 2) AS totale_incassato,
+        ), 0)::numeric, 2) AS totale_pagato,
 
         -- Total amount still unpaid (where payment date is null)
         ROUND(COALESCE(SUM(
@@ -1187,51 +1184,49 @@ WITH payment_aggregates AS (
                 THEN rfr_importo_pagamento_rata
                 ELSE 0
             END
-        ), 0)::numeric, 2) AS totale_saldo,
+        ), 0)::numeric, 2) AS totale_saldo
 
         -- Latest payment date for this invoice
-        MAX(rfr_data_pagamento_rata) AS ultima_data_pagamento
+        -- MAX(rfr_data_pagamento_rata) AS ultima_data_pagamento
 
     FROM rate_fatture_ricevute
     GROUP BY rfr_partita_iva_prestatore, rfr_numero_fattura, rfr_data_documento
 )
 SELECT
-    -- IPORTANT BUSINESS CONSTRAINTS TO VERIFY:
-    -- Use payment date if available, otherwise use document date
-    COALESCE(pa.ultima_data_pagamento, fr.fr_data_documento) AS data,
+
+    fr.fr_data_documento AS data,
 
     fr.fr_numero_fattura AS numero,
 
-    -- Build client name: prioritize nome+cognome, fallback to denominazione
     CASE
         WHEN fr.fr_denominazione_prestatore IS NOT NULL AND TRIM(fr.fr_denominazione_prestatore) != ''
         THEN TRIM(fr.fr_denominazione_prestatore)
-        ELSE 'Prestatore non specificato'
-        END AS cliente,
+        ELSE 'Fornitore non specificato'
+        END AS fornitore,
 
     ROUND(fr.fr_importo_totale_documento::numeric, 2) AS totale,
 
-    COALESCE(pa.totale_incassato, 0.00) AS incassato,
+    COALESCE(pa.totale_pagato, 0.00) AS pagato,
 
-    COALESCE(pa.totale_saldo, 0.00) AS saldo,
+    COALESCE(pa.totale_saldo, 0.00) AS saldo
 
-    -- Additional useful fields
-    fr.fr_data_documento AS data_fattura,
-    pa.ultima_data_pagamento AS data_ultimo_pagamento,
-
-    -- Payment status indicator
-    CASE
-        WHEN pa.totale_saldo = 0 OR pa.totale_saldo IS NULL THEN 'Completamente Pagata'
-        WHEN pa.totale_incassato = 0 OR pa.totale_incassato IS NULL THEN 'Non Pagata'
-        ELSE 'Parzialmente Pagata'
-        END AS stato_pagamento,
-
-    -- Percentage paid
-    CASE
-        WHEN fr.fr_importo_totale_documento > 0
-            THEN ROUND((COALESCE(pa.totale_incassato, 0) / fr.fr_importo_totale_documento * 100)::numeric, 1)
-        ELSE 0
-        END AS percentuale_incassata
+--     -- Additional useful fields
+--     fr.fr_data_documento AS data_fattura,
+--     pa.ultima_data_pagamento AS data_ultimo_pagamento,
+--
+--     -- Payment status indicator
+--     CASE
+--         WHEN pa.totale_saldo = 0 OR pa.totale_saldo IS NULL THEN 'Completamente Pagata'
+--         WHEN pa.totale_incassato = 0 OR pa.totale_incassato IS NULL THEN 'Non Pagata'
+--         ELSE 'Parzialmente Pagata'
+--         END AS stato_pagamento,
+--
+--     -- Percentage paid
+--     CASE
+--         WHEN fr.fr_importo_totale_documento > 0
+--             THEN ROUND((COALESCE(pa.totale_incassato, 0) / fr.fr_importo_totale_documento * 100)::numeric, 1)
+--         ELSE 0
+--         END AS percentuale_incassata
 
 FROM fatture_ricevute fr
          LEFT JOIN payment_aggregates pa ON (
@@ -1240,7 +1235,7 @@ FROM fatture_ricevute fr
         AND fr.fr_data_documento = pa.rfr_data_documento
     )
 ORDER BY
-    COALESCE(pa.ultima_data_pagamento, fr.fr_data_documento) DESC,
+    fr.fr_data_documento DESC,
     fr.fr_numero_fattura;
 
 
@@ -1251,13 +1246,16 @@ ORDER BY
 
 -- Monthly Invoice Summary View
 -- Shows monthly totals for sales invoices, purchase invoices, and balance
-CREATE OR REPLACE VIEW monthly_invoice_summary AS
+DROP VIEW IF EXISTS monthly_invoice_summary;
+CREATE VIEW monthly_invoice_summary
+       WITH (security_invoker = true) AS
 WITH monthly_sales AS (
     SELECT
         EXTRACT(MONTH FROM fe_data_documento) AS mese,
         ROUND(SUM(fe_importo_totale_documento)::numeric, 2) AS importo_vendite
     FROM fatture_emesse
     WHERE EXTRACT(YEAR FROM fe_data_documento) = EXTRACT(YEAR FROM CURRENT_DATE)
+          AND user_id = auth.uid()
     GROUP BY EXTRACT(MONTH FROM fe_data_documento)
 ),
 monthly_purchases AS (
@@ -1266,6 +1264,7 @@ monthly_purchases AS (
         ROUND(SUM(fr_importo_totale_documento)::numeric, 2) AS importo_acquisti
     FROM fatture_ricevute
     WHERE EXTRACT(YEAR FROM fr_data_documento) = EXTRACT(YEAR FROM CURRENT_DATE)
+          AND user_id = auth.uid()
     GROUP BY EXTRACT(MONTH FROM fr_data_documento)
 ),
 combined_data AS (
@@ -1360,7 +1359,7 @@ ORDER BY ordine;
 -- Monthly Movements Summary View
 
 DROP VIEW IF EXISTS monthly_altri_movimenti_summary;
-CREATE VIEW monthly_altri_movimenti_summary AS
+CREATE VIEW monthly_altri_movimenti_summary WITH (security_invoker = true) AS
 WITH
 monthly_sales AS (
     SELECT

@@ -63,16 +63,19 @@ def render_anagrafica_azienda_form(client, user_id):
                 st.error(f"Errore upsert anagrafica azienda: {str(e)}")
 
 def main():
-    user_id, supabase_client, page_can_render = setup_page("Anagrafica Azienda")
+    user_id, supabase_client = setup_page("Anagrafica Azienda",
+                                                            '',
+                                                           False)
 
-    df = pd.DataFrame()
-    for i in range(40):
-        df[f'col_{i}'] = np.random.randn(100)
-
+    # df = pd.DataFrame()
+    # for i in range(40):
+    #     df[f'col_{i}'] = np.random.randn(100)
     # st.dataframe(df)
 
-    if page_can_render:
-        render_anagrafica_azienda_form(supabase_client, user_id)
+    # NOTE: Here I cannot use page_can_render, otherwise if the anagrafica
+    # is not set, I'll go into a loop where I can never access the anagrafica form.
+    # if page_can_render:
+    render_anagrafica_azienda_form(supabase_client, user_id)
 
 if __name__ == "__main__":
     main()

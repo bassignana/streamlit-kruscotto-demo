@@ -1,36 +1,57 @@
 import streamlit as st
 import plotly.graph_objects as go
+from auth_utils import show_login_form, show_simple_login_form
+import postgrest
 
-def setup_page(page_title = "", page_icon = ""):
+
+
+def setup_page(page_title = "", page_icon = "", enable_page_can_render_warning = True):
+    """
+    enable_page_can_render_warning is False only for the page that shows the anagrafica form,
+    otherwise the warning will always be present on the top of the anagrafica form's page.
+    """
+
     st.set_page_config(
         page_title=page_title,
         page_icon=page_icon,
         layout="wide"
     )
-
-    if 'user' not in st.session_state or not st.session_state.user:
-        st.error("🔐 Please login first")
-        st.stop()
-    user_id = st.session_state.user.id
-
     if 'client' not in st.session_state:
         st.error("Please create the client for invoice_uploader")
         st.stop()
     supabase_client = st.session_state.client
 
-    response = supabase_client.table('user_data').select("*").eq('user_id',user_id).execute()
+    if 'user' not in st.session_state or not st.session_state.user:
+        # st.error("🔐 Please login first")
+        # st.stop()
+        show_login_form(supabase_client)
+    user_id = st.session_state.user.id
 
-    # Flag for avoiding rendering the page content in case the anagrafica azienda is not set yet.
-    page_can_render = True
-    if len(response.data) < 1:
-        page_can_render = False
-        st.warning("Prima di usare l'applicazione e' necessario impostare l'anagrafica azienda")
-        switched = st.button("Imposta Anagrafica Azienda", type='primary')
-        if switched:
-            st.switch_page("page_anagrafica_azienda.py")
+    # Todo: if in the page there are tabs, the tabs will be shown even if the
+    #  login form is displayed and I return false for the page can render variable.
+    try:
+        response = supabase_client.table('user_data').select("*").eq('user_id',user_id).execute()
+    except postgrest.exceptions.APIError as e:
+        if 'JWT expired' in e.message:
+            st.info('Sessione scaduta, effettuare il login nuovamente')
+            # TODO: test this simple form
+            show_simple_login_form(supabase_client)
+            return user_id, supabase_client, False
 
 
-    return user_id, supabase_client, page_can_render
+    if enable_page_can_render_warning:
+        # Flag for avoiding rendering the page content in case the anagrafica azienda is not set yet.
+        page_can_render = True
+        if len(response.data) < 1:
+            page_can_render = False
+            st.warning("Prima di usare l'applicazione e' necessario impostare l'anagrafica azienda")
+            switched = st.button("Imposta Anagrafica Azienda", type='primary')
+            if switched:
+                st.switch_page("page_anagrafica_azienda.py")
+        return user_id, supabase_client, page_can_render
+
+    else:
+        return user_id, supabase_client
 
 def extract_field_names(sql_file_path ='sql/02_create_tables.sql', prefix='fe_'):
     field_names = []
@@ -109,3 +130,22 @@ def create_monthly_line_chart(df, sales_row_name, purchase_row_name):
     )
 
     return fig
+
+def get_standard_column_config(money_columns = None,
+                               date_columns = None):
+
+    column_config = {}
+
+    if money_columns is not None:
+        for col in money_columns:
+            column_config[col] = st.column_config.NumberColumn(
+                label=col,
+                format="euro")
+
+    if date_columns is not None:
+        for col in date_columns:
+            column_config[col] = st.column_config.DateColumn(
+                label=col,
+                format="iso8601")
+
+    return column_config

@@ -30,10 +30,10 @@ def render_add_form(supabase_client, table_name, fields_config, prefix):
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            submitted = st.form_submit_button("Salva", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("Salva", type="primary")
 
         with col2:
-            cancelled = st.form_submit_button("Annulla", use_container_width=True)
+            cancelled = st.form_submit_button("Annulla")
 
         if cancelled:
             st.rerun()
@@ -355,10 +355,10 @@ def render_xml_upload_section(supabase_client, table_name, fields_config, displa
         col1, col2 = st.columns([1, 3])
 
         with col1:
-            process_button = st.button("🔄 Elabora Fatture", type="primary", use_container_width=True)
+            process_button = st.button("🔄 Elabora Fatture", type="primary")
 
         with col2:
-            if st.button("❌ Cancella", use_container_width=True):
+            if st.button("❌ Cancella"):
                 st.rerun()
 
         if process_button:
@@ -434,7 +434,7 @@ def render_xml_upload_section(supabase_client, table_name, fields_config, displa
 
                 col1, col2 = st.columns([1, 1])
                 with col1:
-                    if st.button("✅ Conferma e Salva nel Database", type="primary", use_container_width=True):
+                    if st.button("✅ Conferma e Salva nel Database", type="primary"):
                         with st.spinner("Salvataggio in corso..."):
                             try:
 
@@ -465,7 +465,7 @@ def render_xml_upload_section(supabase_client, table_name, fields_config, displa
                                 raise
 
                 with col2:
-                    if st.button("❌ Annulla", use_container_width=True):
+                    if st.button("❌ Annulla"):
                         st.rerun()
 
 def render_modify_form(supabase_client, user_id, table_name, fields_config, data_df, record_id, prefix):
@@ -532,10 +532,10 @@ def render_modify_form(supabase_client, user_id, table_name, fields_config, data
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            submitted = st.form_submit_button("💾 Aggiorna", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("💾 Aggiorna", type="primary")
 
         with col2:
-            cancelled = st.form_submit_button("🚫 Annulla", use_container_width=True)
+            cancelled = st.form_submit_button("🚫 Annulla")
 
         if cancelled:
             st.rerun()
@@ -697,7 +697,7 @@ def render_delete_confirmation(supabase_client, user_id, table_name, fields_conf
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        if st.button("Conferma Eliminazione", type="primary", use_container_width=True):
+        if st.button("Conferma Eliminazione", type="primary"):
             try:
 
                 with st.spinner("Salvataggio in corso..."):
@@ -715,7 +715,7 @@ def render_delete_confirmation(supabase_client, user_id, table_name, fields_conf
                 raise
 
     with col2:
-        if st.button("🚫 Annulla", use_container_width=True):
+        if st.button("🚫 Annulla"):
             st.session_state[f"crud_mode_{table_name}"] = "view"
             st.rerun()
 
@@ -790,10 +790,13 @@ def xml_to_db_cleaning(parsed_xml_data: dict[str,str], field_mappings) -> (dict,
     return result, None
 
 def render_generic_xml_upload_section(supabase_client, user_id):
-    # TODO: comunicare all'utente l'inserimento di una fattura duplicata.
 
     partita_iva_result = supabase_client.table('user_data').select('ud_partita_iva').eq('user_id',user_id).execute()
     partita_iva_azienda = partita_iva_result.data[0].get('ud_partita_iva', None)
+
+    # TODO: better error message, I should cast, not communicate the to the user.
+    #  At best I can try to validate the format of the PIVA and tell the user
+    #  that the PIVA inserted in its profile is incorrect.
     if not isinstance(partita_iva_azienda, str):
         st.error("La partita IVA dell'azienda e' in un formato inatteso.")
 
@@ -812,7 +815,7 @@ def render_generic_xml_upload_section(supabase_client, user_id):
         col1, col2 = st.columns([1, 3])
 
         with col1:
-            process_button = st.button("Carica Fatture", type="primary", use_container_width=True)
+            process_button = st.button("Carica Fatture", type="primary")
 
         # Managing reruns of a component inside a page with other things may be problematic.
         # For now I try to use the uploader without reset options.
@@ -845,12 +848,15 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                         try:
                             if out['status'] == 'error':
                                 outs.append(out)
+                                if 'non riguarda la partita IVA' in out['error_message']:
+                                    st.info(f"La fattura {out['filename']} non riporta la Partita IVA dell'azienda "
+                                            f"al suo interno")
                                 continue # to the next invoice record(s)
 
                             if out['invoice_type'] == 'emessa':
                                 record_to_insert = out['record'].copy()
 
-                                # User id is also inserted inside the following postgres function.
+                                # The column user_id is also inserted inside the following postgres function.
                                 # I leave this here in case we might change approach so that
                                 # we don't forget to add the user id.
                                 # NOTE; this is a dirty way of doing it, because this is NOT the
@@ -909,7 +915,9 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                                     continue # to the next file
 
                             else:
-                                raise Exception(f"This branch should not be able to run, since there should be an early return for invoice not emessa and not ricevuta.")
+                                raise Exception(f"This branch should not be able to run, since "
+                                                f"there should be an early return for invoice not emessa and "
+                                                f"not ricevuta.")
 
                         except Exception as e:
                             # todo: should this kind of error shown to the user, probably not
@@ -927,10 +935,6 @@ def render_generic_xml_upload_section(supabase_client, user_id):
 def render_selectable_dataframe(query_result_data, selection_mode = 'single_row', on_select = 'rerun'):
     df = pd.DataFrame(query_result_data)
 
-    # Assumning that I force the first column of the view to be the index one.
-    # df = df.set_index(df.columns[0])
-    # TODO; df.columns = ["Voce"] + df.columns[1:]
-
     df.columns = [
         col.replace('_', ' ').title() if isinstance(col, str) else str(col)
         for col in df.columns
@@ -947,7 +951,6 @@ def render_selectable_dataframe(query_result_data, selection_mode = 'single_row'
 
     df.columns = [remove_prefix(col, uppercase_prefixes) for col in df.columns]
 
-    # TODO: scroll bar always preset, auto formatting everything to euro.
     selection = st.dataframe(df, use_container_width=True,
                              selection_mode = selection_mode,
                              on_select=on_select,
