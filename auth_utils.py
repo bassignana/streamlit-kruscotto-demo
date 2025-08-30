@@ -67,13 +67,28 @@ def show_login_form(supabase_client):
     """
     This is the main login and registration form, used on the initial login or registration.
     """
-    st.header("Autenticazione")
+    # st.header("Kruscotto")
+
+    st.image("Logo20250818.jpeg")
+
     tab1, tab2 = st.tabs(["Login", "Registrazione"])
 
     with tab1:
-        st.subheader("Login")
+        st.subheader(" ")
 
         # Show a loading state during login processing to prevent duplication
+        #
+        #
+        #
+        #
+        # TODO; when I misspell login credentials, I get here, but after
+        #  'Accesso in corso...' message I get the login form again and
+        #  I have to retype the pwd!
+        #
+        #
+        #
+        #
+        #
         if st.session_state.login_processing:
             st.info("Accesso in corso...")
             # Small delay to prevent UI flicker
@@ -107,7 +122,7 @@ def show_login_form(supabase_client):
                         st.error(error_msg)
 
     with tab2:
-        st.subheader("Registrazione")
+        st.subheader(" ")
         # Set clear_on_submit to False so the user does not have to fill again the
         # form if the email is already in use or if the password is not valid.
         with st.form("registration", clear_on_submit=False, enter_to_submit=False, width=500):

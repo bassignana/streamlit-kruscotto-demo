@@ -5,8 +5,31 @@ import time
 from datetime import datetime, timedelta
 from decimal import Decimal, getcontext, ROUND_HALF_UP
 from dateutil.relativedelta import relativedelta
-from invoice_utils import render_field_widget, render_selectable_dataframe
-from utils import extract_prefixed_field_names
+
+from config import uppercase_prefixes, technical_fields
+from invoice_utils import render_field_widget
+from utils import extract_prefixed_field_names, get_standard_column_config, fetch_all_records_from_view
+
+#
+#
+#
+#
+# TODO; THERE SHOULD NOT BE ANY MOVEMENT WITHOUT AT LEAST 1 TRANSACTION
+# Places where I can add a movement:
+# - OK: add button for attivi
+# - OK: add button for passivi
+# Places where I can delete terms up to 0
+# - NOT OK: remove terms attivi  -> inadequate component
+# - NOT OK: remove terms passivi -> inadequate component
+#
+# Also these errors would be easier to catch if I had FK in my db!
+#
+#
+def remove_prefix(col_name, prefixes):
+    for prefix in prefixes:
+        if col_name.startswith(prefix):
+            return col_name[len(prefix):]
+    return col_name  # Return original if no prefix found
 
 def validate_payment_terms(payment_terms, total_amount, term_prefix):
     errors = []
@@ -38,7 +61,7 @@ def fetch_all_records(supabase_client, table_name: str, user_id: str):
         else:
             return []
     except Exception as e:
-        logging.exception(f"Database error in fetch_all_records - table: {table_name}, user_id: {user_id}")
+        logging.exception(f"Database error in fetch_all_records - error: {e} - table: {table_name}, user_id: {user_id}")
         raise
 
 def are_all_required_fields_present(form_data, sql_table_fields_names, fields_config):
@@ -101,6 +124,11 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
         config_items = list(fields_config.items())
         sql_table_fields_names = extract_prefixed_field_names('sql/02_create_tables.sql', prefix)
 
+        # TODO: The use of i % 2 will make so that
+        #  if I have two tables with uneven number of fields in the config,
+        #  I'll invert the first two fields between the two tables.
+        #  I have to use a int(bool_flag) that I will invert at the end of
+        #  every insertion.
         cols = st.columns(2)
         for i, (field_name, field_config) in enumerate(config_items):
             with cols[i % 2]:
@@ -144,7 +172,7 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
                             #
                             # factor out?
                             MONTHS_IN_ADVANCE = 1
-                            data_documento_date = datetime.fromisoformat(processed_data['ma_data'])
+                            data_documento_date = datetime.fromisoformat(processed_data[prefix + 'data'])
                             first_day = datetime(data_documento_date.year, data_documento_date.month, 1)
                             last_day_next_X_months = first_day + relativedelta(months=MONTHS_IN_ADVANCE + 1, days=-1)
                             # terms_due_date = [last_day_next_X_months.date().isoformat()]
@@ -156,7 +184,7 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
                                 term['rma_data'] = processed_data['ma_data']
                                 term['rma_importo_pagamento'] = processed_data['ma_importo_totale']
                                 term['rma_data_scadenza'] = terms_due_date
-                            elif table_name != 'movimenti_passivi':
+                            elif table_name == 'movimenti_passivi':
                                 term['rmp_numero'] = processed_data['mp_numero']
                                 term['rmp_data'] = processed_data['mp_data']
                                 term['rmp_importo_pagamento'] = processed_data['mp_importo_totale']
@@ -164,7 +192,7 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
                             else:
                                 raise Exception("Uniche tabelle supportate: movimenti_attivi, movimenti_passivi.")
 
-                            # TODO; I have two insert_record_fixed functions in the db!
+                            # DONE; I have two insert_record_fixed functions in the db!
                             #  Remove them, but before save their definition in case I had
                             #  always used the wrong one.
                             # SELECT routine_name, routine_definition
@@ -193,42 +221,20 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
 
 @st.dialog("Rimuovi movimento")
 def render_delete_modal(supabase_client, table_name, record_id:str):
-    #
-    # if data_df.empty or record_id not in data_df['id'].values:
-    #     st.error("Record non trovato")
-    #     return
-
-    # st.warning(f"Selezionate {len(record_ids)} fatture. Sei sicuro di voler eliminare questa fattura? L'operazione non può essere annullata.")
-
-    # # Show record details
-    # with st.expander("Visualizza dettagli fattura"):
-    #     for id in record_ids:
-    #
-    #         field_label = get_field_label(fields_config, field_name)
-    #         field_value = record.get(field_name, "")
-    #
-    #         # Format value based on type
-    #         field_type = fields_config.get(field_name, {}).get('data_type', 'string')
-    #         if field_type == 'money' and field_value:
-    #             field_value = f"€ {float(field_value):,.2f}"
-    #         elif field_type == 'date' and field_value:
-    #             if isinstance(field_value, (date, datetime)):
-    #                 field_value = field_value.strftime('%d/%m/%Y')
-    #         elif field_type == 'boolean':
-    #             field_value = "Sì" if field_value else "No"
-    #
-    #         st.write(f"**{field_label}:** {field_value}")
 
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        if st.button("Conferma Eliminazione", type="primary"):
+        if st.button("Conferma Eliminazione", type="primary",
+                     key = table_name + '_delete_modal_button'):
             try:
 
                 with st.spinner("Eliminazione in corso..."):
-                    # todo: check this.
+                    # todo: check this, better error handling
                     # Supabase delete always returns empty data, so we check for no exception
-                    result = supabase_client.table(table_name).delete().eq('id', record_id).execute()
+                    result = supabase_client.table(table_name).delete()\
+                        .eq('user_id', st.session_state.user.id)\
+                        .eq('id', record_id).execute()
                     if result:
                         pass
                     st.success("Movimento eliminato con successo")
@@ -244,14 +250,12 @@ def render_delete_modal(supabase_client, table_name, record_id:str):
 
 @st.dialog("Modifica movimento")
 def render_modify_modal(supabase_client, table_name, fields_config, record_data, prefix):
-    # TODO; in this I pass directly the record data, instead of starting from
-    #  a dataframe and converting back to dictionary. Maybe I can simplify the other version.
 
     record_id = record_data['id']
     with st.form(f"modify_{table_name}_form"):
         # form_data will hold the updated value of the form when I click on the
         # Aggiorna button. This is because, for some reason, the code below will rerun
-        # and update form_data.
+        # and update form_data reading from each widget
         form_data = {}
 
         config_items = list(fields_config.items())
@@ -270,7 +274,7 @@ def render_modify_modal(supabase_client, table_name, fields_config, record_data,
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            submitted = st.form_submit_button("💾 Aggiorna", type="primary")
+            submitted = st.form_submit_button("Aggiorna", type="primary")
 
         if submitted:
             try:
@@ -291,7 +295,13 @@ def render_modify_modal(supabase_client, table_name, fields_config, record_data,
                         processed_data[name] = str(value)
 
                     with st.spinner("Salvataggio in corso..."):
-                        result = supabase_client.table(table_name).update(processed_data).eq('id', record_id).execute()
+                        # The addition of .eq() with user_id, is for consistency and safety.
+                        # It should not be necessary since ids are unique in the table.
+                        result = supabase_client.table(table_name).update(processed_data)\
+                            .eq('user_id', st.session_state.user.id)\
+                            .eq('id', record_id).execute()
+
+                        # TODO; better error handling
                         if result:
                             st.success("Fattura salvata con successo nel database!")
                             time.sleep(2)
@@ -300,371 +310,475 @@ def render_modify_modal(supabase_client, table_name, fields_config, record_data,
                 print(f'Error updating invoice: {e}')
                 raise
 
-def render_terms_form(supabase_client, user_id,
-                      table_name, prefix,
-                      rate_prefix,
-                      record_data):
+def to_money(amount):
+    getcontext().prec = 28
+    MONEY_QUANTIZE    = Decimal('0.01')  # 2 decimal places
+    CURRENCY_ROUNDING = ROUND_HALF_UP
 
-    PAYMENT_METHODS = ['Bonifico', 'Contanti', 'Assegno', 'Carta di credito', 'RID', 'Altro']
-    CASH_ACCOUNTS = ['Banca Intesa', 'Cassa Contanti', 'Cassa Generica', 'INTESA SAN PAOLO']
+    if amount is None:
+        decimal_amount = Decimal(0)
+    else:
+        decimal_amount = Decimal(str(amount))
+    return decimal_amount.quantize(MONEY_QUANTIZE, rounding=CURRENCY_ROUNDING)
 
-    # Because record_data, being part of the session_state, can be None
-    if record_data is None:
-        return
+def money_to_string(amount):
 
-    # This is a safety measure in case, when I switch between
-    # different tabs, it might happen that a record from a different
-    # table is still present in the session state, thus causing errors.
-    for k,v in record_data.items():
-        if 'numero' in k:
-            random_key = k
-            break
-    current_record_data_prefix = random_key[:len(prefix)]
-    if current_record_data_prefix != prefix:
-        return
+    if not isinstance(amount, Decimal):
+        amount = to_money(amount)
 
-    data_movimento              = record_data[prefix + 'data']
-    importo_totale_movimento    = record_data[prefix + 'importo_totale']
+    return str(amount)
 
-    # Invoice key for database operations
-    invoice_key = {
-        'numero': record_data[prefix + 'numero'],
-        'data': record_data[prefix + 'data']
-    }
+def auto_split_payment_movement(importo_totale_documento: Decimal, num_installments, start_date,
+                                rate_prefix, interval_days = 30):
+    # Precision 28 is different from decimal places!
+    # I need to keep high precision to be able to handle float conversion
+    # correctly. Then I can use quantize to force decimal places to two.
 
-    # Load existing terms from database
-    try:
-        result = supabase_client.table('rate_' + table_name).select('*').eq('user_id', user_id) \
-            .eq(rate_prefix + 'numero', invoice_key['numero']) \
-            .eq(rate_prefix + 'data', invoice_key['data']).execute()
+    if num_installments <= 0:
+        return []
 
-        existing_terms = []
-        for row in result.data:
-            term = {
-                rate_prefix + 'data_scadenza': datetime.strptime(row[rate_prefix + 'data_scadenza'], '%Y-%m-%d').date(),
-                rate_prefix + 'data_pagamento': datetime.strptime(row[rate_prefix + 'data_pagamento'], '%Y-%m-%d').date() if row[rate_prefix + 'data_pagamento'] else None,
-                rate_prefix + 'importo_pagamento': float(row[rate_prefix + 'importo_pagamento']),
-                rate_prefix + 'nome_cassa': row[rate_prefix + 'nome_cassa'] or '',
-                rate_prefix + 'notes': row[rate_prefix + 'notes'] or '',
-            }
-            existing_terms.append(term)
+    total_decimal = to_money(importo_totale_documento)
+    amount_per_installment = to_money(total_decimal / num_installments)
 
-    except Exception as e:
-        st.error(f"Errore nel caricamento: {str(e)}")
-        existing_terms = []
+    terms = []
+    total_allocated = Decimal('0.00')
 
-    if 'edit_movimenti_attivi_terms' not in st.session_state:
-        st.session_state.edit_movimenti_attivi_terms = False
-
-    if 'current_movimenti_attivi_terms' not in st.session_state:
-        if existing_terms:
-            st.session_state.current_movimenti_attivi_terms = existing_terms.copy()
+    for i in range(num_installments):
+        # Last installment gets the remainder to avoid rounding errors
+        if i == num_installments - 1:
+            installment_amount = total_decimal - total_allocated
         else:
-            st.session_state.current_movimenti_attivi_terms = [{
-                rate_prefix + 'data_scadenza': datetime.strptime(data_movimento, '%Y-%m-%d').date() + timedelta(days=30),
-                rate_prefix + 'data_pagamento': None,
-                rate_prefix + 'importo_pagamento': importo_totale_movimento,
-                rate_prefix + 'nome_cassa': '',
-                rate_prefix + 'notes': None
-            }]
+            installment_amount = amount_per_installment
+            total_allocated += installment_amount
+        term = {
 
-    total_configured = sum(term[rate_prefix + 'importo_pagamento'] for term in existing_terms)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Importo Totale", f"€ {importo_totale_movimento:,.2f}")
-    with col2:
-        st.metric("Configurato", f"€ {total_configured:,.2f}")
+            rate_prefix + 'data_scadenza':  datetime.strptime(start_date, '%Y-%m-%d').date() + timedelta(days=interval_days * (i + 1)),
+            rate_prefix + 'importo_pagamento': installment_amount,
+            rate_prefix + 'nome_cassa': '',
+            rate_prefix + 'notes': f'Rata {i + 1} di {num_installments}',
+            rate_prefix + 'data_pagamento': None  # Not paid yet
+        }
+        terms.append(term)
 
-    # Display existing terms in a table
-    if existing_terms:
-        df_display = pd.DataFrame([
-            {
-                'Scadenza': term[rate_prefix + 'data_scadenza'].strftime('%d/%m/%Y'),
-                'Importo': f"€ {term[rate_prefix + 'importo_pagamento']:,.2f}",
-                'Cassa': term[rate_prefix + 'nome_cassa'],
-                'Note': term[rate_prefix + 'notes'],
-                'Pagato': '✅' if term[rate_prefix + 'data_pagamento'] else '❌',
-                'Data Pagamento': term[rate_prefix + 'data_pagamento'].strftime('%d/%m/%Y') if term[rate_prefix + 'data_pagamento'] else '-'
-            }
-            for term in existing_terms
-        ])
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
+    return terms
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Aggiungi o Modifica Movimento", type="primary"):
-            st.session_state.edit_movimenti_attivi_terms = True
-            # CRITICAL: Reset current terms to existing data when entering edit mode
-            st.session_state.current_movimenti_attivi_terms = existing_terms.copy() if existing_terms else [{
-                rate_prefix + 'data_scadenza': datetime.strptime(data_movimento, '%Y-%m-%d').date() + timedelta(days=30),
-                rate_prefix + 'data_pagamento': None,
-                rate_prefix + 'importo_pagamento': importo_totale_movimento,
-                rate_prefix + 'nome_cassa': '',
-                rate_prefix + 'notes': None
-            }]
-            st.rerun()
 
-    if st.session_state.edit_movimenti_attivi_terms:
+def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento, config, movement_key, supabase_client, table_name, backup_terms_key):
+    if len(edited) == 0:
+        st.warning('Impossibile salvare un movimento senza scadenze di pagamento. '
+                   'Inserire delle nuove scadenze o cliccare su Annulla per scartare '
+                   'tutte le modifiche apportate')
+    else:
+        try:
+            terms = st.session_state[terms_key]
 
-        with st.expander("Configurazione Rapida", expanded=True):
-            split_col1, split_col2, split_col3 = st.columns([2, 2, 1])
+            # Update terms, cannot do it in a function
+            _edited = edited.copy()
+            _edited.columns = [rate_prefix + col.replace(' ','_').lower() for col in _edited.columns]
+            up_to_date_terms = []
+            for k,v in _edited.T.to_dict().items():
+                up_to_date_terms.append(v)
+            terms = up_to_date_terms
 
-            with split_col1:
-                num_installments = st.number_input("Numero rate", min_value=1, max_value=12, value=1)
 
-            with split_col2:
-                interval_days = st.number_input("Giorni tra rate", min_value=1, max_value=365, value=30, step=15)
+            # Verify total configured
+            total_configured = to_money(0)
+            for term in terms:
+                total_configured += to_money(term[rate_prefix + 'importo_pagamento'])
+            total_is_different = importo_totale_movimento != total_configured
+            if total_is_different:
+                # todo: better formatting of money
+                st.warning(f"Differenza di {total_configured - importo_totale_movimento} euro riscontrata tra la somma degli importi delle scadenze configurate e l'importo totale. "
+                           f"Correggere prima di proseguire")
+                return
 
-            with split_col3:
-                if st.button("Applica Configurazione"):
-                    st.session_state.current_movimenti_attivi_terms = auto_split_payment_movimenti(
-                        importo_totale_movimento, num_installments,
-                        data_movimento, rate_prefix, interval_days)
-                    st.rerun()
+            # Verify that all required field are present
+            # TODO: I can do a double check with the UI also.
+            sql_table_fields_names = extract_prefixed_field_names(
+                'sql/02_create_tables.sql',
+                rate_prefix)
+            for term in terms:
+                errors = are_all_required_fields_present(term,
+                                                         sql_table_fields_names,
+                                                         config)
+                if errors:
+                    # todo: Better error message
+                    st.warning(f'{' '.join(errors)}')
+                    return
 
-        for i, term in enumerate(st.session_state.current_movimenti_attivi_terms):
-            with st.container():
-                st.markdown(f"##### Scadenza {i + 1}")
-
-                col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
-
-                with col1:
-                    new_date = st.date_input(
-                        "Data Scadenza",
-                        value=term[rate_prefix + 'data_scadenza'],
-                        key=f"date_{i}"
-                    )
-                    st.session_state.current_movimenti_attivi_terms[i][rate_prefix + 'data_scadenza'] = new_date
-
-                with col2:
-                    new_amount = st.number_input(
-                        "Importo (€)",
-                        min_value=0.0,
-                        value=max(0.0, term[rate_prefix + 'importo_pagamento']),
-                        step=0.01,
-                        key=f"amount_{i}"
-                    )
-                    st.session_state.current_movimenti_attivi_terms[i][rate_prefix + 'importo_pagamento'] = new_amount
-
-                with col3:
-                    new_cassa = st.selectbox(
-                        "Cassa",
-                        CASH_ACCOUNTS,
-                        index=CASH_ACCOUNTS.index(term[rate_prefix + 'nome_cassa']) if term[rate_prefix + 'nome_cassa'] in CASH_ACCOUNTS else 0,
-                        key=f"cassa_{i}"
-                    )
-                    st.session_state.current_movimenti_attivi_terms[i][rate_prefix + 'nome_cassa'] = new_cassa
-
-                with col4:
-                    st.write("")  # Spacing
-                    st.write("")  # Spacing
-                    if len(st.session_state.current_movimenti_attivi_terms) > 1:
-                        if st.button("🗑️", key=f"remove_{i}", help="Rimuovi scadenza"):
-                            st.session_state.current_movimenti_attivi_terms.pop(i)
-                            st.rerun()
-
-                # Second row for additional details
-                col1, col2, col3 = st.columns([2, 2, 2])
-
-                with col1:
-                    new_notes = st.text_input(
-                        "Note (opzionale)",
-                        value=term.get(rate_prefix + 'notes', '') or '',
-                        key=f"notes_{i}"
-                    )
-                    st.session_state.current_movimenti_attivi_terms[i][rate_prefix + 'notes'] = new_notes
-
-                with col2:
-                    payment_date = st.date_input(
-                        "Data Pagamento (se pagato)",
-                        value=term[rate_prefix + 'data_pagamento'],
-                        key=f"payment_date_{i}",
-                        help="Lascia vuoto se non ancora pagato"
-                    )
-                    st.session_state.current_movimenti_attivi_terms[i][rate_prefix + 'data_pagamento'] = payment_date
-
-                st.markdown("---")
-
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            if st.button("Aggiungi Scadenza"):
-                new_term = {
-                    rate_prefix + 'data_scadenza': datetime.strptime(data_movimento, '%Y-%m-%d').date() + timedelta(days=30),
-                    rate_prefix + 'importo_pagamento': 0.0,
-                    rate_prefix + 'nome_cassa': '',
-                    rate_prefix + 'notes': '',
-                    rate_prefix + 'data_pagamento': None
-                }
-                st.session_state.current_movimenti_attivi_terms.append(new_term)
-                st.rerun()
-
-        with col2:
-            if st.session_state.current_movimenti_attivi_terms:
-                if st.button("Dividi Importo tra scadenze"):
-                    if len(st.session_state.current_movimenti_attivi_terms) > 0:
-                        # Keep existing payment dates but recalculate amounts
-                        payment_dates = [term[rate_prefix + 'data_pagamento'] for term in st.session_state.current_movimenti_attivi_terms]
-                        payment_expected_dates = [term[rate_prefix + 'data_scadenza'] for term in st.session_state.current_movimenti_attivi_terms]
-                        st.session_state.current_movimenti_attivi_terms = auto_split_payment_movimenti(
-                            importo_totale_movimento,
-                            len(st.session_state.current_movimenti_attivi_terms),
-                            data_movimento,
-                            rate_prefix
-                        )
-                        # Restore payment dates
-                        for i, payment_date in enumerate(payment_dates):
-                            if i < len(st.session_state.current_movimenti_attivi_terms):
-                                st.session_state.current_movimenti_attivi_terms[i][rate_prefix + 'data_pagamento'] = payment_date
-                        for i, payment_date in enumerate(payment_expected_dates):
-                            if i < len(st.session_state.current_movimenti_attivi_terms):
-                                st.session_state.current_movimenti_attivi_terms[i][rate_prefix + 'data_scadenza'] = payment_date
-                        st.rerun()
-
-        # Save buttons
-        if st.session_state.current_movimenti_attivi_terms:
-            st.markdown("---")
-            col1, col2 = st.columns(2)
-
-            with col1:
-                if st.button("💾 Salva Scadenze", type="primary"):
-                    is_valid, errors = validate_payment_terms(st.session_state.current_movimenti_attivi_terms,
-                                                              importo_totale_movimento,
-                                                              rate_prefix)
-
-                    if not is_valid:
-                        for error in errors:
-                            st.error(error)
+            # In order to pass all strings and avoid not JSON serializable
+            # objects like dates.
+            # Todo: i need to create a robust function for this
+            terms_to_save = []
+            for term in terms:
+                new_term = {}
+                for k,v in term.items():
+                    if v is None:
+                        # Otherwise loading the string "None"
+                        new_term[k] = v
                     else:
-                        success = False
-                        try:
-                            # Transaction: delete existing and insert new
-                            supabase_client.table('rate_' + table_name).delete().eq('user_id', user_id) \
-                                .eq(rate_prefix + 'numero', invoice_key['numero']) \
-                                .eq(rate_prefix + 'data', invoice_key['data']).execute()
+                        new_term[k] = str(v)
+                terms_to_save.append(new_term)
 
-                            # Insert new payment terms
-                            for term in st.session_state.current_movimenti_attivi_terms:
-                                term_data = {
-                                    'user_id': user_id,
-                                    rate_prefix + 'numero': invoice_key['numero'],
-                                    rate_prefix + 'data': invoice_key['data'],
-                                    rate_prefix + 'data_scadenza': term[rate_prefix + 'data_scadenza'].strftime('%Y-%m-%d'),
-                                    rate_prefix + 'importo_pagamento': term[rate_prefix + 'importo_pagamento'],
-                                    rate_prefix + 'nome_cassa': term[rate_prefix + 'nome_cassa'],
-                                    rate_prefix + 'notes': term[rate_prefix + 'notes'],
-                                    rate_prefix + 'data_pagamento': term[rate_prefix + 'data_pagamento'].strftime('%Y-%m-%d') if term[rate_prefix + 'data_pagamento'] else None
-                                }
-                                supabase_client.table('rate_' + table_name).insert(term_data).execute()
-                            success = True
-                        except Exception as e:
-                            st.error(f"Errore nel salvataggio: {str(e)}")
 
-                        if success:
-                            st.success(f"✅ Scadenze salvate con successo!")
-                            # Clear edit mode and temp data
-                            st.session_state.edit_movimenti_attivi_terms = False
-                            if 'current_movimenti_attivi_terms' in st.session_state:
-                                del st.session_state.current_movimenti_attivi_terms
-                            st.rerun()
+            # Avoid to insert the keys of the movement in
+            # the session state so I don't have to handle the keys in excess
+            # everywhere.
+            # Adding movement keys, if missing, for insert.
+            for term in terms_to_save:
+                for k,v in movement_key.items():
+                    if k not in term:
+                        term[k] = v
 
-            with col2:
-                if st.button("❌ Annulla"):
-                    st.session_state.edit_movimenti_attivi_terms = False
-                    if 'current_movimenti_attivi_terms' in st.session_state:
-                        del st.session_state.current_movimenti_attivi_terms
-                    st.rerun()
+            result = supabase_client.rpc('upsert_terms', {
+                'table_name': 'rate_' + table_name,
+                'delete_key': movement_key,
+                'terms': terms_to_save
+            }).execute()
 
-    # Return early if not in edit mode
-    return
+            if result.data.get('success', False):
+                st.success("Modifiche eseguite con successo")
+
+                # I've tested it quicly, it seems to work.
+                st.session_state[backup_terms_key] = terms
+
+                time.sleep(2)
+                st.rerun()
+            else:
+                st.error(f'Errore nel salvataggio: {result}')
+
+        # todo: fix error management / logging.
+        #  Here is interesting because the above catches db error that are not
+        #  exceptions, the below only exceptions.
+        except Exception as e:
+            st.error(f"Eccezione nel salvataggio: {str(e)}")
+
+# def create_save_callback(edited, terms_key, rate_prefix, importo_totale_movimento,
+#                          config, movement_key, supabase_client, table_name, backup_terms_key):
+#     def callback():
+#         save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
+#                             config, movement_key, supabase_client, table_name, backup_terms_key)
+#     return callback
 
 def render_movimenti_crud_page(supabase_client, user_id,
-                     table_name, prefix,
-                     rate_prefix,
-                     config):
-    # Initialize session state for managing which view to show.
-    # List is the main page, where I can open the modal to
-    # add, modify and delete.
-    # Terms is the new page for terms.
-    if 'current_view' not in st.session_state:
-        st.session_state.current_view = 'list'  # 'list' or 'terms'
-    if 'selected_movement' not in st.session_state:
-        st.session_state.selected_movement = None
+                               table_name, prefix,
+                               rate_prefix,
+                               config):
 
+    terms_key = table_name + '_terms'
+    backup_terms_key = table_name + '_backup_terms'
+    selection_key = table_name + table_name + '_selected_movement'
 
-    result_data = fetch_all_records(supabase_client, table_name, user_id)
-    if not result_data:
+    # Selected movement is only used for knowing when to refetch data
+    # from the terms table when the user changes selection.
+    if selection_key not in st.session_state:
+        st.session_state[selection_key] = None
+
+    if terms_key not in st.session_state:
+        st.session_state[terms_key] = None
+
+    # This is for managing the 'Annulla' button
+    # It will just store the first version fetched from the database.
+    # The only two place where this is set should be:
+    # After a successful save
+    # When I change selection in the dataframe, the backup terms must correspond
+    # to the terms of the new selection.
+    if backup_terms_key not in st.session_state:
+        st.session_state[backup_terms_key] = None
+
+    # movimenti_data = fetch_all_records(supabase_client, table_name, user_id)
+    movimenti_data = fetch_all_records_from_view(supabase_client, table_name + '_overview')
+
+    if not movimenti_data:
         st.warning("Nessun movimento trovato. Creare un movimento prima di proseguire.")
-        add = st.button("Aggiungi Movimento", type='primary', key = table_name + 'add_no_movements')
+        add = st.button("Aggiungi Movimento", type='primary', key = table_name + '_add_first_movement')
         if add:
-            render_add_modal(supabase_client, table_name, config, prefix)
+            render_add_modal(supabase_client, table_name,
+                             config,
+                             prefix)
         return
 
-    # Show terms management view if active
-    if st.session_state.current_view == 'terms' and st.session_state.selected_movement:
+    df = pd.DataFrame(movimenti_data)
+    df.columns = [
+        col.replace('_', ' ').title() if isinstance(col, str) else str(col)
+        for col in df.columns
+    ]
 
-        if st.button("← Torna indietro", type="secondary", key = table_name + 'back'):
-            st.session_state.current_view = 'list'
-            st.session_state.selected_movement = None
-            # Clear any edit state when going back
-            if 'edit_movimenti_attivi_terms' in st.session_state:
-                del st.session_state.edit_movimenti_attivi_terms
-            if 'current_movimenti_attivi_terms' in st.session_state:
-                del st.session_state.current_movimenti_attivi_terms
-            st.rerun()
+    for tech_field in technical_fields:
+        if tech_field in df.columns:
+            df = df.drop([tech_field], axis = 1)
+    df.columns = [remove_prefix(col, uppercase_prefixes) for col in df.columns]
 
-        # Render the terms form - this will now persist properly
-        render_terms_form(supabase_client, user_id, table_name, prefix, rate_prefix, st.session_state.selected_movement)
+    def format_italian_currency(val):
+        """Italian currency: 1.250,50"""
+        if pd.isna(val):
+            return "0,00"
+        formatted = f"{val:,.2f}"
+        formatted = formatted.replace(',', 'TEMP').replace('.', ',').replace('TEMP', '.')
+        return f"{formatted}"
 
-    else:
-        # Ensure we're in list view
-        st.session_state.current_view = 'list'
+    # df = df.style.format({
+    #     'Importo Totale': format_italian_currency,
+    # })
 
-        selection = render_selectable_dataframe(result_data, 'single-row', 'rerun')
+    selection = st.dataframe(df, use_container_width=True,
+                             selection_mode = 'single-row',
+                             on_select='rerun',
+                             hide_index = True,
+                             key = table_name + 'selection_df')
 
-        col1, col2, col3, col4 = st.columns(4)
 
-        with col1:
-            add = st.button("Aggiungi Movimento", type='primary', key = table_name + 'add')
-            if add:
-                render_add_modal(supabase_client, table_name, config, prefix)
+    col1, col2, col3, space = st.columns([1,1,1,4])
+    with col1:
+        add = st.button("Aggiungi Movimento", type='primary', key = table_name + '_add')
+        if add:
+            render_add_modal(supabase_client, table_name,
+                             config,
+                             prefix)
 
-        with col2:
-            modify = st.button("Modifica Movimento", key = table_name + 'modify')
-            if modify:
-                if selection.selection['rows']:
-                    selected_index = selection.selection['rows'][0]
-                    selected_row = result_data[selected_index]
-                    render_modify_modal(supabase_client, table_name,
-                                        config, selected_row, prefix)
-                else:
-                    st.warning('Seleziona un movimento da modificare')
+    with col2:
+        modify = st.button("Modifica Movimento", key = table_name + '_modify')
+        if modify:
+            if selection.selection['rows']:
+                selected_index = selection.selection['rows'][0]
+                selected_row = movimenti_data[selected_index]
+                render_modify_modal(supabase_client, table_name,
+                                    config, selected_row, prefix)
+            else:
+                st.warning('Seleziona un movimento da modificare')
 
-        with col3:
-            delete = st.button("Rimuovi Movimento", key = table_name + 'delete')
-            if delete:
-                if selection.selection['rows']:
-                    selected_index = selection.selection['rows'][0]
-                    selected_id = result_data[selected_index]['id']
-                    render_delete_modal(supabase_client, table_name, selected_id)
-                else:
-                    st.warning('Seleziona un movimento da eliminare')
+    with col3:
+        delete = st.button("Rimuovi Movimento", key = table_name + '_delete')
+        if delete:
+            if selection.selection['rows']:
+                selected_index = selection.selection['rows'][0]
+                selected_id = movimenti_data[selected_index]['id']
+                render_delete_modal(supabase_client, table_name, selected_id)
+            else:
+                st.warning('Seleziona un movimento da eliminare')
 
-        with col4:
-            manage_terms = st.button("Gestisci Scadenze", key = table_name + 'manage')
-            if manage_terms:
-                if selection.selection['rows']:
-                    selected_index = selection.selection['rows'][0]
-                    selected_row = result_data[selected_index]
 
-                    st.session_state.current_view = 'terms'
-                    st.session_state.selected_movement = selected_row
+    # Here I fetch data to be sure to have the most up to date data,
+    # but in the future this might be simplified.
+    check_movimenti = fetch_all_records(supabase_client, table_name, user_id)
+    check_terms = pd.DataFrame(fetch_all_records(supabase_client, 'rate_' + table_name, user_id))
 
-                    # Clear any existing edit state to start fresh
-                    if 'edit_movimenti_attivi_terms' in st.session_state:
-                        del st.session_state.edit_movimenti_attivi_terms
-                    if 'current_movimenti_attivi_terms' in st.session_state:
-                        del st.session_state.current_movimenti_attivi_terms
+    for mov in check_movimenti:
 
+        number_key = mov[prefix + 'numero']
+        date_key = mov[prefix + 'data']
+
+        m_terms = check_terms[(check_terms[rate_prefix + 'numero'] == number_key) & \
+                              (check_terms[rate_prefix + 'data'] == date_key)]
+
+
+        total_m = mov[prefix + 'importo_totale']
+        total_m_terms = m_terms[rate_prefix + 'importo_pagamento'].sum()
+
+        if total_m != total_m_terms:
+            st.warning(f'ATTENZIONE: Il movimento numero {number_key}, in data {date_key} ha un importo '
+                       f'totale di {total_m} Euro, mentre le relative scadenze hanno un importo '
+                       f'totale di {total_m_terms} Euro. Assicurarsi di far combaciare gli importi')
+
+    with st.expander("Visualizza e Gestisci Scadenze"):
+        # TODO: In order to help the user understand that the rows of the dataframe can be clicked,
+        #  start with the first checkbox selected,
+        #  or at least visible by default
+        #  or at least give a label to the selection column.
+
+        if selection.selection['rows']:
+
+            selected_index = selection.selection['rows'][0]
+
+            # selected row
+            record_data = movimenti_data[selected_index]
+
+            st.write(record_data)
+
+            importo_totale_movimento = to_money(record_data[prefix + 'importo_totale'])
+            numero_documento = record_data[prefix + 'numero']
+            data_documento   = record_data[prefix + 'data']
+            movement_key = {
+                rate_prefix + 'numero': numero_documento,
+                rate_prefix + 'data': data_documento
+            }
+
+            if st.session_state[terms_key] is None or st.session_state[selection_key] != selection:
+                try:
+                    result = supabase_client.table('rate_' + table_name).select('*').eq('user_id', user_id) \
+                        .eq(rate_prefix + 'numero', record_data[prefix + 'numero']) \
+                        .eq(rate_prefix + 'data', record_data[prefix + 'data']).execute()
+
+                    existing_terms = []
+                    for row in result.data:
+                        term = {
+                            rate_prefix + 'data_scadenza': datetime.strptime(row[rate_prefix + 'data_scadenza'], '%Y-%m-%d').date(),
+                            rate_prefix + 'data_pagamento': datetime.strptime(row[rate_prefix + 'data_pagamento'], '%Y-%m-%d').date() if row[rate_prefix + 'data_pagamento'] else None,
+                            rate_prefix + 'importo_pagamento': float(row[rate_prefix + 'importo_pagamento']),
+                            rate_prefix + 'nome_cassa': row[rate_prefix + 'nome_cassa'] or '',
+                            rate_prefix + 'notes': row[rate_prefix + 'notes'] or '',
+                        }
+                        existing_terms.append(term)
+                    st.session_state[terms_key] = existing_terms
+                    st.session_state[selection_key] = selection
+                    # This try should be triggered only on the first loading or when I change selection
+                    # so it should be safe to reset the existing terms here.
+                    st.session_state[backup_terms_key] = existing_terms
+                except Exception as e:
+                    st.error(f"Errore nel caricamento dei termini: {str(e)}")
+
+            # st.write(st.session_state[terms_key])
+            terms_df = pd.DataFrame(st.session_state[terms_key])
+            terms_df.columns = [col[len(rate_prefix):].replace('_',' ').title() for col in terms_df.columns]
+
+            # Since some dates can be valued as None, ensure that the date columns
+            # are correctly represented as dates.
+            date_columns = ['Data Scadenza', 'Data Pagamento']
+            money_columns = ['Importo Pagamento']
+            for col in date_columns:
+                # This is the correct way to convert a possibly Null column, interpreted
+                # as a string by pandas to a datetime.date data format while keeping None
+                # instead of NaT.
+                # Using the commented out versions gives Timestamp format (1) or creates NaT (2).
+                # Then the terms in the session state will be Timestamp, and NaT are not read
+                # by the database, so it will raise an error.
+                # terms_df[col] = pd.to_datetime(terms_df[col], format='%Y-%m-%d')
+                # terms_df[col] = pd.to_datetime(terms_df[col]).dt.date
+                terms_df[col] = terms_df[col].apply(lambda x: None if x is None or pd.isna(x) else pd.to_datetime(x).date())
+
+
+            column_config = get_standard_column_config(money_columns = money_columns,
+                                                       date_columns = date_columns)
+
+            column_config['Nome Cassa'] = st.column_config.SelectboxColumn(
+                "Nome Cassa",
+                options=[ # TODO; fix casse
+                    "Cassa 1",
+                    "Cassa 2",
+                    "Cassa 3"
+                ],
+                required=False)
+
+            # TODO; fix column name
+            column_config['Notes'] = st.column_config.TextColumn(
+                "Notes",
+                required=False)
+
+
+            terms_df = terms_df.style.format({
+                'Importo Pagamento': format_italian_currency,
+            })
+
+            st.write('Scadenze in modifica:')
+
+            # TODO: add column ordering, otherwise it changes sometimes.
+            # editing_enabled = st.toggle('Modifica Tabella', key = table_name + '_toggle')
+            # st.write(st.session_state[table_name + '_toggle'])
+
+            # edited = st.data_editor(terms_df,
+            #                         key = table_name + '_terms_df',
+            #                         column_config = column_config,
+            #                         hide_index = True,
+            #                         num_rows = 'dynamic',
+            #                         # disabled=not editing_enabled,
+            #                         )
+
+            @st.fragment
+            def payment_terms_editor(terms_df, column_config, table_name):
+                """Isolated fragment for the data editor, otherwise the first
+                    save click does not work!"""
+                return st.data_editor(terms_df,
+                                      key=table_name + '_terms_df',
+                                      column_config=column_config,
+                                      hide_index=True,
+                                      num_rows='dynamic')
+
+            edited = payment_terms_editor(terms_df, column_config, table_name)
+
+            c1, c2,  c3, c4 = st.columns([3,3,1,1], vertical_alignment='top')
+
+            with c1:
+                with st.expander("Configurazione Iniziale Rapida", width=500):
+                    st.write("""La configurazione rapida permette di generare automaticamente il
+                                    numero desiderato di scadenze con importo diviso ugualmente.""")
+                    st.write("""Attenzione: questa operazione sovrascriverà tutti i campi delle
+                                    scadenze attualmente configurate.""")
+                    split_col1, split_col2, split_col3 = st.columns([1, 1, 1],
+                                                                    vertical_alignment='bottom')
+
+                    with split_col1:
+                        num_installments = st.number_input("Numero rate", min_value=1, max_value=12, value=1,
+                                                           key = table_name + '_num_installments')
+
+                    with split_col2:
+                        interval_days = st.number_input("Giorni tra rate", min_value=1, max_value=365, value=30, step=15,
+                                                        key = table_name + '_interval_days')
+
+                    with split_col3:
+                        # TODO; can I put an help message over the button
+                        #  so that I don't have to handle the complexity of a dialog?
+                        if st.button("Applica", key = table_name + '_apply_rapid_config'):
+
+                            up_to_date_terms = auto_split_payment_movement(
+                                importo_totale_movimento, num_installments, data_documento, rate_prefix, interval_days
+                            )
+                            st.session_state[terms_key] = up_to_date_terms
+                            st.rerun()
+            with c2:
+                with st.expander("Divisione Automatica Importo", width=500):
+
+                    # Since streamlit does not support the features that I need to ensure that there
+                    # is always present at least one term,
+                    # for now an if statement before every element will do.
+                    if len(edited) == 0:
+                        st.warning('Creare almeno una scadenza prima di procedere')
+                    else:
+                        _edited = edited.copy()
+                        _edited.columns = [rate_prefix + col.replace(' ','_').lower() for col in _edited.columns]
+
+                        up_to_date_terms = []
+                        for k,v in _edited.T.to_dict().items():
+                            up_to_date_terms.append(v)
+
+                        total_decimal          = to_money(importo_totale_movimento)
+                        movements_count        = len(up_to_date_terms)
+                        amount_per_installment = to_money(total_decimal / movements_count)
+
+                        st.write("""La a divisione automatica permette di dividere l'importo totale in parti uguali
+                                        nelle rate attualmente presenti. Gli altri campi resteranno invariati.""")
+                        st.write(f"""Con la configurazione attuale si otterrebbero
+                                        {movements_count} rate da {amount_per_installment} Euro ciascuna.""")
+
+                        if st.button("Dividi Importo", key = table_name + '_apply_auto_config'):
+
+                            total_allocated = Decimal('0.00')
+
+                            for i in range(movements_count):
+                                # Last installment gets the remainder to avoid rounding errors
+                                if i == movements_count - 1:
+                                    up_to_date_terms[i][rate_prefix + 'importo_pagamento'] = total_decimal - total_allocated
+                                else:
+                                    up_to_date_terms[i][rate_prefix + 'importo_pagamento'] = amount_per_installment
+                                    total_allocated += amount_per_installment
+
+                            st.session_state[terms_key] = up_to_date_terms
+                            st.rerun()
+            with c3:
+                save = st.button("Salva  ", type='primary', key = table_name + '_save_terms', use_container_width=True)
+                if save:
+                    save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
+                                        config, movement_key, supabase_client, table_name, backup_terms_key)
+
+
+            with c4:
+                if st.button('Annulla', key = table_name + '_cancel_terms', use_container_width=True):
+
+                    # NOTE IMPORTANT: for some reason, if I do
+                    # st.session_state[terms_key] = st.session_state[backup_terms_key],
+                    # the rerun() does not trigger the recomputing of the terms_df.
+                    # I have to use a variable like undo_terms!
+                    undo_terms = st.session_state[backup_terms_key]
+                    st.session_state[terms_key] = undo_terms
                     st.rerun()
-                else:
-                    st.warning('Seleziona un movimento di cui modificare le rate')
+        else:
+            st.warning('Seleziona un movimento per gestirne le rate')

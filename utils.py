@@ -2,6 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from auth_utils import show_login_form, show_simple_login_form
 import postgrest
+import logging
 
 
 
@@ -140,12 +141,25 @@ def get_standard_column_config(money_columns = None,
         for col in money_columns:
             column_config[col] = st.column_config.NumberColumn(
                 label=col,
-                format="euro")
+                format="localized",
+            )
 
     if date_columns is not None:
         for col in date_columns:
             column_config[col] = st.column_config.DateColumn(
                 label=col,
-                format="iso8601")
+                format="MM/DD/YYYY")
 
     return column_config
+
+def fetch_all_records_from_view(supabase_client, view_name: str):
+    try:
+        result = supabase_client.table(view_name).select('*').execute()
+
+        if result.data:
+            return result.data
+        else:
+            return []
+    except Exception as e:
+        logging.exception(f"Database error in fetch_all_records_from_view: {e}")
+        raise

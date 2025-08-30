@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS public.movimenti_attivi CASCADE;
 DROP TABLE IF EXISTS public.rate_movimenti_attivi CASCADE;
 DROP TABLE IF EXISTS public.movimenti_passivi CASCADE;
 DROP TABLE IF EXISTS public.rate_movimenti_passivi CASCADE;
+DROP TABLE IF EXISTS public.casse CASCADE;
 
 
 
@@ -22,6 +23,28 @@ DROP TABLE IF EXISTS public.rate_movimenti_passivi CASCADE;
 -- ? Ha senso separare nomi come id, created_at ecc? tutta la tabella deve avere il prefisso,
 --   perche' quando faccio le viste avro' a che fare con campi ti tabelle diverse ma con nome uguale?
 --   Forse no, perche' nelle viste posso specificare il nome della tabella,
+
+-- Add a constraint so that I cannot insert an empty row, if there isn't a default for that.
+
+CREATE TABLE public.casse (
+                                  id uuid NOT NULL DEFAULT gen_random_uuid(),
+                                  user_id uuid NOT NULL,
+                                  c_nome_cassa varchar,
+                                  c_iban_cassa varchar,
+                                  c_descrizione_cassa varchar,
+                                  created_at timestamp with time zone DEFAULT now(),
+                                  updated_at timestamp with time zone DEFAULT now(),
+                                  CONSTRAINT casse_pkey PRIMARY KEY (id)
+);
+
+ALTER TABLE public.casse
+    ADD CONSTRAINT casse_composite_key
+        UNIQUE (user_id, c_nome_cassa, c_iban_cassa, c_descrizione_cassa);
+
+ALTER TABLE public.casse ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage only their own data" ON public.casse
+FOR ALL USING (auth.uid() = user_id);
 
 CREATE TABLE public.user_data (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -74,7 +97,7 @@ FOR ALL USING (auth.uid() = user_id);
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_emesse
 ADD CONSTRAINT emesse_unique_composite_key
-UNIQUE (fe_partita_iva_prestatore, fe_numero_fattura, fe_data_documento);
+UNIQUE (user_id, fe_partita_iva_prestatore, fe_numero_fattura, fe_data_documento);
 
 -- Business logic:
 -- I want that any term, even if the invoice has just one term,
@@ -148,7 +171,7 @@ FOR ALL USING (auth.uid() = user_id);
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_ricevute
 ADD CONSTRAINT ricevute_unique_composite_key
-UNIQUE (fr_partita_iva_prestatore, fr_numero_fattura, fr_data_documento);
+UNIQUE (user_id, fr_partita_iva_prestatore, fr_numero_fattura, fr_data_documento);
 
 
 CREATE TABLE public.rate_fatture_ricevute (
@@ -206,7 +229,7 @@ FOR ALL USING (auth.uid() = user_id);
 ALTER TABLE public.movimenti_attivi
     ADD CONSTRAINT movimenti_attivi_unique_composite_key
 --         Don't know if it is good to keep ma_data in the unique key.
-        UNIQUE (ma_numero, ma_data);
+        UNIQUE (user_id, ma_numero, ma_data);
 
 CREATE TABLE public.rate_movimenti_attivi (
                                               id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -247,7 +270,7 @@ FOR ALL USING (auth.uid() = user_id);
 
 ALTER TABLE public.movimenti_passivi
     ADD CONSTRAINT movimenti_passivi_unique_composite_key
-        UNIQUE (mp_numero, mp_data);
+        UNIQUE (user_id, mp_numero, mp_data);
 
 CREATE TABLE public.rate_movimenti_passivi (
                                               id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -329,6 +352,11 @@ CREATE TRIGGER update_payment_terms_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_payment_terms_updated_at
+    BEFORE UPDATE ON public.casse
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- Create a function specifically for setting created_at on INSERT
 CREATE OR REPLACE FUNCTION set_created_at_column()
 RETURNS TRIGGER AS $$
@@ -376,6 +404,11 @@ CREATE TRIGGER set_payment_terms_created_at
 
 CREATE TRIGGER set_payment_terms_created_at
     BEFORE INSERT ON public.rate_movimenti_passivi
+    FOR EACH ROW
+    EXECUTE FUNCTION set_created_at_column();
+
+CREATE TRIGGER set_payment_terms_created_at
+    BEFORE INSERT ON public.casse
     FOR EACH ROW
     EXECUTE FUNCTION set_created_at_column();
 
@@ -1240,7 +1273,121 @@ ORDER BY
 
 
 
+DROP VIEW IF EXISTS movimenti_attivi_overview;
+CREATE VIEW movimenti_attivi_overview WITH (security_invoker = true) AS
+    WITH payment_aggregates AS (
+    SELECT
+    rma_numero,
+    rma_data,
 
+    -- Total amount already paid (where payment date is not null)
+    ROUND(COALESCE(SUM(
+    CASE
+    WHEN rma_data_pagamento IS NOT NULL
+    THEN rma_importo_pagamento
+    ELSE 0
+    END
+), 0)::numeric, 2) AS totale_pagato,
+
+    -- Total amount still unpaid (where payment date is null)
+    ROUND(COALESCE(SUM(
+    CASE
+    WHEN rma_data_pagamento IS NULL
+    THEN rma_importo_pagamento
+    ELSE 0
+    END
+), 0)::numeric, 2) AS totale_saldo
+
+    FROM rate_movimenti_attivi
+    WHERE user_id = auth.uid()
+    GROUP BY rma_numero, rma_data
+)
+SELECT
+
+    ma.ma_data AS data,
+
+    ma.ma_numero AS numero,
+
+    CASE
+        WHEN ma.ma_cliente IS NOT NULL AND TRIM(ma.ma_cliente) != ''
+        THEN TRIM(ma.ma_cliente)
+        ELSE 'Cliente non specificato'
+        END AS cliente,
+
+    ROUND(ma.ma_importo_totale::numeric, 2) AS totale,
+
+    COALESCE(pa.totale_pagato, 0.00) AS pagato,
+
+    COALESCE(pa.totale_saldo, 0.00) AS saldo
+
+FROM movimenti_attivi ma
+         LEFT JOIN payment_aggregates pa ON (
+    ma.ma_numero = pa.rma_numero
+        AND ma.ma_data = pa.rma_data
+    )
+WHERE user_id = auth.uid()
+ORDER BY
+    ma.ma_data DESC,
+    ma.ma_numero;
+
+
+
+DROP VIEW IF EXISTS movimenti_passivi_overview;
+CREATE VIEW movimenti_passivi_overview WITH (security_invoker = true) AS
+    WITH payment_aggregates AS (
+    SELECT
+    rmp_numero,
+    rmp_data,
+
+    -- Total amount already paid (where payment date is not null)
+    ROUND(COALESCE(SUM(
+    CASE
+    WHEN rmp_data_pagamento IS NOT NULL
+    THEN rmp_importo_pagamento
+    ELSE 0
+    END
+), 0)::numeric, 2) AS totale_pagato,
+
+    -- Total amount still unpaid (where payment date is null)
+    ROUND(COALESCE(SUM(
+    CASE
+    WHEN rmp_data_pagamento IS NULL
+    THEN rmp_importo_pagamento
+    ELSE 0
+    END
+), 0)::numeric, 2) AS totale_saldo
+
+    FROM rate_movimenti_passivi
+    WHERE user_id = auth.uid()
+    GROUP BY rmp_numero, rmp_data
+)
+SELECT
+
+    mp.mp_data AS data,
+
+    mp.mp_numero AS numero,
+
+    CASE
+        WHEN mp.mp_fornitore IS NOT NULL AND TRIM(mp.mp_fornitore) != ''
+        THEN TRIM(mp.mp_fornitore)
+        ELSE 'Fornitore non specificato'
+        END AS fornitore,
+
+    ROUND(mp.mp_importo_totale::numeric, 2) AS totale,
+
+    COALESCE(pa.totale_pagato, 0.00) AS pagato,
+
+    COALESCE(pa.totale_saldo, 0.00) AS saldo
+
+FROM movimenti_passivi mp
+         LEFT JOIN payment_aggregates pa ON (
+    mp.mp_numero = pa.rmp_numero
+        AND mp.mp_data = pa.rmp_data
+    )
+WHERE user_id = auth.uid()
+ORDER BY
+    mp.mp_data DESC,
+    mp.mp_numero;
 
 
 
@@ -1357,7 +1504,6 @@ ORDER BY ordine;
 
 
 -- Monthly Movements Summary View
-
 DROP VIEW IF EXISTS monthly_altri_movimenti_summary;
 CREATE VIEW monthly_altri_movimenti_summary WITH (security_invoker = true) AS
 WITH
@@ -1367,6 +1513,7 @@ monthly_sales AS (
         ROUND(SUM(ma_importo_totale)::numeric, 2) AS importo_vendite
     FROM movimenti_attivi
     WHERE EXTRACT(YEAR FROM ma_data) = EXTRACT(YEAR FROM CURRENT_DATE)
+    AND user_id = auth.uid()
     GROUP BY EXTRACT(MONTH FROM ma_data)
 ),
 monthly_purchases AS (
@@ -1375,6 +1522,7 @@ monthly_purchases AS (
         ROUND(SUM(mp_importo_totale)::numeric, 2) AS importo_acquisti
     FROM movimenti_passivi
     WHERE EXTRACT(YEAR FROM mp_data) = EXTRACT(YEAR FROM CURRENT_DATE)
+    AND user_id = auth.uid()
     GROUP BY EXTRACT(MONTH FROM mp_data)
 ),
 combined_data AS (
@@ -1464,3 +1612,21 @@ FROM (
          FROM combined_data
      ) summary
 ORDER BY ordine;
+
+-- The final columns have to be named with the same name of
+-- public.casse fields, so that I can do the delete.
+DROP VIEW IF EXISTS casse_summary;
+CREATE VIEW casse_summary WITH (security_invoker = true) AS
+SELECT DISTINCT
+    t1.nome_cassa as c_nome_cassa,
+    t1.iban_cassa as c_iban_cassa,
+    t2.c_descrizione_cassa
+FROM (
+         SELECT rfe_nome_cassa as nome_cassa, rfe_iban_cassa as iban_cassa
+         FROM rate_fatture_emesse WHERE user_id = auth.uid()
+         UNION
+         SELECT c_nome_cassa as nome_cassa, c_iban_cassa as iban_cassa
+         FROM casse WHERE user_id = auth.uid()
+     ) t1
+         LEFT JOIN casse t2 ON (t1.nome_cassa = t2.c_nome_cassa AND t1.iban_cassa = t2.c_iban_cassa)
+ORDER BY t1.nome_cassa, t1.iban_cassa;

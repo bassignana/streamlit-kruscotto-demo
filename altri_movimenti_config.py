@@ -63,15 +63,15 @@ altri_movimenti_config = {
     'mp_numero': {
         'data_type': 'string',
         'required': True,
-        'label': 'Numero Movimento Attivo',
+        'label': 'Numero Movimento Passivo',
         # 'placeholder': 'es. 2024-001',
         'help': 'Numero identificativo del movimento',
     },
     'mp_data': {
         'data_type': 'date',
         'required': True,
-        'label': 'Data Movimento Attivo',
-        'help': 'Data del movimento attivo',
+        'label': 'Data Movimento Passivo',
+        'help': 'Data del movimento passivo',
     },
     'mp_importo_totale': {
         'data_type': 'money',
@@ -84,7 +84,7 @@ altri_movimenti_config = {
         'required': False,
         'label': 'Tipologia Movimento',
         # 'placeholder': 'es. 09876543210',
-        'help': 'Categoria del movimento attivo',
+        'help': 'Categoria del movimento passivo',
     },
     'mp_fornitore': {
         'data_type': 'string',
@@ -94,6 +94,26 @@ altri_movimenti_config = {
         'help': 'Denominazione del cliente',
     },
 
+
+
+    'c_nome_cassa': {
+        'data_type': 'string',
+        'required': False,
+        'label': 'Nome Cassa',
+        'help': 'Nome della cassa',
+    },
+    'c_iban_cassa': {
+        'data_type': 'string',
+        'required': False,
+        'label': 'Iban Cassa',
+        'help': 'Eventuale IBAN associato alla cassa',
+    },
+    'c_descrizione_cassa': {
+        'data_type': 'string',
+        'required': False,
+        'label': 'Descrizione Cassa',
+        'help': 'Eventuale descrizione della cassa',
+    },
 
 
 

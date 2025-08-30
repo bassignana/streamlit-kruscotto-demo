@@ -128,6 +128,42 @@ TEMPLATES
 alert utente iscritto
 altri movimenti: menu a tendina blindata
 
+Beta:
+BRAKING:
+[x] quando creo un movimento, modifico dalla tabella un valore e poi clicco quando sono
+   ancora nella tabella sul puslante salva, NON SALVA, ma devo cliccare una seconda 
+   volta! Sembra che il primo click faccia uscire la persona dalla tabella in modifica, 
+   mentre il secondo faccia effettivamente effetto sul salva.
+   Dovrebbe accadere anche con ANNULLA ma il pulsane annulla NON FUZIONA! Funziona solo se
+   clicco da qualche parte che non sia il pulsante annulla stesso.
+   Questa cosa accade solo con i bottoni e per una questione di tempistiche e rerun:
+   probabilmente quando esco dalla modifica di una cella cliccando con il mouse, 
+   c'e' una specie di rerun o comunque un caricamento, che si vede in alto a dx.
+   se invece clicco sul pulsante salva, ma aspetto che quel caricamento finisca prima di 
+   rilasciare, il pulsante funziona correttamente. Magari e' anche un problema il fatto che
+   la funzione che uso nel pulsante prenda in input il valore di ritorno del dataframe 
+   modificato: magari mettendo quel valore nello stato la situazione si risolve.
+   ROSOLTO METTENDO IL DATAFRAME IN UN st.container()! DOCUMENTARE QUESTA COSA!
+[] place where clause in all views
+
+all add and modify modal
+[] keep data on save button
+[] remove submit on enter
+[] fix column ordering
+
+[] nel profilo utente, compare prima l'avviso dell'anagrafica, senza poter fare un
+   logout immediato
+[] remove all time.sleep if possible
+[] table headings in bold, maybe a markdown label in bold in column_configs
+[] Toggle modifica dati?
+
+1.0:
+[] Number and date formatting, italian and same on input output
+[] Scrollbar always present in tabular things
+[] Quando modifico l'importo di un movimento, gli importi delle scadenze non vengono
+   modificati! Aprire un menu di modifica o, comunque, impedire la prosecuzione.
+
+
 ## Successiva:
 - Nella gestione scadenze, per ora avviso discrepanza tra impostato e totale. 
   Differenza sempre presente occludeva un po' l'interfaccia.
@@ -286,74 +322,29 @@ there cannot be a column in a database that it is not present in the XML_FIELD_M
 If I use the xml_mapping to check things, then I incour the risk of leaving columns out.
 This is bad.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## Adding a new table flow
 In sql file: 
 - add delete statement
 - add table definition
 - enable and add RLS
-- add any separate unique constraint
+- add any separate unique constraint, WITH THE user_id IN IT!
 - add triggers
-
 Test sql file
+
+For views:
+- Use always WITH (security_invoker = true)
+- always add WHERE user_id = auth.uid() in every query of the view
+- be sure that RLS is enabled
+- in the python api, omit .eq(user, 'user') since there is no user_id column
+  in the view.
 
 For generating CRUD elements:
 Since I don't want to mess with the whole xml config needed to 
 render elements correctly, for altri_movimenti I'll create a
 separate config: altri_movimenti_config.py
 
-Some utils are taken from invoice_utils.py others from altri_movimenti_utils.py
+IF some utils are taken from invoice_utils.py others from altri_movimenti_utils.py,
+copy the util. Customization will be needed, now or in the future.
 
 
 
