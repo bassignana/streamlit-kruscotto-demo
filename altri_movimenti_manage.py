@@ -2,11 +2,13 @@ from decimal import Decimal, ROUND_HALF_UP
 import plotly.graph_objects as go
 from datetime import datetime
 import streamlit as st
-
-from altri_movimenti_config import altri_movimenti_config
-from altri_movimenti_utils import render_movimenti_crud_page, money_to_string, to_money
 from utils import setup_page
 import pandas as pd
+
+from altri_movimenti_config import altri_movimenti_config
+from altri_movimenti_utils import render_movimenti_crud_page
+from utils import money_to_string, to_money
+
 
 # TODO: The problem here is that I add a lot of complexity
 #  because I have to stop the streamlit execution when the
@@ -50,23 +52,7 @@ def return_warning_modal(message, key):
         is_modal_required = False
         return is_modal_required, None
 
-def create_monthly_cashflow_chart(data_dict, show_amounts=False):
-    """
-    Creates a Plotly bar chart showing monthly cashflow with active and passive movements.
-
-    Parameters:
-    -----------
-    data_dict : dict
-        Dictionary with month names as keys and dictionaries containing
-        'Movimenti Attivi', 'Movimenti Passivi', 'Saldo' as values
-    show_amounts : bool, default False
-        If True, shows amounts on top of bars. If False, amounts shown only on hover.
-
-    Returns:
-    --------
-    plotly.graph_objects.Figure
-        The configured Plotly figure ready for display
-    """
+def create_monthly_movements_summary_chart(data_dict, show_amounts=False):
 
     # Extract months and values
     months = list(data_dict.keys())
@@ -219,7 +205,7 @@ def main():
 
                 with c2:
                     # fig = create_monthly_line_chart(df,"Movimenti Attivi", "Movimenti Passivi")
-                    fig = create_monthly_cashflow_chart(df.to_dict(), show_amounts=False)
+                    fig = create_monthly_movements_summary_chart(df.to_dict(), show_amounts=False)
                     st.plotly_chart(fig)
 
                 st.dataframe(df, use_container_width=True)

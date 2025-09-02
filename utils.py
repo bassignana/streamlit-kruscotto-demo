@@ -3,8 +3,21 @@ import plotly.graph_objects as go
 from auth_utils import show_login_form, show_simple_login_form
 import postgrest
 import logging
+from decimal import Decimal, ROUND_HALF_UP, getcontext
+from datetime import datetime, date
+import pandas as pd
 
+def fetch_all_records(supabase_client, table_name: str, user_id: str):
+    try:
+        result = supabase_client.table(table_name).select('*').eq('user_id', user_id).execute()
 
+        if result.data:
+            return result.data
+        else:
+            return []
+    except Exception as e:
+        logging.exception(f"Database error in fetch_all_records - error: {e} - table: {table_name}, user_id: {user_id}")
+        raise
 
 def setup_page(page_title = "", page_icon = "", enable_page_can_render_warning = True):
     """
@@ -133,22 +146,35 @@ def create_monthly_line_chart(df, sales_row_name, purchase_row_name):
     return fig
 
 def get_standard_column_config(money_columns = None,
-                               date_columns = None):
+                               date_columns = None,
+                               required_columns = None):
+
+    # required = True if col in required_columns else False
+    #
+    # Don't do this, it will mess with the process of validation before saving,
+    # probably because the dataframe does not return an incomplete row, but it
+    # is very unfriendly to the user.
+
+
+    if required_columns is None:
+        required_columns = []
 
     column_config = {}
 
     if money_columns is not None:
         for col in money_columns:
             column_config[col] = st.column_config.NumberColumn(
-                label=col,
+                label=col + '*' if col in required_columns else col,
                 format="localized",
             )
 
+    # todo: do I need to start with None param in the signature and check?
     if date_columns is not None:
         for col in date_columns:
             column_config[col] = st.column_config.DateColumn(
-                label=col,
-                format="MM/DD/YYYY")
+                label=col + '*' if col in required_columns else col,
+                format="MM/DD/YYYY",
+            )
 
     return column_config
 
@@ -163,3 +189,185 @@ def fetch_all_records_from_view(supabase_client, view_name: str):
     except Exception as e:
         logging.exception(f"Database error in fetch_all_records_from_view: {e}")
         raise
+
+def fetch_record_from_id(supabase_client, table_name, record_id, user_id = st.session_state.user.id):
+
+    # todo: better error handling and check for one single row
+    try:
+        result = supabase_client.table(table_name).select('*') \
+            .eq('user_id', user_id) \
+            .eq('id', record_id).execute()
+
+        if result.data:
+            return result.data[0]
+        else:
+            return {}
+    except Exception as e:
+        logging.exception(f"Database error in fetch_all_records_from_view: {e}")
+        raise
+
+def to_money(amount):
+    getcontext().prec = 28
+    MONEY_QUANTIZE    = Decimal('0.01')  # 2 decimal places
+    CURRENCY_ROUNDING = ROUND_HALF_UP
+
+    if amount is None:
+        decimal_amount = Decimal(0)
+    else:
+        decimal_amount = Decimal(str(amount))
+    return decimal_amount.quantize(MONEY_QUANTIZE, rounding=CURRENCY_ROUNDING)
+
+def money_to_string(amount):
+
+    if not isinstance(amount, Decimal):
+        amount = to_money(amount)
+
+    return str(amount)
+
+def render_field_widget(field_name, field_config, default_value = None, key_suffix = "", disabled = False):
+    """Render appropriate SINGLE input widget based on field configuration"""
+
+    field_type = field_config.get('data_type', 'string')
+    label = field_config.get('label', field_name.replace('_', ' ').title())
+    widget_key = f"{field_name}_{key_suffix}" if key_suffix else field_name
+    help_text = field_config.get('help')
+    required = field_config.get('required', False)
+
+    # Add asterisk for required fields
+    if required:
+        label += " *"
+
+    # String fields
+    if field_type == 'string':
+        widget_type = field_config.get('widget', 'text_input')
+
+        if widget_type == 'textarea':
+            return st.text_area(
+                label,
+                value=default_value or "",
+                key=widget_key,
+                help=help_text,
+                disabled=disabled
+            )
+        elif widget_type == 'selectbox' and field_config.get('options'):
+            options = field_config['options']
+            index = 0
+            if default_value and default_value in options:
+                index = options.index(default_value)
+            return st.selectbox(
+                label,
+                options=options,
+                index=index,
+                key=widget_key,
+                help=help_text,
+                disabled=disabled
+            )
+        else:
+            return st.text_input(
+                label,
+                value=default_value or "",
+                key=widget_key,
+                placeholder=field_config.get('placeholder'),
+                help=help_text,
+                disabled=disabled
+            )
+
+    # Numeric fields
+    elif field_type == 'money':
+        value = 0.00
+        if default_value is not None:
+            if isinstance(default_value, Decimal):
+                value = float(default_value)
+            else:
+                value = float(default_value)
+
+        return st.number_input(
+            label,
+            value=value,
+            step=1.00,
+            format="%.2f",
+            key=widget_key,
+            help=help_text,
+            disabled=disabled
+        )
+
+    elif field_type == 'integer':
+        return st.number_input(
+            label,
+            value=int(default_value) if default_value else 0,
+            step=1,
+            key=widget_key,
+            help=help_text,
+            disabled=disabled
+        )
+
+    # Date fields
+    elif field_type == 'date':
+        if default_value:
+            if isinstance(default_value, str):
+                default_value = datetime.strptime(default_value, '%Y-%m-%d').date()
+            elif isinstance(default_value, datetime):
+                default_value = default_value.date()
+
+        if required:
+            return st.date_input(
+                label,
+                value=default_value or date.today(),
+                key=widget_key,
+                help=help_text,
+                disabled=disabled
+            )
+        else:
+            return st.date_input(
+                value = None,
+                label = label,
+                key=widget_key,
+                help=help_text,
+                disabled=disabled
+            )
+
+    # Boolean fields
+    elif field_type == 'boolean':
+        return st.checkbox(
+            label,
+            value=bool(default_value) if default_value is not None else False,
+            key=widget_key,
+            help=help_text,
+            disabled=disabled
+        )
+
+    # Fallback to text input
+    else:
+        return st.text_input(
+            label,
+            value=str(default_value) if default_value else "",
+            key=widget_key,
+            help=help_text,
+            disabled=disabled
+        )
+
+def are_all_required_fields_present(form_data, sql_table_fields_names, fields_config):
+    errors = []
+    for field_name, field_config in fields_config.items():
+        if field_config.get('required', False) and field_name in sql_table_fields_names:
+            value = form_data.get(field_name)
+            if not value or (isinstance(value, str) and not value.strip()):
+                prefix_len = len(field_name.split('_')[0]) + 1
+
+                errors.append(f"Il campo '{field_name[prefix_len:].title()}' è obbligatorio.")
+    return errors
+
+def remove_prefix(col_name, prefixes):
+    for prefix in prefixes:
+        if col_name.startswith(prefix):
+            return col_name[len(prefix):]
+    return col_name  # Return original if no prefix found
+
+def format_italian_currency(val):
+    """Italian currency: 1.250,50"""
+    if pd.isna(val):
+        return "0,00"
+    formatted = f"{val:,.2f}"
+    formatted = formatted.replace(',', 'TEMP').replace('.', ',').replace('TEMP', '.')
+    return f"{formatted}"
+

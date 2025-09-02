@@ -5,10 +5,11 @@ import time
 from datetime import datetime, timedelta
 from decimal import Decimal, getcontext, ROUND_HALF_UP
 from dateutil.relativedelta import relativedelta
-
 from config import uppercase_prefixes, technical_fields
 from invoice_utils import render_field_widget
-from utils import extract_prefixed_field_names, get_standard_column_config, fetch_all_records_from_view
+from utils import extract_prefixed_field_names, get_standard_column_config, fetch_all_records_from_view, \
+    fetch_record_from_id, money_to_string, to_money, are_all_required_fields_present, remove_prefix, fetch_all_records
+
 
 #
 #
@@ -25,11 +26,6 @@ from utils import extract_prefixed_field_names, get_standard_column_config, fetc
 # Also these errors would be easier to catch if I had FK in my db!
 #
 #
-def remove_prefix(col_name, prefixes):
-    for prefix in prefixes:
-        if col_name.startswith(prefix):
-            return col_name[len(prefix):]
-    return col_name  # Return original if no prefix found
 
 def validate_payment_terms(payment_terms, total_amount, term_prefix):
     errors = []
@@ -52,26 +48,9 @@ def validate_payment_terms(payment_terms, total_amount, term_prefix):
 
     return len(errors) == 0, errors
 
-def fetch_all_records(supabase_client, table_name: str, user_id: str):
-    try:
-        result = supabase_client.table(table_name).select('*').eq('user_id', user_id).execute()
 
-        if result.data:
-            return result.data
-        else:
-            return []
-    except Exception as e:
-        logging.exception(f"Database error in fetch_all_records - error: {e} - table: {table_name}, user_id: {user_id}")
-        raise
 
-def are_all_required_fields_present(form_data, sql_table_fields_names, fields_config):
-    errors = []
-    for field_name, field_config in fields_config.items():
-        if field_config.get('required', False) and field_name in sql_table_fields_names:
-            value = form_data.get(field_name)
-            if not value or (isinstance(value, str) and not value.strip()):
-                errors.append(f"Il campo '{field_name}' è obbligatorio")
-    return errors
+
 
 def auto_split_payment_movimenti(importo_totale_documento, num_installments, start_date, term_prefix, interval_days = 30):
     # Precision 28 is different from decimal places!
@@ -113,11 +92,11 @@ def auto_split_payment_movimenti(importo_totale_documento, num_installments, sta
 
     return terms
 
-@st.dialog("Aggiungi un movimento")
+@st.dialog("Aggiungi movimento")
 def render_add_modal(supabase_client, table_name, fields_config, prefix):
 
     with st.form(f"add_{table_name}_form",
-                 clear_on_submit=True,
+                 clear_on_submit=False,
                  enter_to_submit=False):
 
         form_data = {}
@@ -129,13 +108,23 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
         #  I'll invert the first two fields between the two tables.
         #  I have to use a int(bool_flag) that I will invert at the end of
         #  every insertion.
+        # for i, (field_name, field_config) in enumerate(config_items):
+        #     with cols[i % 2]:
+        #         if field_name in sql_table_fields_names:
+        #             form_data[field_name] = render_field_widget(
+        #                 field_name, field_config, key_suffix=f"add_{table_name}"
+        #             )
+
         cols = st.columns(2)
+        column_flag = False  # Start with left column (index 0)
         for i, (field_name, field_config) in enumerate(config_items):
-            with cols[i % 2]:
+            with cols[int(column_flag)]:
                 if field_name in sql_table_fields_names:
                     form_data[field_name] = render_field_widget(
                         field_name, field_config, key_suffix=f"add_{table_name}"
                     )
+                    # Only invert the flag after actually rendering a field
+                    column_flag = not column_flag
 
         col1, col2 = st.columns([1, 1])
 
@@ -151,6 +140,7 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
                 if errors:
                     for error in errors:
                         st.error(error)
+                        return
                 else:
                     processed_data = {}
                     for name, value in form_data.items():
@@ -209,7 +199,6 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
 
                             if result.data.get('success', False):
                                 st.success("Movimento salvato con successo")
-                                time.sleep(2)
                                 st.rerun()
                             else:
                                 st.error(f'Error during movement INSERT, result: {result}')
@@ -220,7 +209,7 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
                 print(f'Error adding movimento manually: {e}')
 
 @st.dialog("Rimuovi movimento")
-def render_delete_modal(supabase_client, table_name, record_id:str):
+def render_delete_modal(supabase_client, table_name, selected_row, rate_prefix, prefix):
 
     col1, col2 = st.columns([1, 1])
 
@@ -228,20 +217,58 @@ def render_delete_modal(supabase_client, table_name, record_id:str):
         if st.button("Conferma Eliminazione", type="primary",
                      key = table_name + '_delete_modal_button'):
             try:
-
+                st.write(selected_row)
                 with st.spinner("Eliminazione in corso..."):
-                    # todo: check this, better error handling
+                    record_id = selected_row['id']
+
+                    # movement_key = {
+                    #     rate_prefix + 'numero': selected_row[prefix + 'numero'],
+                    #     rate_prefix + 'data': selected_row[prefix + 'data'],
+                    # }
+
+                    # I need to add prefix now to be able to find the columns for delete.
+                    # prefixed_selected_row = {}
+                    # for k,v in selected_row.items():
+                    #     prefixed_selected_row[prefix + k] = v
+
                     # Supabase delete always returns empty data, so we check for no exception
-                    result = supabase_client.table(table_name).delete()\
-                        .eq('user_id', st.session_state.user.id)\
+                    result = supabase_client.table(table_name).delete() \
+                        .eq('user_id', st.session_state.user.id) \
                         .eq('id', record_id).execute()
-                    if result:
-                        pass
-                    st.success("Movimento eliminato con successo")
-                    time.sleep(2)
-                    st.rerun()
+                    #
+                    # query = supabase_client.table(table_name).delete()
+                    # for field, value in prefixed_selected_row.items():
+                    #     query = query.eq(field, value)
+                    # result = query.eq('user_id', st.session_state.user.id).execute()
+
+                    has_errored = (hasattr(result, 'error') and result.error)
+
+                    if not has_errored:
+                        # To delete terms when I delete movements for now I'll use just the
+                        # CASCADE clause. In the future I might use an ad hoc transaction to
+                        # make the system more robust to sql definition errors.
+
+                        # Delete terms if movement is deleted correctly
+                        # query = supabase_client.table(rate_prefix + table_name).delete()
+                        # for field, value in movement_key.items():
+                        #     query = query.eq(field, value)
+                        # result = query.eq('user_id', st.session_state.user.id).execute()
+                        #
+                        # has_errored = (hasattr(result, 'error') and result.error)
+                        #
+                        # if not has_errored:
+
+                        st.success("Dati eliminati con successo!")
+                        st.rerun()
+                        # else:
+                        #     st.error(f"Errore rimozione termini movimento: {result.error.message}")
+
+                    else:
+                        st.error(f"Errore rimozione movimento: {result.error.message}")
+                        return
+
             except Exception as e:
-                raise
+                raise Exception(f'Error deleting movement: {e}')
 
     # with col2:
     #     if st.button("🚫 Annulla", use_container_width=True):
@@ -249,10 +276,25 @@ def render_delete_modal(supabase_client, table_name, record_id:str):
     #         st.rerun()
 
 @st.dialog("Modifica movimento")
-def render_modify_modal(supabase_client, table_name, fields_config, record_data, prefix):
+def render_modify_modal(supabase_client, table_name, fields_config, selected_id, prefix):
+    # """
+    # Infrastruttura:
+    # scelgo di scaricare solo una vista, che deve pero' avere, necessariamente, i riferimenti all'id
+    # di almeno una tabella padre che mi permetta di fare fetch dei dati appena mi servono, partendo
+    # dalle tabelle tecniche.
+    # In questo modo faro' molte piu' query, ma almeno avro' sempre dati up to date e non dovro'
+    # gestire un oggetto che sara' immediatamente out of sync appena cambia qualcosa.
+    # Inoltre, soprattutto in streamlit, se faccio tanti rerun e l'utente ha tanti dati, evito
+    # di scaricare tante volte tabelle 'pesanti'.
+    #
+    # Inoltre, se usassi l'id come index nelle visualizzazioni?
+    # """
 
-    record_id = record_data['id']
-    with st.form(f"modify_{table_name}_form"):
+    selected_row_parent_data = fetch_record_from_id(supabase_client, table_name, selected_id)
+
+    with st.form(f"modify_{table_name}_form",
+                 clear_on_submit=False,
+                 enter_to_submit=False):
         # form_data will hold the updated value of the form when I click on the
         # Aggiorna button. This is because, for some reason, the code below will rerun
         # and update form_data reading from each widget
@@ -261,11 +303,16 @@ def render_modify_modal(supabase_client, table_name, fields_config, record_data,
         config_items = list(fields_config.items())
         sql_table_fields_names = extract_prefixed_field_names('sql/02_create_tables.sql', prefix)
 
+        # This is weird to manage. Right now, I'm passing the row taken from the view.
+        # The result is that if the prefix are the same, then the value is displayed, else
+        # it is an empty field.
+        # This is because with this architecture I need to think that I can only update easily full technical
+        # tables but not views.
         cols = st.columns(2)
         for i, (field_name, field_config) in enumerate(config_items):
             with cols[i % 2]:
                 if field_name in sql_table_fields_names:
-                    record_value = record_data.get(field_name, None)
+                    record_value = selected_row_parent_data.get(field_name, None)
                     form_data[field_name] = render_field_widget(
                         field_name, field_config, record_value,
                         key_suffix=f"modify_{table_name}"
@@ -299,34 +346,20 @@ def render_modify_modal(supabase_client, table_name, fields_config, record_data,
                         # It should not be necessary since ids are unique in the table.
                         result = supabase_client.table(table_name).update(processed_data)\
                             .eq('user_id', st.session_state.user.id)\
-                            .eq('id', record_id).execute()
+                            .eq('id', selected_id).execute()
 
-                        # TODO; better error handling
-                        if result:
-                            st.success("Fattura salvata con successo nel database!")
-                            time.sleep(2)
+                        has_errored = (hasattr(result, 'error') and result.error)
+
+                        if not has_errored:
+                            st.success("Dati modificati con successo!")
                             st.rerun()
+                        else:
+                            st.error(f"Errore modifica dati: {result.error.message}")
+                            return
+
             except Exception as e:
                 print(f'Error updating invoice: {e}')
                 raise
-
-def to_money(amount):
-    getcontext().prec = 28
-    MONEY_QUANTIZE    = Decimal('0.01')  # 2 decimal places
-    CURRENCY_ROUNDING = ROUND_HALF_UP
-
-    if amount is None:
-        decimal_amount = Decimal(0)
-    else:
-        decimal_amount = Decimal(str(amount))
-    return decimal_amount.quantize(MONEY_QUANTIZE, rounding=CURRENCY_ROUNDING)
-
-def money_to_string(amount):
-
-    if not isinstance(amount, Decimal):
-        amount = to_money(amount)
-
-    return str(amount)
 
 def auto_split_payment_movement(importo_totale_documento: Decimal, num_installments, start_date,
                                 rate_prefix, interval_days = 30):
@@ -362,7 +395,6 @@ def auto_split_payment_movement(importo_totale_documento: Decimal, num_installme
 
     return terms
 
-
 def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento, config, movement_key, supabase_client, table_name, backup_terms_key):
     if len(edited) == 0:
         st.warning('Impossibile salvare un movimento senza scadenze di pagamento. '
@@ -370,8 +402,8 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
                    'tutte le modifiche apportate')
     else:
         try:
-            terms = st.session_state[terms_key]
 
+            # terms = st.session_state[terms_key]
             # Update terms, cannot do it in a function
             _edited = edited.copy()
             _edited.columns = [rate_prefix + col.replace(' ','_').lower() for col in _edited.columns]
@@ -380,8 +412,8 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
                 up_to_date_terms.append(v)
             terms = up_to_date_terms
 
-
             # Verify total configured
+            # TODO; This does not work at first try
             total_configured = to_money(0)
             for term in terms:
                 total_configured += to_money(term[rate_prefix + 'importo_pagamento'])
@@ -392,24 +424,14 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
                            f"Correggere prima di proseguire")
                 return
 
-            # Verify that all required field are present
-            # TODO: I can do a double check with the UI also.
-            sql_table_fields_names = extract_prefixed_field_names(
-                'sql/02_create_tables.sql',
-                rate_prefix)
-            for term in terms:
-                errors = are_all_required_fields_present(term,
-                                                         sql_table_fields_names,
-                                                         config)
-                if errors:
-                    # todo: Better error message
-                    st.warning(f'{' '.join(errors)}')
-                    return
+            # Avoid to insert the keys of the movement in
+            # the session state so I don't have to handle the keys in excess
+            # everywhere.
+            # Adding movement keys, if missing, for insert.
+            terms_to_save = []
 
             # In order to pass all strings and avoid not JSON serializable
             # objects like dates.
-            # Todo: i need to create a robust function for this
-            terms_to_save = []
             for term in terms:
                 new_term = {}
                 for k,v in term.items():
@@ -420,15 +442,36 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
                         new_term[k] = str(v)
                 terms_to_save.append(new_term)
 
-
-            # Avoid to insert the keys of the movement in
-            # the session state so I don't have to handle the keys in excess
-            # everywhere.
             # Adding movement keys, if missing, for insert.
             for term in terms_to_save:
                 for k,v in movement_key.items():
                     if k not in term:
                         term[k] = v
+
+            # Verify that all required field are present
+            sql_table_fields_names = extract_prefixed_field_names(
+                'sql/02_create_tables.sql',
+                rate_prefix)
+            # NOTE: this is a hack! the prefix here is rm*_, but in the config there is only m*_
+            # type prefix.
+            # correct_sql_fields = [field[1:] for field in sql_table_fields_names]
+            # correct_terms = []
+            # for term in terms:
+            #     correct_term = {}
+            #     for k,v in term.items():
+            #         correct_term[k[1:]] = v
+            #     correct_terms.append(correct_term)
+
+            errors = []
+            for term in terms_to_save:
+                errors.append(are_all_required_fields_present(term,
+                                                         sql_table_fields_names,
+                                                         config))
+            if any(errors):
+                for error in errors:
+                    # todo: Better error message
+                    st.warning(f'{' '.join(error)}')
+                return
 
             result = supabase_client.rpc('upsert_terms', {
                 'table_name': 'rate_' + table_name,
@@ -453,18 +496,43 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
         except Exception as e:
             st.error(f"Eccezione nel salvataggio: {str(e)}")
 
-# def create_save_callback(edited, terms_key, rate_prefix, importo_totale_movimento,
-#                          config, movement_key, supabase_client, table_name, backup_terms_key):
-#     def callback():
-#         save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
-#                             config, movement_key, supabase_client, table_name, backup_terms_key)
-#     return callback
-
 def render_movimenti_crud_page(supabase_client, user_id,
                                table_name, prefix,
                                rate_prefix,
                                config):
+    """
+    OLD ------------------------------------------------------------------------------------------------
+    Unificare formato dati:
+    - se una vista riporta campi presi da una tabella, il prefisso deve restare quello
+      della tabella originale, forse se un campo invece e' calcolato, si puo' vedere se mettere il
+      prefisso v_ o meno.
+    - deve esserci una chiara distinzione della parte del codice che lavora con i dati da quella che li
+      visualizza: lavoro con i prefissi e visualizzo senza i prefissi, pero' la rimozione dei prefissi deve
+      avvenire unicamente in sede di visualizzazione. Anzi, sarebbe buono se la cosa fosse fatta solo tramite
+      column config, in modo da lavorando dando per scontato che ci sono i prefissi.
+    - a questo punto potrei provare a mettere v_ e gestirlo nei column config
 
+    NOTE: if I need, in the view I can get the id of the primary table also to delete rows easily
+    OLD ------------------------------------------------------------------------------------------------
+
+    Formato dati:
+    - If I crud over a parent table without views, I have the table loaded and all names are
+      what would I expect, with the right prefixes and everything.
+    - If I crud over a view:
+    -- The view has to have an id of a parent table with witch I can query the original records
+       when I need them on the spot.
+    --? The view has to have a v_ prefix for all fields that are not a 1:1 copy of the parents'
+    -- The visualization of the view has to make sure to not suggest to edit a field that is a v_
+       composite field. In that case I have to tell the user how to do it or just create a custom form.
+    --? Keep two copies of the data: the data fetched for the view, and the processed data for the visualization.
+
+    -- MAYBE all of this is too restrictive, in a particular section I have to just make sure that
+       I keep the naming and the data that I'm working with consistent just within that section,
+       especially if that section interacts with the db only and not with other aspects of the app.
+
+    >>   For sure, now just finish the app.
+
+    """
     terms_key = table_name + '_terms'
     backup_terms_key = table_name + '_backup_terms'
     selection_key = table_name + table_name + '_selected_movement'
@@ -477,6 +545,8 @@ def render_movimenti_crud_page(supabase_client, user_id,
     if terms_key not in st.session_state:
         st.session_state[terms_key] = None
 
+    # TODO: can I just refetch data from the db when I click the
+    #  button so that I don't have to manage extra state?
     # This is for managing the 'Annulla' button
     # It will just store the first version fetched from the database.
     # The only two place where this is set should be:
@@ -486,7 +556,6 @@ def render_movimenti_crud_page(supabase_client, user_id,
     if backup_terms_key not in st.session_state:
         st.session_state[backup_terms_key] = None
 
-    # movimenti_data = fetch_all_records(supabase_client, table_name, user_id)
     movimenti_data = fetch_all_records_from_view(supabase_client, table_name + '_overview')
 
     if not movimenti_data:
@@ -498,16 +567,24 @@ def render_movimenti_crud_page(supabase_client, user_id,
                              prefix)
         return
 
-    df = pd.DataFrame(movimenti_data)
-    df.columns = [
+    #
+    #
+    # Here is the problem, I either create two dataframe, one with original names and
+    # one for visualizations with customized column names or I use the data list instead of the df
+    # to work with original names.
+    #
+    #
+    df_vis = pd.DataFrame(movimenti_data)
+    df_vis = df_vis.set_index('id')
+    df_vis.columns = [
         col.replace('_', ' ').title() if isinstance(col, str) else str(col)
-        for col in df.columns
+        for col in df_vis.columns
     ]
 
     for tech_field in technical_fields:
-        if tech_field in df.columns:
-            df = df.drop([tech_field], axis = 1)
-    df.columns = [remove_prefix(col, uppercase_prefixes) for col in df.columns]
+        if tech_field in df_vis.columns:
+            df_vis = df_vis.drop([tech_field], axis = 1)
+    df_vis.columns = [remove_prefix(col, uppercase_prefixes) for col in df_vis.columns]
 
     def format_italian_currency(val):
         """Italian currency: 1.250,50"""
@@ -516,17 +593,16 @@ def render_movimenti_crud_page(supabase_client, user_id,
         formatted = f"{val:,.2f}"
         formatted = formatted.replace(',', 'TEMP').replace('.', ',').replace('TEMP', '.')
         return f"{formatted}"
-
+    #
     # df = df.style.format({
     #     'Importo Totale': format_italian_currency,
     # })
 
-    selection = st.dataframe(df, use_container_width=True,
+    selection = st.dataframe(df_vis, use_container_width=True,
                              selection_mode = 'single-row',
                              on_select='rerun',
                              hide_index = True,
                              key = table_name + 'selection_df')
-
 
     col1, col2, col3, space = st.columns([1,1,1,4])
     with col1:
@@ -540,10 +616,18 @@ def render_movimenti_crud_page(supabase_client, user_id,
         modify = st.button("Modifica Movimento", key = table_name + '_modify')
         if modify:
             if selection.selection['rows']:
+                # BAD: Here I'm relying on the fact that the index in the df and
+                # in the movimenti_data state will always be in sync.
+                #
+                # When selection is active, only selection is returned, but the index
+                # returned will always refer to the original data passed as input to
+                # st.dataframe and not the current sorting of the dataframe.
+                # So to be sure to manage order correctly, is better to create two dfs
+                # from the same fetched data.
                 selected_index = selection.selection['rows'][0]
-                selected_row = movimenti_data[selected_index]
+                selected_id = df_vis.iloc[selected_index].name
                 render_modify_modal(supabase_client, table_name,
-                                    config, selected_row, prefix)
+                                    config, selected_id, prefix)
             else:
                 st.warning('Seleziona un movimento da modificare')
 
@@ -552,8 +636,16 @@ def render_movimenti_crud_page(supabase_client, user_id,
         if delete:
             if selection.selection['rows']:
                 selected_index = selection.selection['rows'][0]
-                selected_id = movimenti_data[selected_index]['id']
-                render_delete_modal(supabase_client, table_name, selected_id)
+                selected_row = movimenti_data[selected_index]
+                #
+                #
+                #
+                # TODO; When I delete movement, I need to delete relative terms also!
+                # For now that I have to give the app to test, I'm going to delete manually the terms
+                #
+                #
+                #
+                render_delete_modal(supabase_client, table_name, selected_row, rate_prefix, prefix)
             else:
                 st.warning('Seleziona un movimento da eliminare')
 
@@ -580,7 +672,7 @@ def render_movimenti_crud_page(supabase_client, user_id,
                        f'totale di {total_m} Euro, mentre le relative scadenze hanno un importo '
                        f'totale di {total_m_terms} Euro. Assicurarsi di far combaciare gli importi')
 
-    with st.expander("Visualizza e Gestisci Scadenze"):
+    with st.expander("Visualizza e Modifica Scadenze"):
         # TODO: In order to help the user understand that the rows of the dataframe can be clicked,
         #  start with the first checkbox selected,
         #  or at least visible by default
@@ -590,14 +682,22 @@ def render_movimenti_crud_page(supabase_client, user_id,
 
             selected_index = selection.selection['rows'][0]
 
-            # selected row
+            # Selected row.
+            #
+            # ATT: here I'm relying on the fact that the index, as I've already
+            # verified, will be always relative to the index of the data that are
+            # an input to the dataframe. In this case I am assuming that this relationship
+            # holds also for movimenti_data.
+            #
+            # Note that reading from a view, I have names of columns that are different
+            # from the prefixed names in the table.
+            # Most notably I don't have prefixes.
             record_data = movimenti_data[selected_index]
 
-            st.write(record_data)
-
-            importo_totale_movimento = to_money(record_data[prefix + 'importo_totale'])
             numero_documento = record_data[prefix + 'numero']
             data_documento   = record_data[prefix + 'data']
+            importo_totale_movimento = to_money(record_data[prefix + 'importo_totale'])
+
             movement_key = {
                 rate_prefix + 'numero': numero_documento,
                 rate_prefix + 'data': data_documento
@@ -606,8 +706,8 @@ def render_movimenti_crud_page(supabase_client, user_id,
             if st.session_state[terms_key] is None or st.session_state[selection_key] != selection:
                 try:
                     result = supabase_client.table('rate_' + table_name).select('*').eq('user_id', user_id) \
-                        .eq(rate_prefix + 'numero', record_data[prefix + 'numero']) \
-                        .eq(rate_prefix + 'data', record_data[prefix + 'data']).execute()
+                        .eq(rate_prefix + 'numero', numero_documento) \
+                        .eq(rate_prefix + 'data', data_documento).execute()
 
                     existing_terms = []
                     for row in result.data:
@@ -647,55 +747,55 @@ def render_movimenti_crud_page(supabase_client, user_id,
                 terms_df[col] = terms_df[col].apply(lambda x: None if x is None or pd.isna(x) else pd.to_datetime(x).date())
 
 
+            required_columns = ['Data Scadenza', 'Importo Pagamento']
             column_config = get_standard_column_config(money_columns = money_columns,
-                                                       date_columns = date_columns)
+                                                       date_columns = date_columns,
+                                                       required_columns = required_columns,
+                                                       )
 
+            options = fetch_all_records_from_view(supabase_client, 'casse_options')
+            cleaned_options = [d.get('cassa') for d in options]
+            # st.write(cleaned_options)
             column_config['Nome Cassa'] = st.column_config.SelectboxColumn(
-                "Nome Cassa",
-                options=[ # TODO; fix casse
-                    "Cassa 1",
-                    "Cassa 2",
-                    "Cassa 3"
-                ],
-                required=False)
+                "Cassa",
+                options=cleaned_options)
 
-            # TODO; fix column name
-            column_config['Notes'] = st.column_config.TextColumn(
-                "Notes",
-                required=False)
+            column_config['Notes'] = st.column_config.TextColumn("Note")
 
-
-            terms_df = terms_df.style.format({
+            # todo: why this assignment?
+            # terms_df = terms_df.style.format({
+            #     'Importo Pagamento': format_italian_currency,
+            # })
+            terms_df.style.format({
                 'Importo Pagamento': format_italian_currency,
             })
 
-            st.write('Scadenze in modifica:')
 
-            # TODO: add column ordering, otherwise it changes sometimes.
             # editing_enabled = st.toggle('Modifica Tabella', key = table_name + '_toggle')
-            # st.write(st.session_state[table_name + '_toggle'])
 
-            # edited = st.data_editor(terms_df,
-            #                         key = table_name + '_terms_df',
-            #                         column_config = column_config,
-            #                         hide_index = True,
-            #                         num_rows = 'dynamic',
-            #                         # disabled=not editing_enabled,
-            #                         )
+            column_order = ['Data Scadenza', 'Data Pagamento', 'Importo Pagamento', 'Nome Cassa', 'Notes']
 
-            @st.fragment
-            def payment_terms_editor(terms_df, column_config, table_name):
-                """Isolated fragment for the data editor, otherwise the first
-                    save click does not work!"""
-                return st.data_editor(terms_df,
+            # @st.fragment
+            # def payment_terms_editor(terms_df, column_config, table_name):
+            #     """Isolated fragment for the data editor, otherwise the first
+            #         save click does not work!"""
+            #     return st.data_editor(terms_df,
+            #                           key=table_name + '_terms_df',
+            #                           column_config=column_config,
+            #                           hide_index=True,
+            #                           num_rows='dynamic',
+            #                           column_order = column_order)
+            # edited = payment_terms_editor(terms_df, column_config, table_name)
+
+            edited =  st.data_editor(terms_df,
                                       key=table_name + '_terms_df',
                                       column_config=column_config,
                                       hide_index=True,
-                                      num_rows='dynamic')
+                                      num_rows='dynamic',
+                                      column_order = column_order)
 
-            edited = payment_terms_editor(terms_df, column_config, table_name)
 
-            c1, c2,  c3, c4 = st.columns([3,3,1,1], vertical_alignment='top')
+            c1, c2, c3 = st.columns([3,3,1], vertical_alignment='top')
 
             with c1:
                 with st.expander("Configurazione Iniziale Rapida", width=500):
@@ -764,21 +864,21 @@ def render_movimenti_crud_page(supabase_client, user_id,
                             st.session_state[terms_key] = up_to_date_terms
                             st.rerun()
             with c3:
-                save = st.button("Salva  ", type='primary', key = table_name + '_save_terms', use_container_width=True)
-                if save:
-                    save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
-                                        config, movement_key, supabase_client, table_name, backup_terms_key)
+                with st.popover("Verifica, Salva o Annulla"):
+                    save = st.button("Salva  ", type='primary', key = table_name + '_save_terms', use_container_width=True)
+                    cancel = st.button('Annulla', key = table_name + '_cancel_terms', use_container_width=True)
 
+            if save:
+                save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
+                                    config, movement_key, supabase_client, table_name, backup_terms_key)
+            if cancel:
+                # NOTE IMPORTANT: for some reason, if I do
+                # st.session_state[terms_key] = st.session_state[backup_terms_key],
+                # the rerun() does not trigger the recomputing of the terms_df.
+                # I have to use a variable like undo_terms!
+                undo_terms = st.session_state[backup_terms_key]
+                st.session_state[terms_key] = undo_terms
+                st.rerun()
 
-            with c4:
-                if st.button('Annulla', key = table_name + '_cancel_terms', use_container_width=True):
-
-                    # NOTE IMPORTANT: for some reason, if I do
-                    # st.session_state[terms_key] = st.session_state[backup_terms_key],
-                    # the rerun() does not trigger the recomputing of the terms_df.
-                    # I have to use a variable like undo_terms!
-                    undo_terms = st.session_state[backup_terms_key]
-                    st.session_state[terms_key] = undo_terms
-                    st.rerun()
         else:
             st.warning('Seleziona un movimento per gestirne le rate')

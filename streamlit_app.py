@@ -55,8 +55,8 @@ def main():
 
         overview = st.Page("page_overview.py", title="Sommario Fatture", icon=":material/search:")
 
-        anagrafica_azienda = st.Page("page_anagrafica_azienda.py", title="Azienda", icon=":material/search:")
-        profile = st.Page("page_profile.py", title="Utente", icon=":material/search:")
+        anagrafica_azienda = st.Page("page_anagrafica_azienda.py", title="Azienda", icon=":material/enterprise:")
+        profile = st.Page("page_profile.py", title="Utente", icon=":material/account_circle:")
 
         fatture_upload = st.Page("invoice_uploader.py", title="Carica", icon=":material/search:")
         fatture_overview = st.Page("invoice_overview.py", title="Sommario", icon=":material/search:")
@@ -65,17 +65,18 @@ def main():
         fatture_emesse_delete = st.Page("invoice_delete.py", title="Elimina", icon=":material/search:")
         fatture_deadlines_manage = st.Page("invoice_deadlines.py", title="Gestisci Rate", icon=":material/search:")
 
-        altri_movimenti_manage = st.Page("altri_movimenti_manage.py", title="Movimenti", icon=":material/search:")
+        altri_movimenti_manage = st.Page("altri_movimenti_manage.py", title="Movimenti", icon=":material/book_2:")
+        fatture_manage = st.Page("invoice_manage.py", title="Fatture", icon=":material/book_2:")
 
-        flussi_di_cassa = st.Page("cash_flow.py", title="Flussi di Cassa", icon=":material/search:")
+        flussi_di_cassa = st.Page("cash_flow.py", title="Flussi di Cassa", icon=":material/payments:")
 
-        feedback = st.Page("page_feedback.py", title="Contattaci", icon=":material/search:")
+        feedback = st.Page("page_feedback.py", title="Contattaci", icon=":material/chat:")
 
 
         pg = st.navigation(
             {
             # "Sommario": [overview],
-            "Documenti": [fatture_overview, fatture_upload, fatture_emesse_add, fatture_emesse_modify, fatture_emesse_delete, fatture_deadlines_manage, altri_movimenti_manage],
+            "Documenti": [fatture_manage, altri_movimenti_manage],
             "Flussi di Cassa": [flussi_di_cassa],
             "Contattaci": [feedback],
             "Profilo": [profile, anagrafica_azienda],

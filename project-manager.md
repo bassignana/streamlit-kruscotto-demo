@@ -143,8 +143,26 @@ BRAKING:
    rilasciare, il pulsante funziona correttamente. Magari e' anche un problema il fatto che
    la funzione che uso nel pulsante prenda in input il valore di ritorno del dataframe 
    modificato: magari mettendo quel valore nello stato la situazione si risolve.
-   ROSOLTO METTENDO IL DATAFRAME IN UN st.container()! DOCUMENTARE QUESTA COSA!
+   NON risolto mettendo il df in un  st.fragment()
+   OPEN ISSUE: https://github.com/streamlit/streamlit/issues/7868
+   Patched: dropdown menu to include save button.
 [] place where clause in all views
+[x] When I delete movement, I need to delete relative terms also! Both in db and in transaction
+[] The above with all CRUD OPS in all things
+[x] I need to upsert terms when I change date or number of a movement, also for invoices
+[] ?? nelle rate ho 3 date, la data del pagamento, la presunta scadenza e la data di pagamento effettiva:
+   devo impedire, nella visualizzazione dei termini, di modificare la data documento ed il numero: la chiave.
+   per ora potrei mettere il solito avviso o non rendere modificabili le colonne! Also for casse!
+[] remove all time.sleep with spinners and for sure don't give the success message early
+   otherwise if the user will click outside of the page while the operation is still 
+   pending, the op will be canceled!!
+[] Casse modify does not work
+[] Nelle fatture ci sono campi che posso modificare ma non sono letti da nessuna parte
+
+
+[] columns in df visualization are not numeric and sort does not work correctly
+
+[] I nomi devono essere strippati, magari direttamente in input al db?
 
 all add and modify modal
 [] keep data on save button
@@ -153,15 +171,24 @@ all add and modify modal
 
 [] nel profilo utente, compare prima l'avviso dell'anagrafica, senza poter fare un
    logout immediato
-[] remove all time.sleep if possible
 [] table headings in bold, maybe a markdown label in bold in column_configs
 [] Toggle modifica dati?
+[] 'la fattura non contiente la piva al suo interno' aggiungere messaggio che dice dove andare a 
+   trovare la schermata dove fare la modifica
 
 1.0:
 [] Number and date formatting, italian and same on input output
 [] Scrollbar always present in tabular things
 [] Quando modifico l'importo di un movimento, gli importi delle scadenze non vengono
    modificati! Aprire un menu di modifica o, comunque, impedire la prosecuzione.
+
+PATHS:
+Documenti-movimenti-sommario
+Documenti-movimenti-movimenti attivi
+state: empty
+    op(add) -> !required
+state: all ops available
+
 
 
 ## Successiva:

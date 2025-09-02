@@ -69,7 +69,7 @@ def render_anagrafica_azienda_form(client, user_id):
                 st.error(f"Errore upsert anagrafica azienda: {str(e)}")
 
 @st.dialog("Aggiungi cassa")
-def render_add_casse_modal(supabase_client, config):
+def render_add_casse_modal(supabase_client, config, emesse_names, emesse_iban):
     with st.form('add_casse_form',
                  clear_on_submit=False,
                  enter_to_submit=False):
@@ -87,6 +87,10 @@ def render_add_casse_modal(supabase_client, config):
                 error = ''
                 if not any([form_data['c_nome_cassa'], form_data['c_iban_cassa']]):
                     error = 'Una cassa deve avere almeno un nome o un IBAN'
+                elif form_data['c_nome_cassa'] in emesse_names:
+                    error = 'Il nome inserito è già presente in una fattura emessa'
+                elif form_data['c_iban_cassa'] in emesse_iban:
+                    error = "L'IBAN inserito è già presente in una fattura emessa."
 
                 if error:
                     st.warning(error)
@@ -113,29 +117,63 @@ def render_add_casse_modal(supabase_client, config):
                 raise Exception(f'Error adding cassa manually: {e}')
 
 @st.dialog("Modifica cassa")
-def render_modify_casse_modal(supabase_client, config, selected_row):
+def render_modify_casse_modal(supabase_client, config, selected_row, emesse_names, emesse_iban):
 
     with st.form(f"modify_casse_form",
                  clear_on_submit=False,
                  enter_to_submit=False):
         form_data = {}
 
+    #
+    #
+    #
+    # TODO; hack:
+    #  if is read from emesse, get select count, if 0, insert else update with record.
+    #  Test in console first to be sure that there is no problem with table constraints.
+    #
+    #
+    #
+    is_read_from_emesse = selected_row['c_nome_cassa'] in emesse_names or selected_row['c_iban_cassa'] in emesse_iban
+
+    if is_read_from_emesse:
+        st.info('Attualmente, per le casse lette da fatture emesse, è possibile modificare solo la descrizione')
+
+        # for i, (field_name, field_config) in enumerate(config.items()):
+        #     if field_name in ['c_descrizione_cassa']:
+        #         record_value = selected_row.get(field_name, None)
+        #         form_data[field_name] = render_field_widget(
+        #             field_name, field_config, record_value,
+        #             key_suffix=f"casse_anagrafica"
+        #         )
+
+    # else:
+
     for i, (field_name, field_config) in enumerate(config.items()):
         if field_name in ['c_nome_cassa','c_iban_cassa','c_descrizione_cassa']:
             record_value = selected_row.get(field_name, None)
-            form_data[field_name] = render_field_widget(
-                field_name, field_config, record_value,
-                key_suffix=f"casse_anagrafica"
-            )
+
+            if is_read_from_emesse and field_name in ['c_nome_cassa','c_iban_cassa']:
+                form_data[field_name] = render_field_widget(
+                    field_name, field_config, record_value,
+                    key_suffix=f"casse_anagrafica",
+                    disabled = True
+                )
+            else:
+                form_data[field_name] = render_field_widget(
+                    field_name, field_config, record_value,
+                    key_suffix=f"casse_anagrafica",
+                    disabled = False
+                )
+
 
 
     col1, col2 = st.columns([1, 1])
 
     with col1:
         if st.button("Aggiorna", type="primary", key = 'casse_modify_modal_button'):
-            try:
-                # Validations
+
                 error = ''
+                # if 'c_nome_cassa' in form_data or 'c_iban_cassa' in form_data:
                 if not any([form_data['c_nome_cassa'], form_data['c_iban_cassa']]):
                     error = 'Una cassa deve avere almeno un nome o un IBAN'
 
@@ -145,45 +183,47 @@ def render_modify_casse_modal(supabase_client, config, selected_row):
                     for name, value in form_data.copy().items():
                         form_data[name] = str(value)
 
-                    st.write(form_data)
+                    form_data['user_id'] = st.session_state.user.id
+
+                try:
+
                     with st.spinner("Salvataggio in corso..."):
-
-                        #
-                        #
-                        #
-                        #
-                        # TODO: unique key contraint violation
-                        #
-                        #
-                        #
-                        result = supabase_client.table('casse').update(form_data) \
-                            .eq('user_id', st.session_state.user.id) \
-                            .execute()
-
-                        # for name, value in form_data.items():
-                        #     result = supabase_client.table('casse').update({name:value}) \
-                        #         .eq('user_id', st.session_state.user.id) \
-                        #         .execute()
+                        delete_query = supabase_client.table('casse').delete()
+                        st.write(form_data)
+                        for k,v in form_data.items():
+                            delete_query = delete_query.eq(k,v)
+                        st.write(delete_query)
+                        result = delete_query.execute()
+                        st.write(result)
+                        time.sleep(20)
+                        result = supabase_client.table('casse').insert(form_data).execute()
 
                         has_errored = (hasattr(result, 'error') and result.error)
 
+                        # todo: I don't know if has_errored works for all types of errors...
                         if not has_errored:
                             st.success("Dati aggiornati con successo!")
-                            time.sleep(1)
                             st.rerun()
                         else:
                             st.error(f"Errore modifica cassa: {result.error.message}")
                             return
 
-            except Exception as e:
-                raise Exception(f'Error modifying cassa manually: {e}')
+                except Exception as e:
+                    raise Exception(f'Error modifying cassa manually: {e}')
 
 @st.dialog("Elimina cassa")
-def render_delete_casse_modal(supabase_client, selected_row):
-    col1, col2 = st.columns([1, 1])
+def render_delete_casse_modal(supabase_client, selected_row, emesse_names, emesse_iban):
 
-    with col1:
-        st.info("Rimuovere Casse presenti nelle fatture emesse nan avrà effetto in quanto attualmente non è un'operazione supportata")
+    error = ''
+    if selected_row['c_nome_cassa'] in emesse_names:
+        error = 'Non è al momento supportato eliminare una cassa che è stata letta da una fattura emessa'
+    elif selected_row['c_iban_cassa'] in emesse_iban:
+        error = 'Non è al momento supportato eliminare una cassa che è stata letta da una fattura emessa'
+
+    if error:
+        st.warning(error)
+        return
+    else:
 
         if st.button("Elimina", type="primary", key = 'casse_delete_modal_button'):
             try:
@@ -212,11 +252,28 @@ def render_delete_casse_modal(supabase_client, selected_row):
 
 
 def render_casse(supabase_client, config):
-    widget_key = 'anagrafica_azienda_'
-    terms_key = widget_key + 'terms'
+    # widget_key = 'anagrafica_azienda_'
+    # terms_key = widget_key + 'terms'
+    # if terms_key not in st.session_state:
+    #     st.session_state[terms_key] = None
 
-    if terms_key not in st.session_state:
-        st.session_state[terms_key] = None
+    emesse_names_result = supabase_client.table('rate_fatture_emesse').select('rfe_nome_cassa') \
+                                  .eq('user_id', st.session_state.user.id) \
+                                  .execute()
+    emesse_names = []
+    for item in emesse_names_result.data:
+        v = item.get('rfe_nome_cassa')
+        if v is not None and v not in emesse_names:
+            emesse_names.append(v)
+
+    emesse_iban_result = supabase_client.table('rate_fatture_emesse').select('rfe_iban_cassa') \
+                                  .eq('user_id', st.session_state.user.id) \
+                                  .execute()
+    emesse_iban = []
+    for item in emesse_iban_result.data:
+        v = item.get('rfe_iban_cassa')
+        if v is not None and v not in emesse_iban:
+            emesse_iban.append(v)
 
     casse_data = fetch_all_records_from_view(supabase_client, 'casse_summary')
 
@@ -247,16 +304,17 @@ def render_casse(supabase_client, config):
                              key = 'casse_selection_df')
 
     col1, col2, col3, space = st.columns([1,1,1,4])
+
     with col1:
         if st.button("Aggiungi Cassa", type='primary', key = '_add_first_cassa'):
-            render_add_casse_modal(supabase_client, config)
+            render_add_casse_modal(supabase_client, config, emesse_names, emesse_iban)
 
     with col2:
         if st.button("Modifica Cassa", key = '_modify_first_cassa'):
             if selection.selection['rows']:
                 selected_index = selection.selection['rows'][0]
                 selected_row = casse_data[selected_index]
-                render_modify_casse_modal(supabase_client, config, selected_row)
+                render_modify_casse_modal(supabase_client, config, selected_row, emesse_names, emesse_iban)
             else:
                 st.warning('Seleziona una cassa da modificare')
 
@@ -265,8 +323,7 @@ def render_casse(supabase_client, config):
             if selection.selection['rows']:
                 selected_index = selection.selection['rows'][0]
                 selected_row = casse_data[selected_index]
-                st.write(selected_row)
-                render_delete_casse_modal(supabase_client, selected_row)
+                render_delete_casse_modal(supabase_client, selected_row, emesse_names, emesse_iban)
             else:
                 st.warning('Seleziona una cassa da eliminare')
 
@@ -274,13 +331,19 @@ def main():
     user_id, supabase_client = setup_page("Anagrafica Azienda",
                                                             '',
                                                            False)
+    tab1, tab2 = st.tabs(["Anagrafica Azienda", "Casse"])
+    with tab1:
+        # NOTE: Here I cannot use page_can_render, otherwise if the anagrafica
+        # is not set, I'll go into a loop where I can never access the anagrafica form.
+        # if page_can_render:
+        render_anagrafica_azienda_form(supabase_client, user_id)
 
-    render_casse(supabase_client, altri_movimenti_config)
+    # page_can_render situation: for now I'll leave such that if an anagrafica is not
+    # present then it will throw no errors. Maybe correct this at 1.0
+    with tab2:
+        render_casse(supabase_client, altri_movimenti_config)
 
-    # NOTE: Here I cannot use page_can_render, otherwise if the anagrafica
-    # is not set, I'll go into a loop where I can never access the anagrafica form.
-    # if page_can_render:
-    render_anagrafica_azienda_form(supabase_client, user_id)
+
 
 if __name__ == "__main__":
     main()

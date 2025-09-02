@@ -6,7 +6,8 @@ from datetime import datetime, date
 from decimal import Decimal, getcontext
 from invoice_xml_processor import process_xml_list
 from invoice_record_creation import extract_xml_records
-from utils import extract_field_names
+from utils import extract_field_names, render_field_widget
+
 
 def render_add_form(supabase_client, table_name, fields_config, prefix):
 
@@ -110,118 +111,6 @@ def to_decimal(value) -> Decimal:
     except Exception as e:
         raise Exception('Invalid Decimal conversion') from e
 
-def render_field_widget(field_name, field_config, default_value = None, key_suffix = ""):
-    """Render appropriate SINGLE input widget based on field configuration"""
-
-    field_type = field_config.get('data_type', 'string')
-    label = field_config.get('label', field_name.replace('_', ' ').title())
-    widget_key = f"{field_name}_{key_suffix}" if key_suffix else field_name
-    help_text = field_config.get('help')
-    required = field_config.get('required', False)
-
-    # Add asterisk for required fields
-    if required:
-        label += " *"
-
-    # String fields
-    if field_type == 'string':
-        widget_type = field_config.get('widget', 'text_input')
-
-        if widget_type == 'textarea':
-            return st.text_area(
-                label,
-                value=default_value or "",
-                key=widget_key,
-                help=help_text
-            )
-        elif widget_type == 'selectbox' and field_config.get('options'):
-            options = field_config['options']
-            index = 0
-            if default_value and default_value in options:
-                index = options.index(default_value)
-            return st.selectbox(
-                label,
-                options=options,
-                index=index,
-                key=widget_key,
-                help=help_text
-            )
-        else:
-            return st.text_input(
-                label,
-                value=default_value or "",
-                key=widget_key,
-                placeholder=field_config.get('placeholder'),
-                help=help_text
-            )
-
-    # Numeric fields
-    elif field_type == 'money':
-        value = 0.00
-        if default_value is not None:
-            if isinstance(default_value, Decimal):
-                value = float(default_value)
-            else:
-                value = float(default_value)
-
-        return st.number_input(
-            label,
-            value=value,
-            step=1.00,
-            format="%.2f",
-            key=widget_key,
-            help=help_text
-        )
-
-    elif field_type == 'integer':
-        return st.number_input(
-            label,
-            value=int(default_value) if default_value else 0,
-            step=1,
-            key=widget_key,
-            help=help_text
-        )
-
-    # Date fields
-    elif field_type == 'date':
-        if default_value:
-            if isinstance(default_value, str):
-                default_value = datetime.strptime(default_value, '%Y-%m-%d').date()
-            elif isinstance(default_value, datetime):
-                default_value = default_value.date()
-
-        if required:
-            return st.date_input(
-                label,
-                value=default_value or date.today(),
-                key=widget_key,
-                help=help_text
-            )
-        else:
-            return st.date_input(
-                value = None,
-                label = label,
-                key=widget_key,
-                help=help_text
-            )
-
-    # Boolean fields
-    elif field_type == 'boolean':
-        return st.checkbox(
-            label,
-            value=bool(default_value) if default_value is not None else False,
-            key=widget_key,
-            help=help_text
-        )
-
-    # Fallback to text input
-    else:
-        return st.text_input(
-            label,
-            value=str(default_value) if default_value else "",
-            key=widget_key,
-            help=help_text
-        )
 
 def validate_required_form_data(fields_config, form_data):
     """Validate form data based on configuration"""
@@ -800,10 +689,10 @@ def render_generic_xml_upload_section(supabase_client, user_id):
     if not isinstance(partita_iva_azienda, str):
         st.error("La partita IVA dell'azienda e' in un formato inatteso.")
 
-    st.subheader(f"Carica fatture in formato XML")
+    # st.subheader(f"Carica fatture in formato XML")
 
     uploaded_files = st.file_uploader(
-        "Trascina qui le tue fatture in formato XML o clicca per selezionare",
+        "Carica fatture in formato XML. Trascina qui le tue fatture o clicca per selezionare",
         type=['xml'],
         accept_multiple_files=True,
         help="Carica fino a 20 fatture XML contemporaneamente"

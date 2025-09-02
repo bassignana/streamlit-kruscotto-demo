@@ -26,17 +26,22 @@ DROP TABLE IF EXISTS public.casse CASCADE;
 
 -- Add a constraint so that I cannot insert an empty row, if there isn't a default for that.
 
+-- This table cannot have an fkey that references rate_fatture_emesse, because it is only used,
+-- for now, in combination with a view on the frontend.
 CREATE TABLE public.casse (
-                                  id uuid NOT NULL DEFAULT gen_random_uuid(),
-                                  user_id uuid NOT NULL,
-                                  c_nome_cassa varchar,
-                                  c_iban_cassa varchar,
-                                  c_descrizione_cassa varchar,
-                                  created_at timestamp with time zone DEFAULT now(),
-                                  updated_at timestamp with time zone DEFAULT now(),
-                                  CONSTRAINT casse_pkey PRIMARY KEY (id)
+      id uuid NOT NULL DEFAULT gen_random_uuid(),
+      user_id uuid NOT NULL,
+      c_nome_cassa varchar,
+      c_iban_cassa varchar,
+      c_descrizione_cassa varchar,
+      created_at timestamp with time zone DEFAULT now(),
+      updated_at timestamp with time zone DEFAULT now(),
+      CONSTRAINT casse_pkey PRIMARY KEY (id)
+      -- FOREIGN KEY (user_id, c_nome_cassa, c_iban_cassa) REFERENCES
+      --    public.rate_fatture_emesse (user_id, rfe_nome_cassa, rfe_iban_cassa)
 );
 
+-- WHY do I have c_descrizione_cassa in the unique constraint?
 ALTER TABLE public.casse
     ADD CONSTRAINT casse_composite_key
         UNIQUE (user_id, c_nome_cassa, c_iban_cassa, c_descrizione_cassa);
@@ -45,6 +50,8 @@ ALTER TABLE public.casse ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage only their own data" ON public.casse
 FOR ALL USING (auth.uid() = user_id);
+
+
 
 CREATE TABLE public.user_data (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -62,6 +69,7 @@ ALTER TABLE public.user_data ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage only their own data" ON public.user_data
 FOR ALL USING (auth.uid() = user_id);
+
 
 
 CREATE TABLE public.fatture_emesse (
@@ -96,8 +104,10 @@ FOR ALL USING (auth.uid() = user_id);
 
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_emesse
-ADD CONSTRAINT emesse_unique_composite_key
-UNIQUE (user_id, fe_partita_iva_prestatore, fe_numero_fattura, fe_data_documento);
+    ADD CONSTRAINT fatture_emesse_unique_index_for_rate_fkey
+        UNIQUE (user_id, fe_partita_iva_prestatore, fe_numero_fattura, fe_data_documento);
+
+
 
 -- Business logic:
 -- I want that any term, even if the invoice has just one term,
@@ -127,26 +137,16 @@ CREATE TABLE public.rate_fatture_emesse (
     rfe_data_pagamento_rata date,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT rfe_pkey PRIMARY KEY (id)
-    -- CONSTRAINT rfe_numero_fattura_fkey FOREIGN KEY (rfe_numero_fattura) REFERENCES fatture_emesse(fe_numero_fattura)
-    -- todo: there is no unique constraint matching given keys for referenced table "fatture_emesse"
-    -- i.e. the fkey must be unique in the refereced table
+    CONSTRAINT rfe_pkey PRIMARY KEY (id),
+    FOREIGN KEY (user_id, rfe_partita_iva_prestatore, rfe_numero_fattura, rfe_data_documento)
+        REFERENCES public.fatture_emesse (user_id, fe_partita_iva_prestatore, fe_numero_fattura, fe_data_documento)
+            ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 ALTER TABLE public.rate_fatture_emesse ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage only their own data" ON public.rate_fatture_emesse
 FOR ALL USING (auth.uid() = user_id);
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -170,8 +170,9 @@ FOR ALL USING (auth.uid() = user_id);
 
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_ricevute
-ADD CONSTRAINT ricevute_unique_composite_key
-UNIQUE (user_id, fr_partita_iva_prestatore, fr_numero_fattura, fr_data_documento);
+    ADD CONSTRAINT fatture_ricevute_unique_index_for_rate_fkey
+        UNIQUE (user_id, fr_partita_iva_prestatore, fr_numero_fattura, fr_data_documento);
+
 
 
 CREATE TABLE public.rate_fatture_ricevute (
@@ -193,18 +194,17 @@ CREATE TABLE public.rate_fatture_ricevute (
  rfr_data_pagamento_rata date,
  created_at timestamp with time zone DEFAULT now(),
  updated_at timestamp with time zone DEFAULT now(),
- CONSTRAINT rfr_pkey PRIMARY KEY (id)
- -- CONSTRAINT rfr_numero_fattura_fkey FOREIGN KEY (rfr_numero_fattura) REFERENCES fatture_ricevute(fr_numero_fattura)
+ CONSTRAINT rfr_pkey PRIMARY KEY (id),
+ FOREIGN KEY (user_id, rfr_partita_iva_prestatore, rfr_numero_fattura, rfr_data_documento)
+    REFERENCES public.fatture_ricevute (user_id, fr_partita_iva_prestatore, fr_numero_fattura, fr_data_documento)
+       ON DELETE CASCADE ON UPDATE CASCADE
+
 );
 
 ALTER TABLE public.rate_fatture_ricevute ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage only their own data" ON public.rate_fatture_ricevute
 FOR ALL USING (auth.uid() = user_id);
-
-
-
-
 
 
 
@@ -227,9 +227,10 @@ CREATE POLICY "Users can manage only their own data" ON public.movimenti_attivi
 FOR ALL USING (auth.uid() = user_id);
 
 ALTER TABLE public.movimenti_attivi
-    ADD CONSTRAINT movimenti_attivi_unique_composite_key
---         Don't know if it is good to keep ma_data in the unique key.
+    ADD CONSTRAINT movimenti_attivi_unique_index_for_rate_fkey
         UNIQUE (user_id, ma_numero, ma_data);
+
+
 
 CREATE TABLE public.rate_movimenti_attivi (
                                               id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -244,11 +245,15 @@ CREATE TABLE public.rate_movimenti_attivi (
                                               rma_notes text,
                                               created_at timestamp with time zone DEFAULT now(),
                                               updated_at timestamp with time zone DEFAULT now(),
-                                              CONSTRAINT rma_pkey PRIMARY KEY (id)
-);
+                                              CONSTRAINT rma_pkey PRIMARY KEY (id),
+    FOREIGN KEY (user_id, rma_numero, rma_data) REFERENCES public.movimenti_attivi (user_id, ma_numero, ma_data)
+          ON DELETE CASCADE ON UPDATE CASCADE
+  );
 
 CREATE POLICY "Users can manage only their own data" ON public.rate_movimenti_attivi
 FOR ALL USING (auth.uid() = user_id);
+
+
 
 CREATE TABLE public.movimenti_passivi (
                                          id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -269,8 +274,10 @@ CREATE POLICY "Users can manage only their own data" ON public.movimenti_passivi
 FOR ALL USING (auth.uid() = user_id);
 
 ALTER TABLE public.movimenti_passivi
-    ADD CONSTRAINT movimenti_passivi_unique_composite_key
+    ADD CONSTRAINT movimenti_passivi_unique_index_for_rate_fkey
         UNIQUE (user_id, mp_numero, mp_data);
+
+
 
 CREATE TABLE public.rate_movimenti_passivi (
                                               id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -285,11 +292,18 @@ CREATE TABLE public.rate_movimenti_passivi (
                                               rmp_notes text,
                                               created_at timestamp with time zone DEFAULT now(),
                                               updated_at timestamp with time zone DEFAULT now(),
-                                              CONSTRAINT rmp_pkey PRIMARY KEY (id)
+                                              CONSTRAINT rmp_pkey PRIMARY KEY (id),
+  FOREIGN KEY (user_id, rmp_numero, rmp_data) REFERENCES public.movimenti_passivi (user_id, mp_numero, mp_data)
+  ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE POLICY "Users can manage only their own data" ON public.rate_movimenti_passivi
 FOR ALL USING (auth.uid() = user_id);
+
+
+
+
+
 
 -- Add indexes for better performance
 -- CREATE INDEX idx_payment_terms_user_id ON public.payment_terms(user_id);
@@ -1104,7 +1118,6 @@ ORDER BY
 
 
 
--- EMESSE SIMPLE DASHBOARD
 DROP VIEW IF EXISTS fatture_emesse_overview;
 CREATE VIEW fatture_emesse_overview WITH (security_invoker = true) AS
 WITH payment_aggregates AS (
@@ -1131,16 +1144,14 @@ WITH payment_aggregates AS (
             END
         ), 0)::numeric, 2) AS totale_saldo
 
-        -- Latest payment date for this invoice
-        -- MAX(rfe_data_pagamento_rata) AS ultima_data_pagamento
-
     FROM rate_fatture_emesse
+    WHERE user_id = auth.uid()
     GROUP BY rfe_partita_iva_prestatore, rfe_numero_fattura, rfe_data_documento
 )
 SELECT
-    fe.fe_data_documento AS data,
-
-    fe.fe_numero_fattura AS numero,
+    fe.id as id,
+    fe.fe_data_documento AS fe_data_documento,
+    fe.fe_numero_fattura AS fe_numero_fattura,
 
     -- Build client name: prioritize nome+cognome, fallback to denominazione
     CASE
@@ -1154,45 +1165,25 @@ SELECT
         WHEN fe.fe_denominazione_committente IS NOT NULL AND TRIM(fe.fe_denominazione_committente) != ''
         THEN TRIM(fe.fe_denominazione_committente)
         ELSE 'Cliente non specificato'
-        END AS cliente,
+        END AS v_cliente,
 
-    ROUND(fe.fe_importo_totale_documento::numeric, 2) AS totale,
-
-    COALESCE(pa.totale_incassato, 0.00) AS incassato,
-
-    COALESCE(pa.totale_saldo, 0.00) AS saldo
-
---     -- Additional useful fields
---     fe.fe_data_documento AS data_fattura,
---     pa.ultima_data_pagamento AS data_ultimo_pagamento,
---
---     -- Payment status indicator
---     CASE
---         WHEN pa.totale_saldo = 0 OR pa.totale_saldo IS NULL THEN 'Completamente Pagata'
---         WHEN pa.totale_incassato = 0 OR pa.totale_incassato IS NULL THEN 'Non Pagata'
---         ELSE 'Parzialmente Pagata'
---         END AS stato_pagamento,
---
---     -- Percentage paid
---     CASE
---         WHEN fe.fe_importo_totale_documento > 0
---             THEN ROUND((COALESCE(pa.totale_incassato, 0) / fe.fe_importo_totale_documento * 100)::numeric, 1)
---         ELSE 0
---         END AS percentuale_incassata
+    ROUND(fe.fe_importo_totale_documento::numeric, 2) AS fe_importo_totale_documento,
+    COALESCE(pa.totale_incassato, 0.00) AS v_incassato,
+    COALESCE(pa.totale_saldo, 0.00) AS v_saldo
 
 FROM fatture_emesse fe
-         LEFT JOIN payment_aggregates pa ON (
+LEFT JOIN payment_aggregates pa ON (
     fe.fe_partita_iva_prestatore = pa.rfe_partita_iva_prestatore
         AND fe.fe_numero_fattura = pa.rfe_numero_fattura
         AND fe.fe_data_documento = pa.rfe_data_documento
     )
+WHERE user_id = auth.uid()
 ORDER BY
     fe.fe_data_documento DESC,
     fe.fe_numero_fattura;
 
 
 
--- RICEVUTE SIMPLE DASHBOARD
 DROP VIEW IF EXISTS fatture_ricevute_overview;
 CREATE VIEW fatture_ricevute_overview WITH (security_invoker = true) AS
 WITH payment_aggregates AS (
@@ -1223,43 +1214,23 @@ WITH payment_aggregates AS (
         -- MAX(rfr_data_pagamento_rata) AS ultima_data_pagamento
 
     FROM rate_fatture_ricevute
+    WHERE user_id = auth.uid()
     GROUP BY rfr_partita_iva_prestatore, rfr_numero_fattura, rfr_data_documento
 )
 SELECT
-
-    fr.fr_data_documento AS data,
-
-    fr.fr_numero_fattura AS numero,
+    fr.id as id,
+    fr.fr_data_documento AS fr_data_documento,
+    fr.fr_numero_fattura AS fr_numero_fattura,
 
     CASE
         WHEN fr.fr_denominazione_prestatore IS NOT NULL AND TRIM(fr.fr_denominazione_prestatore) != ''
         THEN TRIM(fr.fr_denominazione_prestatore)
         ELSE 'Fornitore non specificato'
-        END AS fornitore,
+        END AS v_fornitore,
 
-    ROUND(fr.fr_importo_totale_documento::numeric, 2) AS totale,
-
-    COALESCE(pa.totale_pagato, 0.00) AS pagato,
-
-    COALESCE(pa.totale_saldo, 0.00) AS saldo
-
---     -- Additional useful fields
---     fr.fr_data_documento AS data_fattura,
---     pa.ultima_data_pagamento AS data_ultimo_pagamento,
---
---     -- Payment status indicator
---     CASE
---         WHEN pa.totale_saldo = 0 OR pa.totale_saldo IS NULL THEN 'Completamente Pagata'
---         WHEN pa.totale_incassato = 0 OR pa.totale_incassato IS NULL THEN 'Non Pagata'
---         ELSE 'Parzialmente Pagata'
---         END AS stato_pagamento,
---
---     -- Percentage paid
---     CASE
---         WHEN fr.fr_importo_totale_documento > 0
---             THEN ROUND((COALESCE(pa.totale_incassato, 0) / fr.fr_importo_totale_documento * 100)::numeric, 1)
---         ELSE 0
---         END AS percentuale_incassata
+    ROUND(fr.fr_importo_totale_documento::numeric, 2) AS fr_importo_totale_documento,
+    COALESCE(pa.totale_pagato, 0.00) AS v_pagato,
+    COALESCE(pa.totale_saldo, 0.00) AS v_saldo
 
 FROM fatture_ricevute fr
          LEFT JOIN payment_aggregates pa ON (
@@ -1267,6 +1238,7 @@ FROM fatture_ricevute fr
         AND fr.fr_numero_fattura = pa.rfr_numero_fattura
         AND fr.fr_data_documento = pa.rfr_data_documento
     )
+WHERE user_id = auth.uid()
 ORDER BY
     fr.fr_data_documento DESC,
     fr.fr_numero_fattura;
@@ -1303,22 +1275,21 @@ CREATE VIEW movimenti_attivi_overview WITH (security_invoker = true) AS
     GROUP BY rma_numero, rma_data
 )
 SELECT
-
-    ma.ma_data AS data,
-
-    ma.ma_numero AS numero,
+    -- I take the id so it is easier to identify records without composing their unique composite key
+    ma.id as id,
+    ma.ma_data AS ma_data,
+    ma.ma_numero AS ma_numero,
 
     CASE
         WHEN ma.ma_cliente IS NOT NULL AND TRIM(ma.ma_cliente) != ''
         THEN TRIM(ma.ma_cliente)
         ELSE 'Cliente non specificato'
-        END AS cliente,
+        END AS v_cliente,
 
-    ROUND(ma.ma_importo_totale::numeric, 2) AS totale,
-
-    COALESCE(pa.totale_pagato, 0.00) AS pagato,
-
-    COALESCE(pa.totale_saldo, 0.00) AS saldo
+    ma.ma_tipo as ma_tipo,
+    ROUND(ma.ma_importo_totale::numeric, 2) AS ma_importo_totale,
+    COALESCE(pa.totale_pagato, 0.00) AS v_pagato,
+    COALESCE(pa.totale_saldo, 0.00) AS v_saldo
 
 FROM movimenti_attivi ma
          LEFT JOIN payment_aggregates pa ON (
@@ -1391,7 +1362,6 @@ ORDER BY
 
 
 
--- Monthly Invoice Summary View
 -- Shows monthly totals for sales invoices, purchase invoices, and balance
 DROP VIEW IF EXISTS monthly_invoice_summary;
 CREATE VIEW monthly_invoice_summary
@@ -1437,14 +1407,14 @@ SELECT
     ROUND(COALESCE(settembre, 0.00)::numeric, 2) AS settembre,
     ROUND(COALESCE(ottobre, 0.00)::numeric, 2) AS ottobre,
     ROUND(COALESCE(novembre, 0.00)::numeric, 2) AS novembre,
-    ROUND(COALESCE(dicembre, 0.00)::numeric, 2) AS dicembre,
-    ROUND((COALESCE(gennaio, 0) + COALESCE(febbraio, 0) + COALESCE(marzo, 0) + COALESCE(aprile, 0) +
-           COALESCE(maggio, 0) + COALESCE(giugno, 0) + COALESCE(luglio, 0) + COALESCE(agosto, 0) +
-           COALESCE(settembre, 0) + COALESCE(ottobre, 0) + COALESCE(novembre, 0) + COALESCE(dicembre, 0))::numeric, 2) AS totale_anno
+    ROUND(COALESCE(dicembre, 0.00)::numeric, 2) AS dicembre
+--     ROUND((COALESCE(gennaio, 0) + COALESCE(febbraio, 0) + COALESCE(marzo, 0) + COALESCE(aprile, 0) +
+--            COALESCE(maggio, 0) + COALESCE(giugno, 0) + COALESCE(luglio, 0) + COALESCE(agosto, 0) +
+--            COALESCE(settembre, 0) + COALESCE(ottobre, 0) + COALESCE(novembre, 0) + COALESCE(dicembre, 0))::numeric, 2) AS totale_anno
 FROM (
          -- Sales invoices row
          SELECT
-             'Fatture di Vendita' AS tipo_fattura,
+             'Fatture Emesse' AS tipo_fattura,
              SUM(CASE WHEN mese = 1 THEN vendite ELSE 0 END) AS gennaio,
              SUM(CASE WHEN mese = 2 THEN vendite ELSE 0 END) AS febbraio,
              SUM(CASE WHEN mese = 3 THEN vendite ELSE 0 END) AS marzo,
@@ -1464,7 +1434,7 @@ FROM (
 
          -- Purchase invoices row
          SELECT
-             'Fatture di Acquisto' AS tipo_fattura,
+             'Fatture Ricevute' AS tipo_fattura,
              SUM(CASE WHEN mese = 1 THEN acquisti ELSE 0 END) AS gennaio,
              SUM(CASE WHEN mese = 2 THEN acquisti ELSE 0 END) AS febbraio,
              SUM(CASE WHEN mese = 3 THEN acquisti ELSE 0 END) AS marzo,
@@ -1503,7 +1473,7 @@ FROM (
 ORDER BY ordine;
 
 
--- Monthly Movements Summary View
+
 DROP VIEW IF EXISTS monthly_altri_movimenti_summary;
 CREATE VIEW monthly_altri_movimenti_summary WITH (security_invoker = true) AS
 WITH
@@ -1613,6 +1583,8 @@ FROM (
      ) summary
 ORDER BY ordine;
 
+
+
 -- The final columns have to be named with the same name of
 -- public.casse fields, so that I can do the delete.
 DROP VIEW IF EXISTS casse_summary;
@@ -1622,11 +1594,36 @@ SELECT DISTINCT
     t1.iban_cassa as c_iban_cassa,
     t2.c_descrizione_cassa
 FROM (
+         -- I need to filter out rows that are all null because the union will take
+         -- null row, try to match it with something that will not exist, so it will
+         -- match with null, so I'll get an empty row with all nulls
          SELECT rfe_nome_cassa as nome_cassa, rfe_iban_cassa as iban_cassa
-         FROM rate_fatture_emesse WHERE user_id = auth.uid()
+         FROM rate_fatture_emesse
+         WHERE user_id = auth.uid() AND (rfe_nome_cassa IS NOT NULL OR rfe_iban_cassa IS NOT NULL)
          UNION
          SELECT c_nome_cassa as nome_cassa, c_iban_cassa as iban_cassa
-         FROM casse WHERE user_id = auth.uid()
+         FROM casse
+         WHERE user_id = auth.uid() AND (c_nome_cassa IS NOT NULL OR c_iban_cassa IS NOT NULL)
+     ) t1
+         LEFT JOIN casse t2
+                   ON (t1.nome_cassa = t2.c_nome_cassa AND t1.iban_cassa = t2.c_iban_cassa)
+ORDER BY t1.nome_cassa, t1.iban_cassa;
+
+
+
+-- This is for creating the single column of casse to select options from
+DROP VIEW IF EXISTS casse_options;
+CREATE VIEW casse_options WITH (security_invoker = true) AS
+SELECT DISTINCT
+    COALESCE(t2.c_descrizione_cassa, t1.nome_cassa, t1.iban_cassa) as cassa
+FROM (
+         SELECT rfe_nome_cassa as nome_cassa, rfe_iban_cassa as iban_cassa
+         FROM rate_fatture_emesse
+         WHERE user_id = auth.uid() AND (rfe_nome_cassa IS NOT NULL OR rfe_iban_cassa IS NOT NULL)
+         UNION
+         SELECT c_nome_cassa as nome_cassa, c_iban_cassa as iban_cassa
+         FROM casse
+         WHERE user_id = auth.uid() AND (c_nome_cassa IS NOT NULL OR c_iban_cassa IS NOT NULL)
      ) t1
          LEFT JOIN casse t2 ON (t1.nome_cassa = t2.c_nome_cassa AND t1.iban_cassa = t2.c_iban_cassa)
-ORDER BY t1.nome_cassa, t1.iban_cassa;
+ORDER BY cassa;
