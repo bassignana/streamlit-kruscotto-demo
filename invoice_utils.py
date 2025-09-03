@@ -738,7 +738,7 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                             if out['status'] == 'error':
                                 outs.append(out)
                                 if 'non riguarda la partita IVA' in out['error_message']:
-                                    st.info(f"La fattura {out['filename']} non riporta la Partita IVA dell'azienda "
+                                    st.warning(f"La fattura {out['filename']} non riporta la Partita IVA dell'azienda "
                                             f"al suo interno")
                                 continue # to the next invoice record(s)
 
@@ -774,7 +774,7 @@ def render_generic_xml_upload_section(supabase_client, user_id):
 
                                 else:
                                     if 'duplicate key value violates unique constraint' in result.data['error']:
-                                        st.info(f'La fattura {xml['filename']} è già presente nel database.')
+                                        st.warning(f'La fattura {xml['filename']} è già presente nel database.')
                                     else:
                                         err_msg = f'Error during invoice INSERT for xml_record {result.data}'
                                         out['status'] = 'error'
@@ -817,7 +817,7 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                             continue # to the next xml
 
                     successful_upload_count = len([res for res in outs if res['status'] == 'success'])
-                    st.info(f"Caricate correttamente {successful_upload_count} nuove fatture.")
+                    st.info(f"Numero di fatture caricate correttamente: {successful_upload_count}")
                 else:
                     st.error(f"Errore durante l'estrazione XML delle fatture: {error}")
 

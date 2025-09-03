@@ -159,6 +159,8 @@ BRAKING:
 [] Casse modify does not work
 [] Nelle fatture ci sono campi che posso modificare ma non sono letti da nessuna parte
 
+[] RIUNIONE: visuallizzazione tab caricamento xml: tab, expander, cosi'
+[]           metric sx grafico: cambiare titoli e metric
 
 [] columns in df visualization are not numeric and sort does not work correctly
 
