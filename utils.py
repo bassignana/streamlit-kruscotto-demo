@@ -58,7 +58,7 @@ def setup_page(page_title = "", page_icon = "", enable_page_can_render_warning =
         page_can_render = True
         if len(response.data) < 1:
             page_can_render = False
-            st.warning("Prima di usare l'applicazione e' necessario impostare l'anagrafica azienda")
+            st.warning("Prima di usare l'applicazione è necessario impostare l'anagrafica azienda")
             switched = st.button("Imposta Anagrafica Azienda", type='primary')
             if switched:
                 st.switch_page("page_anagrafica_azienda.py")

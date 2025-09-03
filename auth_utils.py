@@ -89,37 +89,36 @@ def show_login_form(supabase_client):
         #
         #
         #
-        if st.session_state.login_processing:
-            st.info("Accesso in corso...")
-            # Small delay to prevent UI flicker
-            time.sleep(2)
-            st.session_state.login_processing = False
-            st.rerun()
-        else:
-            with st.form("login", clear_on_submit=True, enter_to_submit=False, width=500):
-                login_email = st.text_input("Email *", key="login_email")
-                login_password = st.text_input("Password *", type="password", key="login_password")
-                submitted = st.form_submit_button("Login", type="primary")
 
-                if submitted:
-                    if not all([login_email, login_password]):
-                        st.error("Inserire tutti i campi")
-                    else:
-                        # Set processing flag to show loading state
-                        st.session_state.login_processing = True
+        # if st.session_state.login_processing:
+        #     st.info("Accesso in corso...")
+        #     st.session_state.login_processing = False
+        #     st.rerun()
+        # else:
+        with st.form("login", clear_on_submit=True, enter_to_submit=False, width=500):
+            login_email = st.text_input("Email *", key="login_email")
+            login_password = st.text_input("Password *", type="password", key="login_password")
+            submitted = st.form_submit_button("Login", type="primary")
 
-                    # NOTE: to access user object property, I can only use dot notation, not ['id'].
-                    user_obj, error_msg = login_user(supabase_client, login_email, login_password)
-                    if not error_msg:
-                        st.session_state.authenticated = True
-                        st.session_state.user = user_obj
-                        st.session_state.login_processing = False
-                        st.success("Login successful!")
-                        # Add a small delay before rerun to ensure state is properly set
-                        time.sleep(0.3)
-                        st.rerun()
-                    else:
-                        st.error(error_msg)
+            if submitted:
+                if not all([login_email, login_password]):
+                    st.error("Inserire tutti i campi")
+                # else:
+                #     # Set processing flag to show loading state
+                #     st.session_state.login_processing = True
+
+                # NOTE: to access user object property, I can only use dot notation, not ['id'].
+                user_obj, error_msg = login_user(supabase_client, login_email, login_password)
+                if not error_msg:
+                    st.session_state.authenticated = True
+                    st.session_state.user = user_obj
+                    # st.session_state.login_processing = False
+                    # st.success("Login successful!")
+                    # Add a small delay before rerun to ensure state is properly set
+                    # time.sleep(0.3)
+                    st.rerun()
+                else:
+                    st.error(error_msg)
 
     with tab2:
         st.subheader(" ")
