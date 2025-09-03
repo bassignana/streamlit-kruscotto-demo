@@ -65,7 +65,7 @@ def main():
         # fatture_emesse_delete = st.Page("invoice_delete.py", title="Elimina", icon=":material/search:")
         # fatture_deadlines_manage = st.Page("invoice_deadlines.py", title="Gestisci Rate", icon=":material/search:")
 
-        altri_movimenti_manage = st.Page("altri_movimenti_manage.py", title="Movimenti", icon=":material/book_2:")
+        altri_movimenti_manage = st.Page("altri_movimenti_manage.py", title="Altri Movimenti", icon=":material/book_2:")
         fatture_manage = st.Page("invoice_manage.py", title="Fatture", icon=":material/book_2:")
 
         flussi_di_cassa = st.Page("cash_flow.py", title="Flussi di Cassa", icon=":material/payments:")
