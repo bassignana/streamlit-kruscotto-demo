@@ -2,7 +2,7 @@ import streamlit as st
 import logging
 import os
 from supabase import create_client
-from auth_utils import show_login_form
+from auth_utils import show_login_and_render_form
 
 def setup_logging():
     log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
@@ -50,7 +50,7 @@ def main():
         st.session_state.login_processing = False
 
     if not st.session_state.authenticated:
-        show_login_form(supabase_client)
+        show_login_and_render_form(supabase_client)
     else:
 
         overview = st.Page("page_overview.py", title="Sommario Fatture", icon=":material/search:")

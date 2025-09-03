@@ -63,7 +63,32 @@ def login_user(supabase_client, email, password):
         else:
             return {}, f"Errore: {str(e)}"
 
-def show_login_form(supabase_client):
+def show_simple_login_form(supabase_client):
+    """
+    This is a standalone login form, used in tandem with the registration form or
+    when a session is expired and I need to login again.
+    """
+
+    st.subheader("Login")
+    with st.form("login", clear_on_submit=False, enter_to_submit=False, width=500):
+        login_email = st.text_input("Email *", key="login_email")
+        login_password = st.text_input("Password *", type="password", key="login_password")
+        submitted = st.form_submit_button("Login", type="primary")
+
+        if submitted:
+            if not all([login_email, login_password]):
+                st.error("Inserire tutti i campi")
+
+            # NOTE: to access user object property, I can only use dot notation, not ['id'].
+            user_obj, error_msg = login_user(supabase_client, login_email, login_password)
+            if not error_msg:
+                st.session_state.authenticated = True
+                st.session_state.user = user_obj
+                st.rerun()
+            else:
+                st.error(error_msg)
+
+def show_login_and_render_form(supabase_client):
     """
     This is the main login and registration form, used on the initial login or registration.
     """
@@ -76,49 +101,7 @@ def show_login_form(supabase_client):
     with tab1:
         st.subheader(" ")
 
-        # Show a loading state during login processing to prevent duplication
-        #
-        #
-        #
-        #
-        # TODO; when I misspell login credentials, I get here, but after
-        #  'Accesso in corso...' message I get the login form again and
-        #  I have to retype the pwd!
-        #
-        #
-        #
-        #
-        #
-
-        # if st.session_state.login_processing:
-        #     st.info("Accesso in corso...")
-        #     st.session_state.login_processing = False
-        #     st.rerun()
-        # else:
-        with st.form("login", clear_on_submit=True, enter_to_submit=False, width=500):
-            login_email = st.text_input("Email *", key="login_email")
-            login_password = st.text_input("Password *", type="password", key="login_password")
-            submitted = st.form_submit_button("Login", type="primary")
-
-            if submitted:
-                if not all([login_email, login_password]):
-                    st.error("Inserire tutti i campi")
-                # else:
-                #     # Set processing flag to show loading state
-                #     st.session_state.login_processing = True
-
-                # NOTE: to access user object property, I can only use dot notation, not ['id'].
-                user_obj, error_msg = login_user(supabase_client, login_email, login_password)
-                if not error_msg:
-                    st.session_state.authenticated = True
-                    st.session_state.user = user_obj
-                    # st.session_state.login_processing = False
-                    # st.success("Login successful!")
-                    # Add a small delay before rerun to ensure state is properly set
-                    # time.sleep(0.3)
-                    st.rerun()
-                else:
-                    st.error(error_msg)
+        show_simple_login_form(supabase_client)
 
     with tab2:
         st.subheader(" ")
@@ -174,39 +157,3 @@ def show_login_form(supabase_client):
                         else:
                             st.error(message)
 
-def show_simple_login_form(supabase_client):
-    """
-    This is a simplified login form, used when a session is expired and I need to login again.
-    """
-
-    st.subheader("Login")
-    with st.form("login", clear_on_submit=True, enter_to_submit=False, width=500):
-        login_email = st.text_input("Email *", key="login_email")
-        login_password = st.text_input("Password *", type="password", key="login_password")
-        submitted = st.form_submit_button("Login", type="primary")
-
-        if submitted:
-            if not all([login_email, login_password]):
-                st.error("Inserire tutti i campi")
-            else:
-                # Set processing flag to show loading state
-                st.session_state.login_processing = True
-
-            # NOTE: to access user object property, I can only use dot notation, not ['id'].
-            user_obj, error_msg = login_user(supabase_client, login_email, login_password)
-            if not error_msg:
-                st.session_state.authenticated = True
-                st.session_state.user = user_obj
-                st.session_state.login_processing = False
-                st.success("Login successful!")
-                # Add a small delay before rerun to ensure state is properly set
-                time.sleep(0.3)
-                st.rerun()
-            else:
-                st.error(error_msg)
-
-# def logout_user():
-#     """Clear session state and logout user"""
-#     for key in list(st.session_state.keys()):
-#         del st.session_state[key]
-#     st.rerun()

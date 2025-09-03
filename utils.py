@@ -1,6 +1,6 @@
 import streamlit as st
 import plotly.graph_objects as go
-from auth_utils import show_login_form, show_simple_login_form
+from auth_utils import show_login_and_render_form, show_simple_login_form
 import postgrest
 import logging
 from decimal import Decimal, ROUND_HALF_UP, getcontext
@@ -38,7 +38,7 @@ def setup_page(page_title = "", page_icon = "", enable_page_can_render_warning =
     if 'user' not in st.session_state or not st.session_state.user:
         # st.error("🔐 Please login first")
         # st.stop()
-        show_login_form(supabase_client)
+        show_login_and_render_form(supabase_client)
     user_id = st.session_state.user.id
 
     # Todo: if in the page there are tabs, the tabs will be shown even if the
