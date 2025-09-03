@@ -58,12 +58,12 @@ def main():
         anagrafica_azienda = st.Page("page_anagrafica_azienda.py", title="Azienda", icon=":material/enterprise:")
         profile = st.Page("page_profile.py", title="Utente", icon=":material/account_circle:")
 
-        fatture_upload = st.Page("invoice_uploader.py", title="Carica", icon=":material/search:")
-        fatture_overview = st.Page("invoice_overview.py", title="Sommario", icon=":material/search:")
-        fatture_emesse_add = st.Page("invoice_add.py", title="Aggiungi", icon=":material/search:")
-        fatture_emesse_modify = st.Page("invoice_modify.py", title="Modifica", icon=":material/search:")
-        fatture_emesse_delete = st.Page("invoice_delete.py", title="Elimina", icon=":material/search:")
-        fatture_deadlines_manage = st.Page("invoice_deadlines.py", title="Gestisci Rate", icon=":material/search:")
+        # fatture_upload = st.Page("invoice_uploader.py", title="Carica", icon=":material/search:")
+        # fatture_overview = st.Page("invoice_overview.py", title="Sommario", icon=":material/search:")
+        # fatture_emesse_add = st.Page("invoice_add.py", title="Aggiungi", icon=":material/search:")
+        # fatture_emesse_modify = st.Page("invoice_modify.py", title="Modifica", icon=":material/search:")
+        # fatture_emesse_delete = st.Page("invoice_delete.py", title="Elimina", icon=":material/search:")
+        # fatture_deadlines_manage = st.Page("invoice_deadlines.py", title="Gestisci Rate", icon=":material/search:")
 
         altri_movimenti_manage = st.Page("altri_movimenti_manage.py", title="Movimenti", icon=":material/book_2:")
         fatture_manage = st.Page("invoice_manage.py", title="Fatture", icon=":material/book_2:")
@@ -77,9 +77,10 @@ def main():
             {
             # "Sommario": [overview],
             "Documenti": [fatture_manage, altri_movimenti_manage],
-            "Flussi di Cassa": [flussi_di_cassa],
-            "Contattaci": [feedback],
+            "Analisi": [flussi_di_cassa],
             "Profilo": [profile, anagrafica_azienda],
+            "Contatti": [feedback],
+
 
             },
             position = 'top'

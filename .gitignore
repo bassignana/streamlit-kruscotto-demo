@@ -1,5 +1,5 @@
 .venv
-.streamlit/*
+.streamlit/secrets.toml
 fatture_emesse
 fatture_ricevute
 fe_scadenze_multiple
