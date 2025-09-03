@@ -118,25 +118,34 @@ def show_login_and_render_form(supabase_client):
             if submitted:
                 if not all([signup_email, signup_password, signup_confirm_password]):
                     st.error("Riempire tutti i campi obbligatori")
+                    return
                 elif signup_password != signup_confirm_password:
                     st.error("Le password non corrispondono")
+                    return
                 else:
                     is_email_valid, email_error_msg = validate_email(signup_email)
                     is_pwd_valid, pwd_error_msg = validate_password(signup_password)
 
                     if not is_email_valid:
                         st.error(email_error_msg)
+                        return
                     elif not is_pwd_valid:
                         st.error(pwd_error_msg)
+                        return
                     else:
                         full_name = None
-                        if signup_name is not None and signup_surname is not None:
+                        if signup_name and signup_surname:
                             full_name = signup_name + ' ' + signup_surname
 
                         response, message = register_user(supabase_client, signup_email, signup_password, full_name)
+
+                        # It seems, from a manual test, that an error during the sign up process will give
+                        # an empty response and the error message.
                         if response:
                             st.success("Registrazione effettuata con successo. "
-                                       "Cliccare sul tab Login per effettuare l'accesso.")
+                                        "Cliccare sul tab Login per effettuare l'accesso.")
+                            # st.rerun()
+                            return
                             # todo
                             # I keep clear_on_submit in order to avoid the user re-entering
                             # both email and password if the registration fails.
@@ -156,4 +165,4 @@ def show_login_and_render_form(supabase_client):
                             # st.session_state.signup_confirm_password = ""
                         else:
                             st.error(message)
-
+                            return
