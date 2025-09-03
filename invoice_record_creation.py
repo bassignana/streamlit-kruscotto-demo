@@ -244,7 +244,7 @@ def extract_xml_records(parsing_results, partita_iva_azienda) -> list[dict]:
 
                 data_documento_date = datetime.fromisoformat(data_documento)
                 first_day = datetime(data_documento_date.year, data_documento_date.month, 1)
-                last_day_next_X_months = first_day + relativedelta(months=MONTHS_IN_ADVANCE + 1, days=-1)
+                last_day_next_X_months = first_day + relativedelta(months=MONTHS_IN_ADVANCE, days=-1)
                 terms_due_date = [last_day_next_X_months.date().isoformat()]
 
             else:

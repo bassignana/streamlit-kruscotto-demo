@@ -806,224 +806,292 @@ SELECT
 FROM unpaid_invoices;
 
 
--- MAIN DASHBOARD CASHFLOW
--- GROUP BY CASSE - COMBINES rate_fatture_emesse AND rate_movimenti_attivi
+
 DROP VIEW IF EXISTS active_cashflow_next_12_months_groupby_casse;
 CREATE VIEW active_cashflow_next_12_months_groupby_casse WITH (security_invoker = true) AS
-WITH date_calc AS (
+    WITH
+    date_calc AS (
     SELECT
-                CURRENT_DATE AS today,
-                DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day' AS m1_end,
-        DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '2 months' - INTERVAL '1 day' AS m2_end,
-        DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '3 months' - INTERVAL '1 day' AS m3_end,
-        DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '4 months' - INTERVAL '1 day' AS m4_end,
-        DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '5 months' - INTERVAL '1 day' AS m5_end,
-        DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '6 months' - INTERVAL '1 day' AS m6_end
-        ),
--- Combine both sources into unified structure
-        unpaid AS (
-    -- Data from rate_fatture_emesse
-        SELECT
-        rfe_data_scadenza_pagamento,
-        rfe_importo_pagamento_rata,
-        rfe_nome_cassa,
-        rfe_iban_cassa,
-        dc.*,
-        rfe_data_scadenza_pagamento < dc.today AS is_overdue,
-        dc.today - rfe_data_scadenza_pagamento AS overdue_days,
-        COALESCE(NULLIF(TRIM(rfe_nome_cassa), ''), NULLIF(TRIM(rfe_iban_cassa), ''), 'Non specificato') AS cassa
-        FROM rate_fatture_emesse rfe
-        CROSS JOIN date_calc dc
-        WHERE rfe_data_pagamento_rata IS NULL
+    CURRENT_DATE AS today,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day' AS m1_end, -- current month
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '2 months' - INTERVAL '1 day' AS m2_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '3 months' - INTERVAL '1 day' AS m3_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '4 months' - INTERVAL '1 day' AS m4_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '5 months' - INTERVAL '1 day' AS m5_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '6 months' - INTERVAL '1 day' AS m6_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 months' - INTERVAL '1 day' AS m7_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '8 months' - INTERVAL '1 day' AS m8_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '9 months' - INTERVAL '1 day' AS m9_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '10 months' - INTERVAL '1 day' AS m10_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '11 months' - INTERVAL '1 day' AS m11_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '12 months' - INTERVAL '1 day' AS m12_end
+),
 
-        UNION ALL
+    unpaid AS (
+    SELECT
+    rfe_data_scadenza_pagamento,
+    rfe_importo_pagamento_rata,
+    rfe_nome_cassa,
+    rfe_iban_cassa,
+    dc.*,
+    rfe_data_scadenza_pagamento < dc.today AS is_overdue,
+    dc.today - rfe_data_scadenza_pagamento AS overdue_days,
+    COALESCE(
+    c.c_descrizione_cassa,
+    NULLIF(TRIM(rfe_nome_cassa), ''),
+    NULLIF(TRIM(rfe_iban_cassa), ''),
+    'Non specificato'
+) AS cassa
+    FROM rate_fatture_emesse rfe
+    CROSS JOIN date_calc dc
+    LEFT JOIN casse c ON (
+    c.user_id = rfe.user_id
+    AND COALESCE(NULLIF(TRIM(c.c_nome_cassa), ''), '') = COALESCE(NULLIF(TRIM(rfe.rfe_nome_cassa), ''), '')
+    AND COALESCE(NULLIF(TRIM(c.c_iban_cassa), ''), '') = COALESCE(NULLIF(TRIM(rfe.rfe_iban_cassa), ''), '')
+)
+    WHERE rfe_data_pagamento_rata IS NULL AND rfe.user_id = auth.uid()
 
-    -- Data from rate_movimenti_attivi
-        SELECT
-        rma_data_scadenza AS rfe_data_scadenza_pagamento,
-        rma_importo_pagamento AS rfe_importo_pagamento_rata,
-        rma_nome_cassa AS rfe_nome_cassa,
-        rma_iban_cassa AS rfe_iban_cassa,
-        dc.*,
-        rma_data_scadenza < dc.today AS is_overdue,
-        dc.today - rma_data_scadenza AS overdue_days,
-        COALESCE(NULLIF(TRIM(rma_nome_cassa), ''), NULLIF(TRIM(rma_iban_cassa), ''), 'Non specificato') AS cassa
-        FROM rate_movimenti_attivi rma
-        CROSS JOIN date_calc dc
-        WHERE rma_data_pagamento IS NULL
-        ),
-        cassa_data AS (
-        SELECT
-        cassa,
-        CASE
-        WHEN cassa = 'Non specificato' THEN '2_'
-        ELSE '1_'
-        END || cassa AS sort_key,
+    UNION ALL
+
+    SELECT
+    rma_data_scadenza AS rfe_data_scadenza_pagamento,
+    rma_importo_pagamento AS rfe_importo_pagamento_rata,
+    rma_nome_cassa AS rfe_nome_cassa,
+    rma_iban_cassa AS rfe_iban_cassa,
+    dc.*,
+    rma_data_scadenza < dc.today AS is_overdue,
+    dc.today - rma_data_scadenza AS overdue_days,
+    COALESCE(
+    c.c_descrizione_cassa,
+    NULLIF(TRIM(rma_nome_cassa), ''),
+    NULLIF(TRIM(rma_iban_cassa), ''),
+    'Non specificato'
+) AS cassa
+    FROM rate_movimenti_attivi rma
+    CROSS JOIN date_calc dc
+    LEFT JOIN casse c ON (
+    c.user_id = rma.user_id
+    AND COALESCE(NULLIF(TRIM(c.c_nome_cassa), ''), '') = COALESCE(NULLIF(TRIM(rma.rma_nome_cassa), ''), '')
+    AND COALESCE(NULLIF(TRIM(c.c_iban_cassa), ''), '') = COALESCE(NULLIF(TRIM(rma.rma_iban_cassa), ''), '')
+)
+    WHERE rma_data_pagamento IS NULL AND rma.user_id = auth.uid()
+),
+
+    cassa_data AS (
+    SELECT
+    cassa,
+    CASE
+    WHEN cassa = 'Non specificato' THEN '2_'
+    ELSE '1_'
+    END || cassa AS sort_key,
 
     -- Future collections
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento <= m1_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_30gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m1_end AND rfe_data_scadenza_pagamento <= m2_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_60gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m2_end AND rfe_data_scadenza_pagamento <= m3_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_90gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m3_end AND rfe_data_scadenza_pagamento <= m4_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_120gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m4_end AND rfe_data_scadenza_pagamento <= m5_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_150gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m5_end AND rfe_data_scadenza_pagamento <= m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_180gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_oltre,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento <= m1_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS settembre,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m1_end AND rfe_data_scadenza_pagamento <= m2_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS ottobre,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m2_end AND rfe_data_scadenza_pagamento <= m3_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS novembre,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m3_end AND rfe_data_scadenza_pagamento <= m4_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS dicembre,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m4_end AND rfe_data_scadenza_pagamento <= m5_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS gennaio,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m5_end AND rfe_data_scadenza_pagamento <= m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS febbraio,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m6_end AND rfe_data_scadenza_pagamento <= m7_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS marzo,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m7_end AND rfe_data_scadenza_pagamento <= m8_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS aprile,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m8_end AND rfe_data_scadenza_pagamento <= m9_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS maggio,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m9_end AND rfe_data_scadenza_pagamento <= m10_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS giugno,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end AND rfe_data_scadenza_pagamento <= m11_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS luglio,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m11_end AND rfe_data_scadenza_pagamento <= m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS agosto,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_oltre,
 
     -- Overdue collections
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre
 
     -- Totals
-        ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_incassare,
-        ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_scaduti,
-        ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2) AS totale_generale
-        FROM unpaid
-        GROUP BY cassa
+    --ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_incassare,
+    --ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_scaduti,
+    --ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2) AS totale_generale
+    FROM unpaid
+    GROUP BY cassa
 
-        UNION ALL
+    UNION ALL
 
     -- Totals row
-        SELECT
-        'Totali' AS cassa,
-        '3_Totali' AS sort_key,
+    SELECT
+    'Totali' AS cassa,
+    '3_Totali' AS sort_key,
 
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento <= m1_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m1_end AND rfe_data_scadenza_pagamento <= m2_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m2_end AND rfe_data_scadenza_pagamento <= m3_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m3_end AND rfe_data_scadenza_pagamento <= m4_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m4_end AND rfe_data_scadenza_pagamento <= m5_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m5_end AND rfe_data_scadenza_pagamento <= m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento <= m1_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m1_end AND rfe_data_scadenza_pagamento <= m2_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m2_end AND rfe_data_scadenza_pagamento <= m3_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m3_end AND rfe_data_scadenza_pagamento <= m4_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m4_end AND rfe_data_scadenza_pagamento <= m5_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m5_end AND rfe_data_scadenza_pagamento <= m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m6_end AND rfe_data_scadenza_pagamento <= m7_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m7_end AND rfe_data_scadenza_pagamento <= m8_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m8_end AND rfe_data_scadenza_pagamento <= m9_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m9_end AND rfe_data_scadenza_pagamento <= m10_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end AND rfe_data_scadenza_pagamento <= m11_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m11_end AND rfe_data_scadenza_pagamento <= m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    -- Overdue collections
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2)
 
-        ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2)
-        FROM unpaid
-        )
+    FROM unpaid
+)
 SELECT
     cassa,
-    incassare_30gg, incassare_60gg, incassare_90gg, incassare_120gg, incassare_150gg, incassare_180gg, incassare_oltre,
-    scaduti_30gg, scaduti_60gg, scaduti_90gg, scaduti_oltre,
-    totale_da_incassare, totale_scaduti, totale_generale
+    settembre, ottobre, novembre, dicembre, gennaio, febbraio,
+    marzo, aprile, maggio, giugno, luglio, agosto, incassare_oltre,
+    scaduti_30gg, scaduti_60gg, scaduti_90gg, scaduti_oltre
 FROM cassa_data
 ORDER BY sort_key;
 
 
--- PAYABLES DASHBOARD CASHFLOW
--- GROUP BY CASSE - COMBINES rate_fatture_ricevute AND rate_movimenti_passivi
+
 DROP VIEW IF EXISTS passive_cashflow_next_12_months_groupby_casse;
 CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker = true) AS
-WITH date_calc AS (
+    WITH
+    date_calc AS (
     SELECT
-                CURRENT_DATE AS today,
-                DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day' AS m1_end,
-        DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '2 months' - INTERVAL '1 day' AS m2_end,
-        DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '3 months' - INTERVAL '1 day' AS m3_end,
-        DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '4 months' - INTERVAL '1 day' AS m4_end,
-        DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '5 months' - INTERVAL '1 day' AS m5_end,
-        DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '6 months' - INTERVAL '1 day' AS m6_end
-        ),
--- Combine both sources into unified structure
-        unpaid AS (
-    -- Data from rate_fatture_ricevute
-        SELECT
-        rfr_data_scadenza_pagamento,
-        rfr_importo_pagamento_rata,
-        rfr_nome_cassa,
-        rfr_iban_cassa,
-        dc.*,
-        rfr_data_scadenza_pagamento < dc.today AS is_overdue,
-        dc.today - rfr_data_scadenza_pagamento AS overdue_days,
-        COALESCE(NULLIF(TRIM(rfr_nome_cassa), ''), NULLIF(TRIM(rfr_iban_cassa), ''), 'Non specificato') AS cassa
-        FROM rate_fatture_ricevute rfr
-        CROSS JOIN date_calc dc
-        WHERE rfr_data_pagamento_rata IS NULL
+    CURRENT_DATE AS today,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day' AS m1_end, -- current month
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '2 months' - INTERVAL '1 day' AS m2_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '3 months' - INTERVAL '1 day' AS m3_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '4 months' - INTERVAL '1 day' AS m4_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '5 months' - INTERVAL '1 day' AS m5_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '6 months' - INTERVAL '1 day' AS m6_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 months' - INTERVAL '1 day' AS m7_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '8 months' - INTERVAL '1 day' AS m8_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '9 months' - INTERVAL '1 day' AS m9_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '10 months' - INTERVAL '1 day' AS m10_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '11 months' - INTERVAL '1 day' AS m11_end,
+    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '12 months' - INTERVAL '1 day' AS m12_end
+),
 
-        UNION ALL
+    unpaid AS (
+    SELECT
+    rfr_data_scadenza_pagamento,
+    rfr_importo_pagamento_rata,
+    rfr_nome_cassa,
+    rfr_iban_cassa,
+    dc.*,
+    rfr_data_scadenza_pagamento < dc.today AS is_overdue,
+    dc.today - rfr_data_scadenza_pagamento AS overdue_days,
+    COALESCE(
+    c.c_descrizione_cassa,
+    NULLIF(TRIM(rfr_nome_cassa), ''),
+    NULLIF(TRIM(rfr_iban_cassa), ''),
+    'Non specificato'
+) AS cassa
+    FROM rate_fatture_ricevute rfr
+    CROSS JOIN date_calc dc
+    LEFT JOIN casse c ON (
+    c.user_id = rfr.user_id
+    AND COALESCE(NULLIF(TRIM(c.c_nome_cassa), ''), '') = COALESCE(NULLIF(TRIM(rfr.rfr_nome_cassa), ''), '')
+    AND COALESCE(NULLIF(TRIM(c.c_iban_cassa), ''), '') = COALESCE(NULLIF(TRIM(rfr.rfr_iban_cassa), ''), '')
+)
+    WHERE rfr_data_pagamento_rata IS NULL AND rfr.user_id = auth.uid()
 
-    -- Data from rate_movimenti_passivi
-        SELECT
-        rmp_data_scadenza AS rfr_data_scadenza_pagamento,
-        rmp_importo_pagamento AS rfr_importo_pagamento_rata,
-        rmp_nome_cassa AS rfr_nome_cassa,
-        rmp_iban_cassa AS rfr_iban_cassa,
-        dc.*,
-        rmp_data_scadenza < dc.today AS is_overdue,
-        dc.today - rmp_data_scadenza AS overdue_days,
-        COALESCE(NULLIF(TRIM(rmp_nome_cassa), ''), NULLIF(TRIM(rmp_iban_cassa), ''), 'Non specificato') AS cassa
-        FROM rate_movimenti_passivi rmp
-        CROSS JOIN date_calc dc
-        WHERE rmp_data_pagamento IS NULL
-        ),
-        cassa_data AS (
-        SELECT
-        cassa,
-        CASE
-        WHEN cassa = 'Non specificato' THEN '2_'
-        ELSE '1_'
-        END || cassa AS sort_key,
+    UNION ALL
 
-    -- Future payments
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento <= m1_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS pagare_30gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m1_end AND rfr_data_scadenza_pagamento <= m2_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS pagare_60gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m2_end AND rfr_data_scadenza_pagamento <= m3_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS pagare_90gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m3_end AND rfr_data_scadenza_pagamento <= m4_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS pagare_120gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m4_end AND rfr_data_scadenza_pagamento <= m5_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS pagare_150gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m5_end AND rfr_data_scadenza_pagamento <= m6_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS pagare_180gg,
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m6_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS pagare_oltre,
+    SELECT
+    rmp_data_scadenza AS rfr_data_scadenza_pagamento,
+    rmp_importo_pagamento AS rfr_importo_pagamento_rata,
+    rmp_nome_cassa AS rfr_nome_cassa,
+    rmp_iban_cassa AS rfr_iban_cassa,
+    dc.*,
+    rmp_data_scadenza < dc.today AS is_overdue,
+    dc.today - rmp_data_scadenza AS overdue_days,
+    COALESCE(
+    c.c_descrizione_cassa,
+    NULLIF(TRIM(rmp_nome_cassa), ''),
+    NULLIF(TRIM(rmp_iban_cassa), ''),
+    'Non specificato'
+) AS cassa
+    FROM rate_movimenti_passivi rmp
+    CROSS JOIN date_calc dc
+    LEFT JOIN casse c ON (
+    c.user_id = rmp.user_id
+    AND COALESCE(NULLIF(TRIM(c.c_nome_cassa), ''), '') = COALESCE(NULLIF(TRIM(rmp.rmp_nome_cassa), ''), '')
+    AND COALESCE(NULLIF(TRIM(c.c_iban_cassa), ''), '') = COALESCE(NULLIF(TRIM(rmp.rmp_iban_cassa), ''), '')
+)
+    WHERE rmp_data_pagamento IS NULL AND rmp.user_id = auth.uid()
+),
 
-    -- Overdue payments
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
+    cassa_data AS (
+    SELECT
+    cassa,
+    CASE
+    WHEN cassa = 'Non specificato' THEN '2_'
+    ELSE '1_'
+    END || cassa AS sort_key,
 
-    -- Totals
-        ROUND(SUM(CASE WHEN NOT is_overdue THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_pagare,
-        ROUND(SUM(CASE WHEN is_overdue THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_scaduti,
-        ROUND(SUM(rfr_importo_pagamento_rata)::numeric, 2) AS totale_generale
-        FROM unpaid
-        GROUP BY cassa
+    -- Future collections
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento <= m1_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS settembre,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m1_end AND rfr_data_scadenza_pagamento <= m2_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS ottobre,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m2_end AND rfr_data_scadenza_pagamento <= m3_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS novembre,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m3_end AND rfr_data_scadenza_pagamento <= m4_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS dicembre,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m4_end AND rfr_data_scadenza_pagamento <= m5_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS gennaio,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m5_end AND rfr_data_scadenza_pagamento <= m6_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS febbraio,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m6_end AND rfr_data_scadenza_pagamento <= m7_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS marzo,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m7_end AND rfr_data_scadenza_pagamento <= m8_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS aprile,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m8_end AND rfr_data_scadenza_pagamento <= m9_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS maggio,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m9_end AND rfr_data_scadenza_pagamento <= m10_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS giugno,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m10_end AND rfr_data_scadenza_pagamento <= m11_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS luglio,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m11_end AND rfr_data_scadenza_pagamento <= m12_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS agosto,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m12_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS pagare_oltre,
 
-        UNION ALL
+    -- Overdue collections
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre
+
+    FROM unpaid
+    GROUP BY cassa
+
+    UNION ALL
 
     -- Totals row
-        SELECT
-        'Totali' AS cassa,
-        '3_Totali' AS sort_key,
+    SELECT
+    'Totali' AS cassa,
+    '3_Totali' AS sort_key,
 
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento <= m1_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m1_end AND rfr_data_scadenza_pagamento <= m2_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m2_end AND rfr_data_scadenza_pagamento <= m3_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m3_end AND rfr_data_scadenza_pagamento <= m4_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m4_end AND rfr_data_scadenza_pagamento <= m5_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m5_end AND rfr_data_scadenza_pagamento <= m6_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m6_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento <= m1_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m1_end AND rfr_data_scadenza_pagamento <= m2_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m2_end AND rfr_data_scadenza_pagamento <= m3_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m3_end AND rfr_data_scadenza_pagamento <= m4_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m4_end AND rfr_data_scadenza_pagamento <= m5_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m5_end AND rfr_data_scadenza_pagamento <= m6_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m6_end AND rfr_data_scadenza_pagamento <= m7_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m7_end AND rfr_data_scadenza_pagamento <= m8_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m8_end AND rfr_data_scadenza_pagamento <= m9_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m9_end AND rfr_data_scadenza_pagamento <= m10_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m10_end AND rfr_data_scadenza_pagamento <= m11_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m11_end AND rfr_data_scadenza_pagamento <= m12_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m12_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    -- Overdue collections
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2)
 
-        ROUND(SUM(CASE WHEN NOT is_overdue THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(CASE WHEN is_overdue THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-        ROUND(SUM(rfr_importo_pagamento_rata)::numeric, 2)
-        FROM unpaid
-        )
+    FROM unpaid
+)
 SELECT
     cassa,
-    pagare_30gg, pagare_60gg, pagare_90gg, pagare_120gg, pagare_150gg, pagare_180gg, pagare_oltre,
-    scaduti_30gg, scaduti_60gg, scaduti_90gg, scaduti_oltre,
-    totale_da_pagare, totale_scaduti, totale_generale
+    settembre, ottobre, novembre, dicembre, gennaio, febbraio,
+    marzo, aprile, maggio, giugno, luglio, agosto, pagare_oltre,
+    scaduti_30gg, scaduti_60gg, scaduti_90gg, scaduti_oltre
 FROM cassa_data
 ORDER BY sort_key;
+
+
 
 -- FATTURE EMESSE MAIN DASHBOARD
 -- Invoice Payment Summary View
@@ -1334,21 +1402,20 @@ CREATE VIEW movimenti_passivi_overview WITH (security_invoker = true) AS
 )
 SELECT
 
-    mp.mp_data AS data,
-
-    mp.mp_numero AS numero,
+    mp.id as id,
+    mp.mp_data AS mp_data,
+    mp.mp_numero AS mp_numero,
 
     CASE
         WHEN mp.mp_fornitore IS NOT NULL AND TRIM(mp.mp_fornitore) != ''
         THEN TRIM(mp.mp_fornitore)
         ELSE 'Fornitore non specificato'
-        END AS fornitore,
+        END AS v_fornitore,
 
-    ROUND(mp.mp_importo_totale::numeric, 2) AS totale,
-
-    COALESCE(pa.totale_pagato, 0.00) AS pagato,
-
-    COALESCE(pa.totale_saldo, 0.00) AS saldo
+    mp.mp_tipo as mp_tipo,
+    ROUND(mp.mp_importo_totale::numeric, 2) AS mp_importo_totale,
+    COALESCE(pa.totale_pagato, 0.00) AS v_pagato,
+    COALESCE(pa.totale_saldo, 0.00) AS v_saldo
 
 FROM movimenti_passivi mp
          LEFT JOIN payment_aggregates pa ON (

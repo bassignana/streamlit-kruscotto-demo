@@ -55,20 +55,13 @@ def main():
 
         overview = st.Page("page_overview.py", title="Sommario Fatture", icon=":material/search:")
 
-        anagrafica_azienda = st.Page("page_anagrafica_azienda.py", title="Azienda", icon=":material/enterprise:")
-        profile = st.Page("page_profile.py", title="Utente", icon=":material/account_circle:")
-
-        # fatture_upload = st.Page("invoice_uploader.py", title="Carica", icon=":material/search:")
-        # fatture_overview = st.Page("invoice_overview.py", title="Sommario", icon=":material/search:")
-        # fatture_emesse_add = st.Page("invoice_add.py", title="Aggiungi", icon=":material/search:")
-        # fatture_emesse_modify = st.Page("invoice_modify.py", title="Modifica", icon=":material/search:")
-        # fatture_emesse_delete = st.Page("invoice_delete.py", title="Elimina", icon=":material/search:")
-        # fatture_deadlines_manage = st.Page("invoice_deadlines.py", title="Gestisci Rate", icon=":material/search:")
-
-        altri_movimenti_manage = st.Page("altri_movimenti_manage.py", title="Altri Movimenti", icon=":material/book_2:")
         fatture_manage = st.Page("invoice_manage.py", title="Fatture", icon=":material/book_2:")
+        altri_movimenti_manage = st.Page("altri_movimenti_manage.py", title="Altri Movimenti", icon=":material/book_2:")
 
         flussi_di_cassa = st.Page("cash_flow.py", title="Flussi di Cassa", icon=":material/payments:")
+
+        profile = st.Page("page_profile.py", title="Utente", icon=":material/account_circle:")
+        anagrafica_azienda = st.Page("page_anagrafica_azienda.py", title="Azienda", icon=":material/enterprise:")
 
         feedback = st.Page("page_feedback.py", title="Contattaci", icon=":material/chat:")
 

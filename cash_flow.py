@@ -2,6 +2,43 @@ import streamlit as st
 import pandas as pd
 from utils import setup_page
 
+def get_cashflow_column_config(df_columns):
+    column_config = {}
+    months = [
+        'Set',
+        'Ott',
+        'Nov',
+        'Dic',
+        'Gen',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mag',
+        'Giu',
+        'Lug',
+        'Ago'
+    ]
+    for col in df_columns:
+        if col == 'Cassa':
+            column_config['Cassa'] = st.column_config.TextColumn(
+                label='Cassa',
+                width = 200
+            )
+        elif col[:3] in months:
+            column_config[col] = st.column_config.NumberColumn(
+                label=col[:3],
+                format="localized",
+                width = 60
+            )
+        else:
+            column_config[col] = st.column_config.NumberColumn(
+                label=col,
+                format="localized",
+                width = 100
+            )
+
+    return column_config
+
 def main():
     user_id, supabase_client, page_can_render = setup_page("Gestione Altri Movimenti")
 
@@ -11,64 +48,92 @@ def main():
     if not active_result.data:
         st.warning("Nessun dato disponibile per i movimenti attivi")
     else:
-        # I need this else otherwise when I do df.columns[0] I get an Index error
-        #TODO: value formatting
-        df = pd.DataFrame(active_result.data)
-
-        # Assumning that I force the first column of the view to be the index one.
-        active_df = df.set_index(df.columns[0])
-        # TODO; df.columns = ["Voce"] + df.columns[1:]
-
+        active_df = pd.DataFrame(active_result.data)
         active_df.columns = [
             col.replace('_', ' ').title() if isinstance(col, str) else str(col)
             for col in active_df.columns
         ]
 
-        # TODO: scroll bar always preset, auto formatting everything to euro, remove some options.
+        active_df = active_df.style.set_properties(
+            subset=pd.IndexSlice[active_df.index[-1], :],
+            **{'background-color': '#F6F7FA'}
+        ).set_properties(
+            subset=pd.IndexSlice[:, 'Cassa'],
+            **{'color': '#75777E'}
+        )
+
+        column_config = get_cashflow_column_config(active_df.columns)
+
         st.subheader("Attivi")
-        st.dataframe(active_df, use_container_width=True)
+        st.dataframe(active_df, use_container_width=True, column_config=column_config, hide_index = True)
 
     if not passive_result.data:
         st.warning("Nessun dato disponibile per i movimenti passivi")
     else:
-        df = pd.DataFrame(passive_result.data)
-        passive_df = df.set_index(df.columns[0])
-
+        passive_df = pd.DataFrame(passive_result.data)
         passive_df.columns = [
             col.replace('_', ' ').title() if isinstance(col, str) else str(col)
             for col in passive_df.columns
         ]
 
-        st.subheader("Passivi")
-        st.dataframe(passive_df, use_container_width=True)
+        passive_df = passive_df.style.set_properties(
+            subset=pd.IndexSlice[passive_df.index[-1], :],
+            **{'background-color': '#F6F7FA'}
+        ).set_properties(
+            subset=pd.IndexSlice[:, 'Cassa'],
+            **{'color': '#75777E'}
+        )
+        column_config = get_cashflow_column_config(passive_df.columns)
 
+        st.subheader("Passivi")
+        st.dataframe(passive_df, use_container_width=True, column_config=column_config, hide_index = True)
+
+
+    # Since the formatting comes with the Styler object and I cannot use the dataframe without it,
+    # I'm recreating the dataframes.
+    active_df = pd.DataFrame(active_df.data)
+    passive_df = pd.DataFrame(passive_df.data)
     if active_df is not None and passive_df is not None:
         try:
-            # Get the last row from both dataframes (should be "Totali")
-            active_totals = active_df.iloc[[-1]].copy()  # Last row as dataframe
+            active_totals = active_df.iloc[[-1]].copy()    # Last row as dataframe
             passive_totals = passive_df.iloc[[-1]].copy()  # Last row as dataframe
 
+            active_totals = active_totals.drop('Cassa', axis=1)
+            passive_totals = passive_totals.drop('Cassa', axis=1)
+
             saldo_columns = [
-                'Saldo 30gg',
-                'Saldo 60gg',
-                'Saldo 90gg',
-                'Saldo 120gg',
-                'Saldo 150gg',
-                'Saldo 180gg',
-                'Saldo Oltre',
-                'Saldo Scaduti 30gg',
-                'Saldo Scaduti 60gg',
-                'Saldo Scaduti 90gg',
-                'Saldo Scaduti Oltre',
-                'Saldo Netto',
-                'Saldo Scaduti',
-                'Saldo Totale'
+                'Set',
+                'Ott',
+                'Nov',
+                'Dic',
+                'Gen',
+                'Feb',
+                'Mar',
+                'Apr',
+                'Mag',
+                'Giu',
+                'Lug',
+                'Ago',
+                'Netto Oltre',
+                'Scaduti 30gg',
+                'Scaduti 60gg',
+                'Scaduti 90gg',
+                'Netto Scaduti'
             ]
 
             saldo = pd.DataFrame(active_totals.values - passive_totals.values,
                                  columns = saldo_columns)
+            saldo.insert(0, "Cassa", 'Tutte le Casse')
+
+            saldo = saldo.style.set_properties(
+                subset=pd.IndexSlice[:, 'Cassa'],
+                **{'color': '#75777E'}
+            )
+
+            column_config = get_cashflow_column_config(saldo.columns)
+
             st.subheader('Totale')
-            st.dataframe(saldo, use_container_width=True, hide_index=True)
+            st.dataframe(saldo, use_container_width=True, hide_index=True,  column_config=column_config)
 
         except Exception as e:
             st.error(f"Errore nel calcolo del netto: {str(e)}")

@@ -353,7 +353,7 @@ def render_invoice_add_modal(supabase_client, table_name, fields_config, prefix)
                             MONTHS_IN_ADVANCE = 1
                             data_documento_date = datetime.fromisoformat(prefixed_processed_data[prefix + 'data_documento'])
                             first_day = datetime(data_documento_date.year, data_documento_date.month, 1)
-                            last_day_next_X_months = first_day + relativedelta(months=MONTHS_IN_ADVANCE + 1, days=-1)
+                            last_day_next_X_months = first_day + relativedelta(months=MONTHS_IN_ADVANCE, days=-1)
                             # terms_due_date = [last_day_next_X_months.date().isoformat()]
                             terms_due_date = last_day_next_X_months.date().isoformat() # Not a list!
 
@@ -563,279 +563,279 @@ def render_invoice_crud_page(supabase_client, user_id,
                                      config,
                                      prefix)
         return
+    else:
+        #
+        #
+        # Here is the problem, I either create two dataframe, one with original names and
+        # one for visualizations with customized column names or I use the data list instead of the df
+        # to work with original names.
+        #
+        #
+        df_vis = pd.DataFrame(invoices_data)
+        df_vis = df_vis.set_index('id')
+        df_vis.columns = [
+            col.replace('_', ' ').title() if isinstance(col, str) else str(col)
+            for col in df_vis.columns
+        ]
 
-    #
-    #
-    # Here is the problem, I either create two dataframe, one with original names and
-    # one for visualizations with customized column names or I use the data list instead of the df
-    # to work with original names.
-    #
-    #
-    df_vis = pd.DataFrame(invoices_data)
-    df_vis = df_vis.set_index('id')
-    df_vis.columns = [
-        col.replace('_', ' ').title() if isinstance(col, str) else str(col)
-        for col in df_vis.columns
-    ]
+        for tech_field in technical_fields:
+            if tech_field in df_vis.columns:
+                df_vis = df_vis.drop([tech_field], axis = 1)
+        df_vis.columns = [remove_prefix(col, uppercase_prefixes) for col in df_vis.columns]
 
-    for tech_field in technical_fields:
-        if tech_field in df_vis.columns:
-            df_vis = df_vis.drop([tech_field], axis = 1)
-    df_vis.columns = [remove_prefix(col, uppercase_prefixes) for col in df_vis.columns]
+        # TODO: finish the conversion, then see if I can use the names that I want directly
+        #  in the view or I need to convert them here.
 
-    # TODO: finish the conversion, then see if I can use the names that I want directly
-    #  in the view or I need to convert them here.
+        selection = st.dataframe(df_vis, use_container_width=True,
+                                 selection_mode = 'single-row',
+                                 on_select='rerun',
+                                 hide_index = True,
+                                 key = table_name + 'selection_df')
 
-    selection = st.dataframe(df_vis, use_container_width=True,
-                             selection_mode = 'single-row',
-                             on_select='rerun',
-                             hide_index = True,
-                             key = table_name + 'selection_df')
+        col1, col2, col3, space = st.columns([1,1,1,4])
+        with col1:
+            add = st.button("Aggiungi Fattura", type='primary', key = table_name + '_add')
+            if add:
+                render_invoice_add_modal(supabase_client, table_name,
+                                         config,
+                                         prefix)
 
-    col1, col2, col3, space = st.columns([1,1,1,4])
-    with col1:
-        add = st.button("Aggiungi Fattura", type='primary', key = table_name + '_add')
-        if add:
-            render_invoice_add_modal(supabase_client, table_name,
-                                     config,
-                                     prefix)
+        with col2:
+            modify = st.button("Modifica Fattura", key = table_name + '_modify')
+            if modify:
+                if selection.selection['rows']:
+                    # BAD: Here I'm relying on the fact that the index in the df and
+                    # in the movimenti_data state will always be in sync.
+                    #
+                    # When selection is active, only selection is returned, but the index
+                    # returned will always refer to the original data passed as input to
+                    # st.dataframe and not the current sorting of the dataframe.
+                    # So to be sure to manage order correctly, is better to create two dfs
+                    # from the same fetched data.
+                    selected_index = selection.selection['rows'][0]
+                    selected_id = df_vis.iloc[selected_index].name
+                    render_invoice_modify_modal(supabase_client, table_name,
+                                        config, selected_id, prefix)
+                else:
+                    st.warning('Seleziona un movimento da modificare')
 
-    with col2:
-        modify = st.button("Modifica Fattura", key = table_name + '_modify')
-        if modify:
+        with col3:
+            delete = st.button("Rimuovi Fattura", key = table_name + '_delete')
+            if delete:
+                if selection.selection['rows']:
+                    selected_index = selection.selection['rows'][0]
+                    selected_row = invoices_data[selected_index]
+
+                    render_invoice_delete_modal(supabase_client, table_name, selected_row, rate_prefix, prefix)
+                else:
+                    st.warning('Seleziona un movimento da eliminare')
+
+
+        # Here I fetch data to be sure to have the most up to date data,
+        # but in the future this might be simplified.
+        check_invoices = fetch_all_records(supabase_client, table_name, user_id)
+        check_terms = pd.DataFrame(fetch_all_records(supabase_client, 'rate_' + table_name, user_id))
+
+        for invoice in check_invoices:
+
+            number_key = invoice[prefix + 'numero_fattura']
+            date_key = invoice[prefix + 'data_documento']
+
+            i_terms = check_terms[(check_terms[rate_prefix + 'numero_fattura'] == number_key) & \
+                                  (check_terms[rate_prefix + 'data_documento'] == date_key)]
+
+
+            total_i = invoice[prefix + 'importo_totale_documento']
+            total_i_terms = i_terms[rate_prefix + 'importo_pagamento_rata'].sum()
+
+            if total_i != total_i_terms:
+                st.warning(f'ATTENZIONE: La fattura numero {number_key}, in data {date_key} ha un importo '
+                           f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
+                           f'totale di {total_i_terms} Euro. Assicurarsi di far combaciare gli importi')
+
+        with st.expander("Visualizza e Modifica Scadenze"):
+
             if selection.selection['rows']:
-                # BAD: Here I'm relying on the fact that the index in the df and
-                # in the movimenti_data state will always be in sync.
-                #
-                # When selection is active, only selection is returned, but the index
-                # returned will always refer to the original data passed as input to
-                # st.dataframe and not the current sorting of the dataframe.
-                # So to be sure to manage order correctly, is better to create two dfs
-                # from the same fetched data.
+
                 selected_index = selection.selection['rows'][0]
-                selected_id = df_vis.iloc[selected_index].name
-                render_invoice_modify_modal(supabase_client, table_name,
-                                    config, selected_id, prefix)
+                record_data = invoices_data[selected_index]
+
+                result = supabase_client.table(table_name).select(prefix + 'partita_iva_prestatore') \
+                                        .eq('id', record_data['id']) \
+                                        .eq('user_id', st.session_state.user.id).execute()
+                piva_prestatore = result.data[0].get(prefix + 'partita_iva_prestatore', None)
+                if piva_prestatore is None:
+                    st.error('Errore nel reperire la P.IVA prestatore')
+                    return
+
+                numero_documento = record_data[prefix + 'numero_fattura']
+                data_documento   = record_data[prefix + 'data_documento']
+                importo_totale_documento = to_money(record_data[prefix + 'importo_totale_documento'])
+
+                document_key = {
+                    rate_prefix + 'numero_fattura': numero_documento,
+                    rate_prefix + 'data_documento': data_documento
+                }
+
+                document_not_nullable_fields = {
+                    rate_prefix + 'partita_iva_prestatore': piva_prestatore
+                }
+
+                if st.session_state[terms_key] is None or st.session_state[selection_key] != selection:
+                    try:
+                        result = supabase_client.table('rate_' + table_name).select('*').eq('user_id', user_id) \
+                            .eq(rate_prefix + 'numero_fattura', numero_documento) \
+                            .eq(rate_prefix + 'data_documento', data_documento).execute()
+
+                        existing_terms = []
+                        for row in result.data:
+                            term = {
+                                rate_prefix + 'data_scadenza_pagamento': datetime.strptime(row[rate_prefix + 'data_scadenza_pagamento'], '%Y-%m-%d').date(),
+                                rate_prefix + 'data_pagamento_rata': datetime.strptime(row[rate_prefix + 'data_pagamento_rata'], '%Y-%m-%d').date() if row[rate_prefix + 'data_pagamento_rata'] else None,
+                                rate_prefix + 'importo_pagamento_rata': float(row[rate_prefix + 'importo_pagamento_rata']),
+                                rate_prefix + 'nome_cassa': row[rate_prefix + 'nome_cassa'] or '',
+                                rate_prefix + 'notes': row[rate_prefix + 'notes'] or '',
+                            }
+                            existing_terms.append(term)
+                        st.session_state[terms_key] = existing_terms
+                        st.session_state[selection_key] = selection
+                        # This try should be triggered only on the first loading or when I change selection
+                        # so it should be safe to reset the existing terms here.
+                        st.session_state[backup_terms_key] = existing_terms
+                    except Exception as e:
+                        st.error(f"Errore nel caricamento dei termini delle fatture: {str(e)}")
+
+                terms_df = pd.DataFrame(st.session_state[terms_key])
+                terms_df.columns = [col[len(rate_prefix):].replace('_',' ').title() for col in terms_df.columns]
+
+                # Since some dates can be valued as None, ensure that the date columns
+                # are correctly represented as dates.
+                date_columns = ['Data Scadenza Pagamento', 'Data Pagamento Rata']
+                money_columns = ['Importo Pagamento Rata']
+                for col in date_columns:
+                    # This is the correct way to convert a possibly Null column, interpreted
+                    # as a string by pandas to a datetime.date data format while keeping None
+                    # instead of NaT.
+                    terms_df[col] = terms_df[col].apply(lambda x: None if x is None or pd.isna(x) else pd.to_datetime(x).date())
+
+
+                required_columns = ['Data Scadenza Pagamento', 'Importo Pagamento Rata']
+                column_config = get_standard_column_config(money_columns = money_columns,
+                                                           date_columns = date_columns,
+                                                           required_columns = required_columns,
+                                                           )
+
+                options = fetch_all_records_from_view(supabase_client, 'casse_options')
+                cleaned_options = [d.get('cassa') for d in options]
+
+                column_config['Nome Cassa'] = st.column_config.SelectboxColumn(
+                    "Cassa",
+                    options=cleaned_options)
+
+                column_config['Notes'] = st.column_config.TextColumn("Note")
+
+                terms_df.style.format({
+                    'Importo Pagamento Rata': format_italian_currency,
+                })
+
+                column_order = ['Data Scadenza Pagamento', 'Data Pagamento Rata', 'Importo Pagamento Rata', 'Nome Cassa', 'Notes']
+
+                edited =  st.data_editor(terms_df,
+                                         key=table_name + '_terms_df',
+                                         column_config=column_config,
+                                         hide_index=True,
+                                         num_rows='dynamic',
+                                         column_order = column_order)
+
+
+                c1, c2, c3 = st.columns([3,3,1], vertical_alignment='top')
+
+                with c1:
+                    with st.expander("Configurazione Iniziale Rapida", width=500):
+                        st.write("""La configurazione rapida permette di generare automaticamente il
+                                        numero desiderato di scadenze con importo diviso ugualmente.""")
+                        st.write("""Attenzione: questa operazione sovrascriverà tutti i campi delle
+                                        scadenze attualmente configurate.""")
+                        split_col1, split_col2, split_col3 = st.columns([1, 1, 1],
+                                                                        vertical_alignment='bottom')
+
+                        with split_col1:
+                            num_installments = st.number_input("Numero rate", min_value=1, max_value=12, value=1,
+                                                               key = table_name + '_num_installments')
+
+                        with split_col2:
+                            interval_days = st.number_input("Giorni tra rate", min_value=1, max_value=365, value=30, step=15,
+                                                            key = table_name + '_interval_days')
+
+                        with split_col3:
+                            # TODO; can I put an help message over the button
+                            #  so that I don't have to handle the complexity of a dialog?
+                            if st.button("Applica", key = table_name + '_apply_rapid_config'):
+
+                                up_to_date_terms = auto_split_payment_invoice(
+                                    importo_totale_documento, num_installments, data_documento, rate_prefix, interval_days
+                                )
+                                st.session_state[terms_key] = up_to_date_terms
+                                st.rerun()
+                with c2:
+                    with st.expander("Divisione Automatica Importo", width=500):
+
+                        # Since streamlit does not support the features that I need to ensure that there
+                        # is always present at least one term,
+                        # for now an if statement before every element will do.
+                        if len(edited) == 0:
+                            st.warning('Creare almeno una scadenza prima di procedere')
+                        else:
+                            _edited = edited.copy()
+                            _edited.columns = [rate_prefix + col.replace(' ','_').lower() for col in _edited.columns]
+
+                            up_to_date_terms = []
+                            for k,v in _edited.T.to_dict().items():
+                                up_to_date_terms.append(v)
+
+                            total_decimal          = to_money(importo_totale_documento)
+                            movements_count        = len(up_to_date_terms)
+                            amount_per_installment = to_money(total_decimal / movements_count)
+
+                            st.write("""La a divisione automatica permette di dividere l'importo totale in parti uguali
+                                            nelle rate attualmente presenti. Gli altri campi resteranno invariati.""")
+                            st.write(f"""Con la configurazione attuale si otterrebbero
+                                            {movements_count} rate da {amount_per_installment} Euro ciascuna.""")
+
+                            if st.button("Dividi Importo", key = table_name + '_apply_auto_config'):
+
+                                total_allocated = Decimal('0.00')
+
+                                for i in range(movements_count):
+                                    # Last installment gets the remainder to avoid rounding errors
+                                    if i == movements_count - 1:
+                                        up_to_date_terms[i][rate_prefix + 'importo_pagamento_rata'] = total_decimal - total_allocated
+                                    else:
+                                        up_to_date_terms[i][rate_prefix + 'importo_pagamento_rata'] = amount_per_installment
+                                        total_allocated += amount_per_installment
+
+                                st.session_state[terms_key] = up_to_date_terms
+                                st.rerun()
+                with c3:
+                    with st.popover("Verifica, Salva o Annulla"):
+                        save = st.button("Salva  ", type='primary', key = table_name + '_save_terms', use_container_width=True)
+                        cancel = st.button('Annulla', key = table_name + '_cancel_terms', use_container_width=True)
+
+                if save:
+                    save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_documento,
+                                        config, document_key, supabase_client, table_name, backup_terms_key,
+                                       document_not_nullable_fields)
+                if cancel:
+                    # NOTE IMPORTANT: for some reason, if I do
+                    # st.session_state[terms_key] = st.session_state[backup_terms_key],
+                    # the rerun() does not trigger the recomputing of the terms_df.
+                    # I have to use a variable like undo_terms!
+                    undo_terms = st.session_state[backup_terms_key]
+                    st.session_state[terms_key] = undo_terms
+                    st.rerun()
+
             else:
-                st.warning('Seleziona un movimento da modificare')
-
-    with col3:
-        delete = st.button("Rimuovi Fattura", key = table_name + '_delete')
-        if delete:
-            if selection.selection['rows']:
-                selected_index = selection.selection['rows'][0]
-                selected_row = invoices_data[selected_index]
-
-                render_invoice_delete_modal(supabase_client, table_name, selected_row, rate_prefix, prefix)
-            else:
-                st.warning('Seleziona un movimento da eliminare')
-
-
-    # Here I fetch data to be sure to have the most up to date data,
-    # but in the future this might be simplified.
-    check_invoices = fetch_all_records(supabase_client, table_name, user_id)
-    check_terms = pd.DataFrame(fetch_all_records(supabase_client, 'rate_' + table_name, user_id))
-
-    for invoice in check_invoices:
-
-        number_key = invoice[prefix + 'numero_fattura']
-        date_key = invoice[prefix + 'data_documento']
-
-        i_terms = check_terms[(check_terms[rate_prefix + 'numero_fattura'] == number_key) & \
-                              (check_terms[rate_prefix + 'data_documento'] == date_key)]
-
-
-        total_i = invoice[prefix + 'importo_totale_documento']
-        total_i_terms = i_terms[rate_prefix + 'importo_pagamento_rata'].sum()
-
-        if total_i != total_i_terms:
-            st.warning(f'ATTENZIONE: La fattura numero {number_key}, in data {date_key} ha un importo '
-                       f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
-                       f'totale di {total_i_terms} Euro. Assicurarsi di far combaciare gli importi')
-
-    with st.expander("Visualizza e Modifica Scadenze"):
-
-        if selection.selection['rows']:
-
-            selected_index = selection.selection['rows'][0]
-            record_data = invoices_data[selected_index]
-
-            result = supabase_client.table(table_name).select(prefix + 'partita_iva_prestatore') \
-                                    .eq('id', record_data['id']) \
-                                    .eq('user_id', st.session_state.user.id).execute()
-            piva_prestatore = result.data[0].get(prefix + 'partita_iva_prestatore', None)
-            if piva_prestatore is None:
-                st.error('Errore nel reperire la P.IVA prestatore')
-                return
-
-            numero_documento = record_data[prefix + 'numero_fattura']
-            data_documento   = record_data[prefix + 'data_documento']
-            importo_totale_documento = to_money(record_data[prefix + 'importo_totale_documento'])
-
-            document_key = {
-                rate_prefix + 'numero_fattura': numero_documento,
-                rate_prefix + 'data_documento': data_documento
-            }
-
-            document_not_nullable_fields = {
-                rate_prefix + 'partita_iva_prestatore': piva_prestatore
-            }
-
-            if st.session_state[terms_key] is None or st.session_state[selection_key] != selection:
-                try:
-                    result = supabase_client.table('rate_' + table_name).select('*').eq('user_id', user_id) \
-                        .eq(rate_prefix + 'numero_fattura', numero_documento) \
-                        .eq(rate_prefix + 'data_documento', data_documento).execute()
-
-                    existing_terms = []
-                    for row in result.data:
-                        term = {
-                            rate_prefix + 'data_scadenza_pagamento': datetime.strptime(row[rate_prefix + 'data_scadenza_pagamento'], '%Y-%m-%d').date(),
-                            rate_prefix + 'data_pagamento_rata': datetime.strptime(row[rate_prefix + 'data_pagamento_rata'], '%Y-%m-%d').date() if row[rate_prefix + 'data_pagamento_rata'] else None,
-                            rate_prefix + 'importo_pagamento_rata': float(row[rate_prefix + 'importo_pagamento_rata']),
-                            rate_prefix + 'nome_cassa': row[rate_prefix + 'nome_cassa'] or '',
-                            rate_prefix + 'notes': row[rate_prefix + 'notes'] or '',
-                        }
-                        existing_terms.append(term)
-                    st.session_state[terms_key] = existing_terms
-                    st.session_state[selection_key] = selection
-                    # This try should be triggered only on the first loading or when I change selection
-                    # so it should be safe to reset the existing terms here.
-                    st.session_state[backup_terms_key] = existing_terms
-                except Exception as e:
-                    st.error(f"Errore nel caricamento dei termini delle fatture: {str(e)}")
-
-            terms_df = pd.DataFrame(st.session_state[terms_key])
-            terms_df.columns = [col[len(rate_prefix):].replace('_',' ').title() for col in terms_df.columns]
-
-            # Since some dates can be valued as None, ensure that the date columns
-            # are correctly represented as dates.
-            date_columns = ['Data Scadenza Pagamento', 'Data Pagamento Rata']
-            money_columns = ['Importo Pagamento Rata']
-            for col in date_columns:
-                # This is the correct way to convert a possibly Null column, interpreted
-                # as a string by pandas to a datetime.date data format while keeping None
-                # instead of NaT.
-                terms_df[col] = terms_df[col].apply(lambda x: None if x is None or pd.isna(x) else pd.to_datetime(x).date())
-
-
-            required_columns = ['Data Scadenza Pagamento', 'Importo Pagamento Rata']
-            column_config = get_standard_column_config(money_columns = money_columns,
-                                                       date_columns = date_columns,
-                                                       required_columns = required_columns,
-                                                       )
-
-            options = fetch_all_records_from_view(supabase_client, 'casse_options')
-            cleaned_options = [d.get('cassa') for d in options]
-
-            column_config['Nome Cassa'] = st.column_config.SelectboxColumn(
-                "Cassa",
-                options=cleaned_options)
-
-            column_config['Notes'] = st.column_config.TextColumn("Note")
-
-            terms_df.style.format({
-                'Importo Pagamento Rata': format_italian_currency,
-            })
-
-            column_order = ['Data Scadenza Pagamento', 'Data Pagamento Rata', 'Importo Pagamento Rata', 'Nome Cassa', 'Notes']
-
-            edited =  st.data_editor(terms_df,
-                                     key=table_name + '_terms_df',
-                                     column_config=column_config,
-                                     hide_index=True,
-                                     num_rows='dynamic',
-                                     column_order = column_order)
-
-
-            c1, c2, c3 = st.columns([3,3,1], vertical_alignment='top')
-
-            with c1:
-                with st.expander("Configurazione Iniziale Rapida", width=500):
-                    st.write("""La configurazione rapida permette di generare automaticamente il
-                                    numero desiderato di scadenze con importo diviso ugualmente.""")
-                    st.write("""Attenzione: questa operazione sovrascriverà tutti i campi delle
-                                    scadenze attualmente configurate.""")
-                    split_col1, split_col2, split_col3 = st.columns([1, 1, 1],
-                                                                    vertical_alignment='bottom')
-
-                    with split_col1:
-                        num_installments = st.number_input("Numero rate", min_value=1, max_value=12, value=1,
-                                                           key = table_name + '_num_installments')
-
-                    with split_col2:
-                        interval_days = st.number_input("Giorni tra rate", min_value=1, max_value=365, value=30, step=15,
-                                                        key = table_name + '_interval_days')
-
-                    with split_col3:
-                        # TODO; can I put an help message over the button
-                        #  so that I don't have to handle the complexity of a dialog?
-                        if st.button("Applica", key = table_name + '_apply_rapid_config'):
-
-                            up_to_date_terms = auto_split_payment_invoice(
-                                importo_totale_documento, num_installments, data_documento, rate_prefix, interval_days
-                            )
-                            st.session_state[terms_key] = up_to_date_terms
-                            st.rerun()
-            with c2:
-                with st.expander("Divisione Automatica Importo", width=500):
-
-                    # Since streamlit does not support the features that I need to ensure that there
-                    # is always present at least one term,
-                    # for now an if statement before every element will do.
-                    if len(edited) == 0:
-                        st.warning('Creare almeno una scadenza prima di procedere')
-                    else:
-                        _edited = edited.copy()
-                        _edited.columns = [rate_prefix + col.replace(' ','_').lower() for col in _edited.columns]
-
-                        up_to_date_terms = []
-                        for k,v in _edited.T.to_dict().items():
-                            up_to_date_terms.append(v)
-
-                        total_decimal          = to_money(importo_totale_documento)
-                        movements_count        = len(up_to_date_terms)
-                        amount_per_installment = to_money(total_decimal / movements_count)
-
-                        st.write("""La a divisione automatica permette di dividere l'importo totale in parti uguali
-                                        nelle rate attualmente presenti. Gli altri campi resteranno invariati.""")
-                        st.write(f"""Con la configurazione attuale si otterrebbero
-                                        {movements_count} rate da {amount_per_installment} Euro ciascuna.""")
-
-                        if st.button("Dividi Importo", key = table_name + '_apply_auto_config'):
-
-                            total_allocated = Decimal('0.00')
-
-                            for i in range(movements_count):
-                                # Last installment gets the remainder to avoid rounding errors
-                                if i == movements_count - 1:
-                                    up_to_date_terms[i][rate_prefix + 'importo_pagamento_rata'] = total_decimal - total_allocated
-                                else:
-                                    up_to_date_terms[i][rate_prefix + 'importo_pagamento_rata'] = amount_per_installment
-                                    total_allocated += amount_per_installment
-
-                            st.session_state[terms_key] = up_to_date_terms
-                            st.rerun()
-            with c3:
-                with st.popover("Verifica, Salva o Annulla"):
-                    save = st.button("Salva  ", type='primary', key = table_name + '_save_terms', use_container_width=True)
-                    cancel = st.button('Annulla', key = table_name + '_cancel_terms', use_container_width=True)
-
-            if save:
-                save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_documento,
-                                    config, document_key, supabase_client, table_name, backup_terms_key,
-                                   document_not_nullable_fields)
-            if cancel:
-                # NOTE IMPORTANT: for some reason, if I do
-                # st.session_state[terms_key] = st.session_state[backup_terms_key],
-                # the rerun() does not trigger the recomputing of the terms_df.
-                # I have to use a variable like undo_terms!
-                undo_terms = st.session_state[backup_terms_key]
-                st.session_state[terms_key] = undo_terms
-                st.rerun()
-
-        else:
-            st.warning('Seleziona un movimento per gestirne le rate')
+                st.warning('Seleziona un movimento per gestirne le rate')
 
 
 
