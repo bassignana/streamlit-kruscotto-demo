@@ -157,10 +157,15 @@ BRAKING:
    otherwise if the user will click outside of the page while the operation is still 
    pending, the op will be canceled!!
 [] Casse modify does not work
-[] Nelle fatture ci sono campi che posso modificare ma non sono letti da nessuna parte
 
 [] RIUNIONE: visuallizzazione tab caricamento xml: tab, expander, cosi'
 []           metric sx grafico: cambiare titoli e metric
+[]           fattura con alert
+[]           Toggle modifica dati e aggiornamento situazione
+[]           Nelle fatture ci sono campi che posso modificare ma non sono letti da nessuna parte
+[]           DNS
+
+
 
 [] columns in df visualization are not numeric and sort does not work correctly
 
@@ -174,7 +179,6 @@ all add and modify modal
 [] nel profilo utente, compare prima l'avviso dell'anagrafica, senza poter fare un
    logout immediato
 [] table headings in bold, maybe a markdown label in bold in column_configs
-[] Toggle modifica dati?
 [] 'la fattura non contiente la piva al suo interno' aggiungere messaggio che dice dove andare a 
    trovare la schermata dove fare la modifica
 

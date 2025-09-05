@@ -124,53 +124,41 @@ def render_modify_casse_modal(supabase_client, config, selected_row, emesse_name
                  enter_to_submit=False):
         form_data = {}
 
-    #
-    #
-    #
-    # TODO; hack:
-    #  if is read from emesse, get select count, if 0, insert else update with record.
-    #  Test in console first to be sure that there is no problem with table constraints.
-    #
-    #
-    #
-    is_read_from_emesse = selected_row['c_nome_cassa'] in emesse_names or selected_row['c_iban_cassa'] in emesse_iban
+        is_read_from_emesse = selected_row['c_nome_cassa'] in emesse_names or selected_row['c_iban_cassa'] in emesse_iban
 
-    if is_read_from_emesse:
-        st.info('Attualmente, per le casse lette da fatture emesse, è possibile modificare solo la descrizione')
+        if is_read_from_emesse:
+            st.info('Attualmente, per le casse lette da fatture emesse, è possibile modificare solo la descrizione')
 
-        # for i, (field_name, field_config) in enumerate(config.items()):
-        #     if field_name in ['c_descrizione_cassa']:
-        #         record_value = selected_row.get(field_name, None)
-        #         form_data[field_name] = render_field_widget(
-        #             field_name, field_config, record_value,
-        #             key_suffix=f"casse_anagrafica"
-        #         )
+            # for i, (field_name, field_config) in enumerate(config.items()):
+            #     if field_name in ['c_descrizione_cassa']:
+            #         record_value = selected_row.get(field_name, None)
+            #         form_data[field_name] = render_field_widget(
+            #             field_name, field_config, record_value,
+            #             key_suffix=f"casse_anagrafica"
+            #         )
 
-    # else:
+        # else:
 
-    for i, (field_name, field_config) in enumerate(config.items()):
-        if field_name in ['c_nome_cassa','c_iban_cassa','c_descrizione_cassa']:
-            record_value = selected_row.get(field_name, None)
+        for i, (field_name, field_config) in enumerate(config.items()):
+            if field_name in ['c_nome_cassa','c_iban_cassa','c_descrizione_cassa']:
+                record_value = selected_row.get(field_name, None)
 
-            if is_read_from_emesse and field_name in ['c_nome_cassa','c_iban_cassa']:
-                form_data[field_name] = render_field_widget(
-                    field_name, field_config, record_value,
-                    key_suffix=f"casse_anagrafica",
-                    disabled = True
-                )
-            else:
-                form_data[field_name] = render_field_widget(
-                    field_name, field_config, record_value,
-                    key_suffix=f"casse_anagrafica",
-                    disabled = False
-                )
+                if is_read_from_emesse and field_name in ['c_nome_cassa','c_iban_cassa']:
+                    form_data[field_name] = render_field_widget(
+                        field_name, field_config, record_value,
+                        key_suffix=f"casse_anagrafica",
+                        disabled = True
+                    )
+                else:
+                    form_data[field_name] = render_field_widget(
+                        field_name, field_config, record_value,
+                        key_suffix=f"casse_anagrafica",
+                        disabled = False
+                    )
 
-
-
-    col1, col2 = st.columns([1, 1])
-
-    with col1:
-        if st.button("Aggiorna", type="primary", key = 'casse_modify_modal_button'):
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.form_submit_button("Aggiorna", type="primary"):
 
                 error = ''
                 # if 'c_nome_cassa' in form_data or 'c_iban_cassa' in form_data:
@@ -189,13 +177,22 @@ def render_modify_casse_modal(supabase_client, config, selected_row, emesse_name
 
                     with st.spinner("Salvataggio in corso..."):
                         delete_query = supabase_client.table('casse').delete()
-                        st.write(form_data)
-                        for k,v in form_data.items():
-                            delete_query = delete_query.eq(k,v)
-                        st.write(delete_query)
+                        for field, value in selected_row.items():
+                            delete_query = delete_query.eq(field, value)
                         result = delete_query.execute()
-                        st.write(result)
-                        time.sleep(20)
+
+                        #
+                        #
+                        #
+                        # TODO; hack:
+                        #  Before the insert I have to check that the row that I'm inserting will not
+                        #  trigger a duplicate row error. In that case it means that the row is already
+                        #  present in the database and I should skip the insert.
+                        #  It should not happen if I start from a state of the database that is not compromised
+                        #  but I need to do it for safety.
+                        #
+                        #
+                        #
                         result = supabase_client.table('casse').insert(form_data).execute()
 
                         has_errored = (hasattr(result, 'error') and result.error)
