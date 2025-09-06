@@ -157,6 +157,11 @@ BRAKING:
    otherwise if the user will click outside of the page while the operation is still 
    pending, the op will be canceled!!
 [] Casse modify does not work
+[] In the annulla button I have to implement the refetch: it is easier to implement and right now
+   the state management is broken, so that when I save and fail a control and click annulla, the 
+   broken state will be used.
+[] In the uploader I have to insert a rerun if I want to update the tables, but doing so will make almost
+   impossible to read the summaries and warnings
 
 [] RIUNIONE: visuallizzazione tab caricamento xml: tab, expander, cosi' : tab upload fatture
 []           metric sx grafico: cambiare titoli e metric
@@ -171,11 +176,11 @@ Riunione 5 settembre:
 - categorie tipologia movimenti:  stipendi netti, contributi previdenziali, ...
 - analisi > analisi IMPOSTE: 
 - alert IVA: soglia statica 
-- CSV per caricare automaticamente tanti movimenti
-- font grande, colonna sx, font grassetto intestazione
-[x] fatture / movimenti: correggere totali, fatture 'ad oggi' rimuovere. sost: saldo
-- SOLO FATTURE E MOVIMENTI DEL 2025, avviso per sommario
 - Colonna anomalie o riga in rosso
+- CSV per caricare automaticamente tanti movimenti
+[x] font grande (IMPOSSIBILE), colonna sx, font grassetto intestazione (IMPOSSIBILE)
+[x] fatture / movimenti: correggere totali, fatture 'ad oggi' rimuovere. sost: saldo
+[x] SOLO FATTURE E MOVIMENTI DEL 2025, avviso per sommario
 
 
 

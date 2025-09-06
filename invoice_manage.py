@@ -553,10 +553,33 @@ def render_invoice_crud_page(supabase_client, user_id,
     if backup_terms_key not in st.session_state:
         st.session_state[backup_terms_key] = None
 
+
+
+
+
+    check_invoices = fetch_all_records(supabase_client, table_name, user_id)
+    check_terms = pd.DataFrame(fetch_all_records(supabase_client, 'rate_' + table_name, user_id))
+    anomalies = {}
+    for invoice in check_invoices:
+        number_key = invoice[prefix + 'numero_fattura']
+        date_key = invoice[prefix + 'data_documento']
+        i_terms = check_terms[(check_terms[rate_prefix + 'numero_fattura'] == number_key) & \
+                              (check_terms[rate_prefix + 'data_documento'] == date_key)]
+        total_i = invoice[prefix + 'importo_totale_documento']
+        total_i_terms = i_terms[rate_prefix + 'importo_pagamento_rata'].sum()
+        if total_i != total_i_terms:
+            anomalies[number_key] = (f'ANOMALIA: La fattura numero {number_key}, in data {date_key} ha un importo '
+                                     f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
+                                     f'totale di {total_i_terms} Euro. Assicurarsi di far combaciare gli importi')
+
+
+
+
+
     invoices_data = fetch_all_records_from_view(supabase_client, table_name + '_overview')
 
     if not invoices_data:
-        st.warning("Nessuna fattira trovata. Caricare o creare una fattura prima di proseguire.")
+        st.warning("Nessuna fattura trovata. Caricare o creare una fattura prima di proseguire.")
         add = st.button("Aggiungi Fattura", type='primary', key = table_name + '_add_first_invoice')
         if add:
             render_invoice_add_modal(supabase_client, table_name,
@@ -583,8 +606,7 @@ def render_invoice_crud_page(supabase_client, user_id,
                 df_vis = df_vis.drop([tech_field], axis = 1)
         df_vis.columns = [remove_prefix(col, uppercase_prefixes) for col in df_vis.columns]
 
-        # TODO: finish the conversion, then see if I can use the names that I want directly
-        #  in the view or I need to convert them here.
+        df_vis['Anomalie'] = df_vis['Numero Fattura'].apply(lambda x: 'Presenti' if x in anomalies else 'No')
 
         selection = st.dataframe(df_vis, use_container_width=True,
                                  selection_mode = 'single-row',
@@ -633,32 +655,37 @@ def render_invoice_crud_page(supabase_client, user_id,
 
         # Here I fetch data to be sure to have the most up to date data,
         # but in the future this might be simplified.
-        check_invoices = fetch_all_records(supabase_client, table_name, user_id)
-        check_terms = pd.DataFrame(fetch_all_records(supabase_client, 'rate_' + table_name, user_id))
-
-        for invoice in check_invoices:
-
-            number_key = invoice[prefix + 'numero_fattura']
-            date_key = invoice[prefix + 'data_documento']
-
-            i_terms = check_terms[(check_terms[rate_prefix + 'numero_fattura'] == number_key) & \
-                                  (check_terms[rate_prefix + 'data_documento'] == date_key)]
-
-
-            total_i = invoice[prefix + 'importo_totale_documento']
-            total_i_terms = i_terms[rate_prefix + 'importo_pagamento_rata'].sum()
-
-            if total_i != total_i_terms:
-                st.warning(f'ATTENZIONE: La fattura numero {number_key}, in data {date_key} ha un importo '
-                           f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
-                           f'totale di {total_i_terms} Euro. Assicurarsi di far combaciare gli importi')
+        # check_invoices = fetch_all_records(supabase_client, table_name, user_id)
+        # check_terms = pd.DataFrame(fetch_all_records(supabase_client, 'rate_' + table_name, user_id))
+        #
+        # for invoice in check_invoices:
+        #
+        #     number_key = invoice[prefix + 'numero_fattura']
+        #     date_key = invoice[prefix + 'data_documento']
+        #
+        #     i_terms = check_terms[(check_terms[rate_prefix + 'numero_fattura'] == number_key) & \
+        #                           (check_terms[rate_prefix + 'data_documento'] == date_key)]
+        #
+        #
+        #     total_i = invoice[prefix + 'importo_totale_documento']
+        #     total_i_terms = i_terms[rate_prefix + 'importo_pagamento_rata'].sum()
+        #
+        #     if total_i != total_i_terms:
+        #         st.warning(f'ATTENZIONE: La fattura numero {number_key}, in data {date_key} ha un importo '
+        #                    f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
+        #                    f'totale di {total_i_terms} Euro. Assicurarsi di far combaciare gli importi')
 
         with st.expander("Visualizza e Modifica Scadenze"):
 
             if selection.selection['rows']:
-
                 selected_index = selection.selection['rows'][0]
                 record_data = invoices_data[selected_index]
+                numero_documento = record_data[prefix + 'numero_fattura']
+                data_documento   = record_data[prefix + 'data_documento']
+                importo_totale_documento = to_money(record_data[prefix + 'importo_totale_documento'])
+
+                if numero_documento in anomalies:
+                    st.warning(anomalies.get(numero_documento))
 
                 result = supabase_client.table(table_name).select(prefix + 'partita_iva_prestatore') \
                                         .eq('id', record_data['id']) \
@@ -668,9 +695,7 @@ def render_invoice_crud_page(supabase_client, user_id,
                     st.error('Errore nel reperire la P.IVA prestatore')
                     return
 
-                numero_documento = record_data[prefix + 'numero_fattura']
-                data_documento   = record_data[prefix + 'data_documento']
-                importo_totale_documento = to_money(record_data[prefix + 'importo_totale_documento'])
+
 
                 document_key = {
                     rate_prefix + 'numero_fattura': numero_documento,

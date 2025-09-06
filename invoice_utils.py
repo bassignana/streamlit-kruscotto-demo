@@ -817,7 +817,10 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                             continue # to the next xml
 
                     successful_upload_count = len([res for res in outs if res['status'] == 'success'])
-                    st.info(f"Numero di fatture caricate correttamente: {successful_upload_count}")
+                    st.success(f"Numero di fatture caricate correttamente: {successful_upload_count}")
+                    st.info("Clicca il pulsane qui sotto per aggiornare le tabelle una volta letti tutti gli avvisi.")
+                    if st.button('Aggiorna Tabelle', key = "rerun"):
+                        st.rerun()
                 else:
                     st.error(f"Errore durante l'estrazione XML delle fatture: {error}")
 

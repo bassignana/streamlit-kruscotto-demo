@@ -555,6 +555,35 @@ def render_movimenti_crud_page(supabase_client, user_id,
     if backup_terms_key not in st.session_state:
         st.session_state[backup_terms_key] = None
 
+
+
+
+    # For now it is impossible to have anomalie in altri movimenti.
+    # check_movimenti = fetch_all_records(supabase_client, table_name, user_id)
+    # check_terms = pd.DataFrame(fetch_all_records(supabase_client, 'rate_' + table_name, user_id))
+    # anomalies = {}
+    # for mov in check_movimenti:
+    #
+    #     number_key = mov[prefix + 'numero']
+    #     date_key = mov[prefix + 'data']
+    #
+    #     m_terms = check_terms[(check_terms[rate_prefix + 'numero'] == number_key) & \
+    #                           (check_terms[rate_prefix + 'data'] == date_key)]
+    #
+    #
+    #     total_m = mov[prefix + 'importo_totale']
+    #     total_m_terms = m_terms[rate_prefix + 'importo_pagamento'].sum()
+    #
+    #     if total_m != total_m_terms:
+    #         anomalies[number_key] = (f'ANOMALIA: Il movimento numero {number_key}, in data {date_key} ha un importo '
+    #                    f'totale di {total_m} Euro, mentre le relative scadenze hanno un importo '
+    #                    f'totale di {total_m_terms} Euro. Assicurarsi di far combaciare gli importi')
+    #
+
+
+
+
+
     movimenti_data = fetch_all_records_from_view(supabase_client, table_name + '_overview')
 
     if not movimenti_data:
@@ -597,6 +626,9 @@ def render_movimenti_crud_page(supabase_client, user_id,
         # df = df.style.format({
         #     'Importo Totale': format_italian_currency,
         # })
+
+        # For now it is impossible to have anomalie in altri movimenti.
+        # df_vis['Anomalie'] = df_vis['Numero'].apply(lambda x: 'Presenti' if x in anomalies else 'No')
 
         selection = st.dataframe(df_vis, use_container_width=True,
                                  selection_mode = 'single-row',
@@ -650,28 +682,6 @@ def render_movimenti_crud_page(supabase_client, user_id,
                     st.warning('Seleziona un movimento da eliminare')
 
 
-        # Here I fetch data to be sure to have the most up to date data,
-        # but in the future this might be simplified.
-        check_movimenti = fetch_all_records(supabase_client, table_name, user_id)
-        check_terms = pd.DataFrame(fetch_all_records(supabase_client, 'rate_' + table_name, user_id))
-
-        for mov in check_movimenti:
-
-            number_key = mov[prefix + 'numero']
-            date_key = mov[prefix + 'data']
-
-            m_terms = check_terms[(check_terms[rate_prefix + 'numero'] == number_key) & \
-                                  (check_terms[rate_prefix + 'data'] == date_key)]
-
-
-            total_m = mov[prefix + 'importo_totale']
-            total_m_terms = m_terms[rate_prefix + 'importo_pagamento'].sum()
-
-            if total_m != total_m_terms:
-                st.warning(f'ATTENZIONE: Il movimento numero {number_key}, in data {date_key} ha un importo '
-                           f'totale di {total_m} Euro, mentre le relative scadenze hanno un importo '
-                           f'totale di {total_m_terms} Euro. Assicurarsi di far combaciare gli importi')
-
         with st.expander("Visualizza e Modifica Scadenze"):
             # TODO: In order to help the user understand that the rows of the dataframe can be clicked,
             #  start with the first checkbox selected,
@@ -681,6 +691,14 @@ def render_movimenti_crud_page(supabase_client, user_id,
             if selection.selection['rows']:
 
                 selected_index = selection.selection['rows'][0]
+                record_data = movimenti_data[selected_index]
+                numero_documento = record_data[prefix + 'numero']
+                data_documento   = record_data[prefix + 'data']
+                importo_totale_movimento = to_money(record_data[prefix + 'importo_totale'])
+
+                # For now it is impossible to have anomalies in altri movimenti.
+                # if numero_documento in anomalies:
+                #     st.warning(anomalies.get(numero_documento))
 
                 # Selected row.
                 #
@@ -692,11 +710,8 @@ def render_movimenti_crud_page(supabase_client, user_id,
                 # Note that reading from a view, I have names of columns that are different
                 # from the prefixed names in the table.
                 # Most notably I don't have prefixes.
-                record_data = movimenti_data[selected_index]
 
-                numero_documento = record_data[prefix + 'numero']
-                data_documento   = record_data[prefix + 'data']
-                importo_totale_movimento = to_money(record_data[prefix + 'importo_totale'])
+
 
                 movement_key = {
                     rate_prefix + 'numero': numero_documento,
