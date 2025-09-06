@@ -89,7 +89,7 @@ altri_movimenti_config = {
     'mp_fornitore': {
         'data_type': 'string',
         'required': False,
-        'label': 'Denominazione Cliente',
+        'label': 'Denominazione Fornitore',
         # 'placeholder': 'es. 09876543210',
         'help': 'Denominazione del cliente',
     },

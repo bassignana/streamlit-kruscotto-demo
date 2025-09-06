@@ -1,13 +1,11 @@
 from decimal import Decimal, ROUND_HALF_UP
 import plotly.graph_objects as go
-from datetime import datetime
 import streamlit as st
 from utils import setup_page, get_df_metric
 import pandas as pd
 
 from altri_movimenti_config import altri_movimenti_config
 from altri_movimenti_utils import render_movimenti_crud_page
-from utils import money_to_string, to_money
 
 
 # TODO: The problem here is that I add a lot of complexity

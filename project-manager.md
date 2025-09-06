@@ -167,7 +167,7 @@ BRAKING:
 []           verifica button
 Riunione 5 settembre:
 - reminder altri movimenti per cancellazione attesa fattura
-- movimenti: cliente dropdown, passivi: denominazione fornitore
+[x] movimenti: cliente dropdown(IMPOSSIBILE), passivi: denominazione fornitore
 - categorie tipologia movimenti:  stipendi netti, contributi previdenziali, ...
 - analisi > analisi IMPOSTE: 
 - alert IVA: soglia statica 

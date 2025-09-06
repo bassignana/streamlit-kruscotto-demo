@@ -1,4 +1,3 @@
-import logging
 import streamlit as st
 import pandas as pd
 import time
@@ -8,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 from config import uppercase_prefixes, technical_fields
 from invoice_utils import render_field_widget
 from utils import extract_prefixed_field_names, get_standard_column_config, fetch_all_records_from_view, \
-    fetch_record_from_id, money_to_string, to_money, are_all_required_fields_present, remove_prefix, fetch_all_records
+    fetch_record_from_id, to_money, are_all_required_fields_present, remove_prefix, fetch_all_records
 
 
 #
