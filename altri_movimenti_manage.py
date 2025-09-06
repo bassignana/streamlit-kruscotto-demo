@@ -187,6 +187,16 @@ def main():
 
                 st.dataframe(df, use_container_width=True)
 
+                different_year_attivi = supabase_client.table('movimenti_attivi').select('*') \
+                    .or_('ma_data.lt.2025-01-01,ma_data.gt.2025-12-31').execute()
+                different_year_passivi = supabase_client.table('movimenti_passivi').select('*') \
+                    .or_('mp_data.lt.2025-01-01,mp_data.gt.2025-12-31').execute()
+
+                if any([different_year_attivi.data, different_year_passivi.data]):
+                    with st.expander('Avvisi'):
+                        st.info("""Sono caricati movimenti con data diversa dall'anno 2025.
+                     Nel TAB Sommario saranno mostrati solo i dati relativi all'anno corrente.""")
+
 
         with attivi:
             render_movimenti_crud_page(supabase_client, user_id,

@@ -880,6 +880,16 @@ def main():
 
                 st.dataframe(df, use_container_width=True)
 
+                different_year_attivi = supabase_client.table('fatture_emesse').select('*') \
+                    .or_('fe_data_documento.lt.2025-01-01,fe_data_documento.gt.2025-12-31').execute()
+                different_year_passivi = supabase_client.table('fatture_ricevute').select('*') \
+                    .or_('fr_data_documento.lt.2025-01-01,fr_data_documento.gt.2025-12-31').execute()
+
+                if any([different_year_attivi.data, different_year_passivi.data]):
+                    with st.expander('Avvisi'):
+                        st.info("""Sono caricate fatture con data diversa dall'anno 2025.
+                         Nel TAB Sommario saranno mostrate solo i dati relativi all'anno corrente.""")
+
         with emesse:
             render_invoice_crud_page(supabase_client, user_id,
                                        'fatture_emesse', 'fe_',
