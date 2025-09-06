@@ -2,7 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import plotly.graph_objects as go
 from datetime import datetime
 import streamlit as st
-from utils import setup_page
+from utils import setup_page, get_df_metric
 import pandas as pd
 
 from altri_movimenti_config import altri_movimenti_config
@@ -172,39 +172,18 @@ def main():
                 df = df.set_index(df.columns[0])
 
 
-                c1, c2 = st.columns([1,2])
+                c1, c2 = st.columns([1,3])
 
                 with c1:
-                    m1, m2 = st.columns([1,1])
-                    current_month_index = datetime.now().month - 1
+                    movimenti_attivi_totale = df.loc['Movimenti Attivi',:].sum()
+                    movimenti_passivi_totale = df.loc['Movimenti Passivi',:].sum()
 
-                    def get_df_metric(label, amount):
-                        with st.container():
-                            st.dataframe(
-                                pd.DataFrame({label: to_money(amount)},
-                                             index = [0]),
-                                hide_index = True)
-
-                    with m1:
-                            movimenti_attivi_totale = df.loc['Movimenti Attivi',:].iloc[:current_month_index + 1].sum()
-                            # st.metric('Totale Movimenti Attivi (€)', money_to_string(movimenti_attivi_totale), border=True)
-                            get_df_metric('Totale Movimenti Attivi (€)', movimenti_attivi_totale)
-
-                            current_month_attivi = df.loc['Movimenti Attivi'].iloc[current_month_index]
-                            # st.metric('Movimenti Attivi Mese Attuale (€)', money_to_string(current_month_attivi), border=True)
-                            get_df_metric('Movimenti Attivi Mese Attuale (€)', current_month_attivi)
-
-                    with m2:
-                            movimenti_passivi_totale = df.loc['Movimenti Passivi',:].iloc[:current_month_index + 1].sum()
-                            # st.metric('Totale Movimenti Passivi (€)',money_to_string(movimenti_passivi_totale), border=True)
-                            get_df_metric('Totale Movimenti Passivi (€)', movimenti_passivi_totale)
-
-                            current_month_passivi = df.loc['Movimenti Passivi'].iloc[current_month_index]
-                            # st.metric('Movimenti Passivi Mese Attuale (€)', money_to_string(current_month_passivi), border=True)
-                            get_df_metric('Movimenti Passivi Mese Attuale (€)', current_month_passivi)
+                    st.subheader('')
+                    get_df_metric('Totale Movimenti Attivi (€)', movimenti_attivi_totale)
+                    get_df_metric('Totale Movimenti Passivi (€)', movimenti_passivi_totale)
+                    get_df_metric('Saldo Movimenti (€)', movimenti_attivi_totale - movimenti_passivi_totale)
 
                 with c2:
-                    # fig = create_monthly_line_chart(df,"Movimenti Attivi", "Movimenti Passivi")
                     fig = create_monthly_movements_summary_chart(df.to_dict(), show_amounts=False)
                     st.plotly_chart(fig)
 

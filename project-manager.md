@@ -158,12 +158,24 @@ BRAKING:
    pending, the op will be canceled!!
 [] Casse modify does not work
 
-[] RIUNIONE: visuallizzazione tab caricamento xml: tab, expander, cosi'
+[] RIUNIONE: visuallizzazione tab caricamento xml: tab, expander, cosi' : tab upload fatture
 []           metric sx grafico: cambiare titoli e metric
 []           fattura con alert
 []           Toggle modifica dati e aggiornamento situazione
 []           Nelle fatture ci sono campi che posso modificare ma non sono letti da nessuna parte
 []           DNS
+[]           verifica button
+Riunione 5 settembre:
+- reminder altri movimenti per cancellazione attesa fattura
+- movimenti: cliente dropdown, passivi: denominazione fornitore
+- categorie tipologia movimenti:  stipendi netti, contributi previdenziali, ...
+- analisi > analisi IMPOSTE: 
+- alert IVA: soglia statica 
+- CSV per caricare automaticamente tanti movimenti
+- font grande, colonna sx, font grassetto intestazione
+[x] fatture / movimenti: correggere totali, fatture 'ad oggi' rimuovere. sost: saldo
+- SOLO FATTURE E MOVIMENTI DEL 2025, avviso per sommario
+- Colonna anomalie o riga in rosso
 
 
 

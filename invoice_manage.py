@@ -8,7 +8,7 @@ from config import technical_fields, uppercase_prefixes
 from invoice_utils import render_generic_xml_upload_section
 from utils import setup_page, money_to_string, to_money, fetch_all_records_from_view, extract_prefixed_field_names, \
     render_field_widget, are_all_required_fields_present, remove_prefix, extract_field_names, fetch_record_from_id, \
-    fetch_all_records, get_standard_column_config, format_italian_currency
+    fetch_all_records, get_standard_column_config, format_italian_currency, get_df_metric
 import pandas as pd
 
 def create_monthly_invoices_summary_chart(data_dict, show_amounts=False):
@@ -845,9 +845,7 @@ def main():
     user_id, supabase_client, page_can_render = setup_page("Gestione Fatture")
 
     if page_can_render:
-        render_generic_xml_upload_section(supabase_client, user_id)
-        st.subheader(' ')
-        sommario, emesse, ricevute = st.tabs(["Sommario", "Fatture Emesse", "Fatture Ricevute"])
+        sommario, emesse, ricevute, upload = st.tabs(["Sommario", "Fatture Emesse", "Fatture Ricevute", "Carica Fatture"])
 
         with sommario:
 
@@ -865,32 +863,16 @@ def main():
                 df = df.set_index(df.columns[0])
 
 
-                c1, c2 = st.columns([1,2])
+                c1, c2 = st.columns([1,3])
 
                 with c1:
-                    m1, m2 = st.columns([1,1])
-                    current_month_index = datetime.now().month - 1
+                    emesse_total = df.loc['Fatture Emesse',:].sum()
+                    ricevute_total = df.loc['Fatture Ricevute',:].sum()
 
-                    def get_df_metric(label, amount):
-                        with st.container():
-                            st.dataframe(
-                                pd.DataFrame({label: to_money(amount)},
-                                             index = [0]),
-                                hide_index = True)
-
-                    with m1:
-                        movimenti_attivi_totale = df.loc['Fatture Emesse',:].iloc[:current_month_index + 1].sum()
-                        get_df_metric('Totale Fatture Emesse (€)', movimenti_attivi_totale)
-
-                        current_month_attivi = df.loc['Fatture Emesse'].iloc[current_month_index]
-                        get_df_metric('Fatture Emesse Mese Attuale (€)', current_month_attivi)
-
-                    with m2:
-                        movimenti_passivi_totale = df.loc['Fatture Ricevute',:].iloc[:current_month_index + 1].sum()
-                        get_df_metric('Totale Fatture Ricevute (€)', movimenti_passivi_totale)
-
-                        current_month_passivi = df.loc['Fatture Ricevute'].iloc[current_month_index]
-                        get_df_metric('Fatture Ricevute Mese Attuale (€)', current_month_passivi)
+                    st.subheader(' ')
+                    get_df_metric('Totale Fatture Emesse (€)', emesse_total)
+                    get_df_metric('Totale Fatture Ricevute (€)', ricevute_total)
+                    get_df_metric('Saldo Fatture (€)', emesse_total - ricevute_total)
 
                 with c2:
                     fig = create_monthly_invoices_summary_chart(df.to_dict(), show_amounts=False)
@@ -909,6 +891,9 @@ def main():
                                      'fatture_ricevute', 'fr_',
                                      'rfr_',
                                      XML_FIELD_MAPPING)
+
+        with upload:
+            render_generic_xml_upload_section(supabase_client, user_id)
 
 
 

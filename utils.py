@@ -7,6 +7,44 @@ from decimal import Decimal, ROUND_HALF_UP, getcontext
 from datetime import datetime, date
 import pandas as pd
 
+def to_money(amount):
+    getcontext().prec = 28
+    MONEY_QUANTIZE    = Decimal('0.01')  # 2 decimal places
+    CURRENCY_ROUNDING = ROUND_HALF_UP
+
+    if amount is None:
+        decimal_amount = Decimal(0)
+    else:
+        decimal_amount = Decimal(str(amount))
+    return decimal_amount.quantize(MONEY_QUANTIZE, rounding=CURRENCY_ROUNDING)
+
+def get_df_metric(label, amount):
+    with st.container():
+        df = pd.DataFrame({label: to_money(amount)},
+                          index = [0])
+
+        # df = df.style.set_properties(**{
+        #     'font-size': '70pt',
+        #     # 'font-weight': 'bold'
+        # })
+
+        # styler = df.style
+        # styler.applymap_index(lambda v: "font-weight: bold;", axis="index")
+
+        st.dataframe(df, hide_index = True)
+
+
+# Ugly version.
+# def get_df_metric(label, amount):
+#     with st.container():
+#         df = pd.DataFrame({label: to_money(amount)}, index=[0])
+#
+#         styled_df = df.style.set_table_styles([
+#             {'selector': 'th', 'props': [('font-weight', 'bold'), ('font-size', '16px')]}
+#         ])
+#
+#         st.markdown(styled_df.to_html(), unsafe_allow_html=True)
+
 def fetch_all_records(supabase_client, table_name: str, user_id: str):
     try:
         result = supabase_client.table(table_name).select('*').eq('user_id', user_id).execute()
@@ -205,17 +243,6 @@ def fetch_record_from_id(supabase_client, table_name, record_id, user_id = st.se
     except Exception as e:
         logging.exception(f"Database error in fetch_all_records_from_view: {e}")
         raise
-
-def to_money(amount):
-    getcontext().prec = 28
-    MONEY_QUANTIZE    = Decimal('0.01')  # 2 decimal places
-    CURRENCY_ROUNDING = ROUND_HALF_UP
-
-    if amount is None:
-        decimal_amount = Decimal(0)
-    else:
-        decimal_amount = Decimal(str(amount))
-    return decimal_amount.quantize(MONEY_QUANTIZE, rounding=CURRENCY_ROUNDING)
 
 def money_to_string(amount):
 
