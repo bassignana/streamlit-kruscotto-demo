@@ -699,7 +699,7 @@ def render_generic_xml_upload_section(supabase_client, user_id):
     )
 
     if uploaded_files:
-        st.info(f"{len(uploaded_files)} file pronti per il caricamento.")
+        st.toast(f"{len(uploaded_files)} file pronti per il caricamento.")
 
         col1, col2 = st.columns([1, 3])
 

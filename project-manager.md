@@ -156,7 +156,7 @@ BRAKING:
 [] remove all time.sleep with spinners and for sure don't give the success message early
    otherwise if the user will click outside of the page while the operation is still 
    pending, the op will be canceled!!
-[] Casse modify does not work
+[x] Casse modify does not work
 [] In the annulla button I have to implement the refetch: it is easier to implement and right now
    the state management is broken, so that when I save and fail a control and click annulla, the 
    broken state will be used.
@@ -176,7 +176,7 @@ Riunione 5 settembre:
 - categorie tipologia movimenti:  stipendi netti, contributi previdenziali, ...
 - analisi > analisi IMPOSTE: 
 - alert IVA: soglia statica 
-- Colonna anomalie o riga in rosso
+[x] Colonna anomalie o riga in rosso
 - CSV per caricare automaticamente tanti movimenti
 [x] font grande (IMPOSSIBILE), colonna sx, font grassetto intestazione (IMPOSSIBILE)
 [x] fatture / movimenti: correggere totali, fatture 'ad oggi' rimuovere. sost: saldo
