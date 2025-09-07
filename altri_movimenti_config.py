@@ -12,7 +12,6 @@ altri_movimenti_config = {
                     - int: all integer number, STILL NOT USED IN THE PROJECT
                     - money: appropriate datatype for handling precision, ops and rounding
                     - date
-                    - bool
                     I should not have any floating point number outside of money
         
         'required': True, Required for both the table and forms, visualizations, etc...
@@ -48,26 +47,24 @@ altri_movimenti_config = {
         'data_type': 'string',
         'required': False,
         'label': 'Tipologia Movimento',
+        # 'placeholder': 'es. 09876543210',
         'help': 'Categoria del movimento attivo',
     },
     'ma_cliente': {
         'data_type': 'string',
         'required': False,
         'label': 'Denominazione Cliente',
+        # 'placeholder': 'es. 09876543210',
         'help': 'Denominazione del cliente',
     },
-    'ma_attesa_fattura': {
-        'data_type': 'boolean',
-        'required': False,
-        'label': 'Attesa Fattura',
-        'help': 'Il movimento genererà una fattura emessa',
-    },
+
 
 
     'mp_numero': {
         'data_type': 'string',
         'required': True,
         'label': 'Numero Movimento Passivo',
+        # 'placeholder': 'es. 2024-001',
         'help': 'Numero identificativo del movimento',
     },
     'mp_data': {
@@ -86,20 +83,17 @@ altri_movimenti_config = {
         'data_type': 'string',
         'required': False,
         'label': 'Tipologia Movimento',
+        # 'placeholder': 'es. 09876543210',
         'help': 'Categoria del movimento passivo',
     },
     'mp_fornitore': {
         'data_type': 'string',
         'required': False,
         'label': 'Denominazione Fornitore',
+        # 'placeholder': 'es. 09876543210',
         'help': 'Denominazione del cliente',
     },
-    'mp_attesa_fattura': {
-        'data_type': 'boolean',
-        'required': False,
-        'label': 'Attesa Fattura',
-        'help': 'Al movimento corrisponderà una fattura ricevuta',
-    },
+
 
 
     'c_nome_cassa': {
