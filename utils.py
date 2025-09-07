@@ -391,10 +391,15 @@ def remove_prefix(col_name, prefixes):
     return col_name  # Return original if no prefix found
 
 def format_italian_currency(val):
-    """Italian currency: 1.250,50"""
+    """Italian currency: 1.250,50
+
+    Usage:
+    df = df.style.format({
+     'Importo Totale': format_italian_currency,
+     })
+    """
     if pd.isna(val):
         return "0,00"
     formatted = f"{val:,.2f}"
     formatted = formatted.replace(',', 'TEMP').replace('.', ',').replace('TEMP', '.')
     return f"{formatted}"
-

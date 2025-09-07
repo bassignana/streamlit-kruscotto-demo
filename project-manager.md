@@ -162,6 +162,7 @@ BRAKING:
    broken state will be used.
 [] In the uploader I have to insert a rerun if I want to update the tables, but doing so will make almost
    impossible to read the summaries and warnings
+[x] Screen!
 
 [] RIUNIONE: visuallizzazione tab caricamento xml: tab, expander, cosi' : tab upload fatture
 []           metric sx grafico: cambiare titoli e metric

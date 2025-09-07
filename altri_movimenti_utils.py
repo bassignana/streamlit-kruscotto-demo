@@ -7,7 +7,8 @@ from dateutil.relativedelta import relativedelta
 from config import uppercase_prefixes, technical_fields
 from invoice_utils import render_field_widget
 from utils import extract_prefixed_field_names, get_standard_column_config, fetch_all_records_from_view, \
-    fetch_record_from_id, to_money, are_all_required_fields_present, remove_prefix, fetch_all_records
+    fetch_record_from_id, to_money, are_all_required_fields_present, remove_prefix, fetch_all_records, \
+    format_italian_currency
 
 
 #
@@ -615,17 +616,11 @@ def render_movimenti_crud_page(supabase_client, user_id,
                 df_vis = df_vis.drop([tech_field], axis = 1)
         df_vis.columns = [remove_prefix(col, uppercase_prefixes) for col in df_vis.columns]
 
-        def format_italian_currency(val):
-            """Italian currency: 1.250,50"""
-            if pd.isna(val):
-                return "0,00"
-            formatted = f"{val:,.2f}"
-            formatted = formatted.replace(',', 'TEMP').replace('.', ',').replace('TEMP', '.')
-            return f"{formatted}"
-        #
-        # df = df.style.format({
-        #     'Importo Totale': format_italian_currency,
-        # })
+        column_config = {}
+        if table_name == 'movimenti_passivi':
+            column_config['Tipo'] = st.column_config.SelectboxColumn(
+                "Tipo",
+                options=["IMPOSTA"])
 
         # For now it is impossible to have anomalie in altri movimenti.
         # df_vis['Anomalie'] = df_vis['Numero'].apply(lambda x: 'Presenti' if x in anomalies else 'No')
@@ -634,6 +629,7 @@ def render_movimenti_crud_page(supabase_client, user_id,
                                  selection_mode = 'single-row',
                                  on_select='rerun',
                                  hide_index = True,
+                                 column_config=column_config,
                                  key = table_name + 'selection_df')
 
         col1, col2, col3, space = st.columns([1,1,1,4])

@@ -59,6 +59,7 @@ def main():
         altri_movimenti_manage = st.Page("altri_movimenti_manage.py", title="Altri Movimenti", icon=":material/book_2:")
 
         flussi_di_cassa = st.Page("cash_flow.py", title="Flussi di Cassa", icon=":material/payments:")
+        analisi_imposte = st.Page("analisi_imposte.py", title="Analisi Imposte", icon=":material/receipt:")
 
         profile = st.Page("page_profile.py", title="Utente", icon=":material/account_circle:")
         anagrafica_azienda = st.Page("page_anagrafica_azienda.py", title="Azienda", icon=":material/enterprise:")
@@ -70,7 +71,7 @@ def main():
             {
             # "Sommario": [overview],
             "Documenti": [fatture_manage, altri_movimenti_manage],
-            "Analisi": [flussi_di_cassa],
+            "Analisi": [flussi_di_cassa, analisi_imposte],
             "Profilo": [profile, anagrafica_azienda],
             "Contatti": [feedback],
 
