@@ -216,6 +216,7 @@ CREATE TABLE public.movimenti_attivi (
                                          ma_importo_totale numeric NOT NULL,
                                          ma_tipo varchar,
                                          ma_cliente varchar,
+                                         ma_attesa_fattura bool DEFAULT FALSE,
                                          created_at timestamp with time zone DEFAULT now(),
                                          updated_at timestamp with time zone DEFAULT now(),
                                          CONSTRAINT movimenti_attivi_pkey PRIMARY KEY (id)
@@ -263,6 +264,7 @@ CREATE TABLE public.movimenti_passivi (
                                          mp_importo_totale numeric NOT NULL,
                                          mp_tipo varchar,
                                          mp_fornitore varchar,
+                                         mp_attesa_fattura bool DEFAULT FALSE,
                                          created_at timestamp with time zone DEFAULT now(),
                                          updated_at timestamp with time zone DEFAULT now(),
                                          CONSTRAINT movimenti_passivi_pkey PRIMARY KEY (id)
@@ -1357,7 +1359,8 @@ SELECT
     ma.ma_tipo as ma_tipo,
     ROUND(ma.ma_importo_totale::numeric, 2) AS ma_importo_totale,
     COALESCE(pa.totale_pagato, 0.00) AS v_pagato,
-    COALESCE(pa.totale_saldo, 0.00) AS v_saldo
+    COALESCE(pa.totale_saldo, 0.00) AS v_saldo,
+    ma.ma_attesa_fattura as ma_attesa_fattura
 
 FROM movimenti_attivi ma
          LEFT JOIN payment_aggregates pa ON (
@@ -1415,7 +1418,8 @@ SELECT
     mp.mp_tipo as mp_tipo,
     ROUND(mp.mp_importo_totale::numeric, 2) AS mp_importo_totale,
     COALESCE(pa.totale_pagato, 0.00) AS v_pagato,
-    COALESCE(pa.totale_saldo, 0.00) AS v_saldo
+    COALESCE(pa.totale_saldo, 0.00) AS v_saldo,
+    mp.mp_attesa_fattura as mp_attesa_fattura
 
 FROM movimenti_passivi mp
          LEFT JOIN payment_aggregates pa ON (

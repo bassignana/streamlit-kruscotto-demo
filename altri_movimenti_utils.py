@@ -216,7 +216,6 @@ def render_delete_modal(supabase_client, table_name, selected_row, rate_prefix, 
         if st.button("Conferma Eliminazione", type="primary",
                      key = table_name + '_delete_modal_button'):
             try:
-                st.write(selected_row)
                 with st.spinner("Eliminazione in corso..."):
                     record_id = selected_row['id']
 
