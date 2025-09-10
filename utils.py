@@ -251,7 +251,7 @@ def money_to_string(amount):
 
     return str(amount)
 
-def render_field_widget(field_name, field_config, default_value = None, key_suffix = "", disabled = False):
+def render_field_widget(field_name, field_config, default_value = None, key_suffix = "", disabled = False, index = 0):
     """Render appropriate SINGLE input widget based on field configuration"""
 
     field_type = field_config.get('data_type', 'string')
@@ -264,42 +264,26 @@ def render_field_widget(field_name, field_config, default_value = None, key_suff
     if required:
         label += " *"
 
-    # String fields
     if field_type == 'string':
-        widget_type = field_config.get('widget', 'text_input')
-
-        if widget_type == 'textarea':
-            return st.text_area(
+        return st.text_input(
+            label,
+            value=default_value or "",
+            key=widget_key,
+            placeholder=field_config.get('placeholder'),
+            help=help_text,
+            disabled=disabled
+        )
+    elif field_type == 'selectbox':
+        options = field_config.get('options', ['Missing options in config file'])
+        return st.selectbox(
                 label,
-                value=default_value or "",
-                key=widget_key,
-                help=help_text,
-                disabled=disabled
-            )
-        elif widget_type == 'selectbox' and field_config.get('options'):
-            options = field_config['options']
-            index = 0
-            if default_value and default_value in options:
-                index = options.index(default_value)
-            return st.selectbox(
-                label,
+                index = index,
                 options=options,
-                index=index,
                 key=widget_key,
-                help=help_text,
-                disabled=disabled
-            )
-        else:
-            return st.text_input(
-                label,
-                value=default_value or "",
-                key=widget_key,
-                placeholder=field_config.get('placeholder'),
                 help=help_text,
                 disabled=disabled
             )
 
-    # Numeric fields
     elif field_type == 'money':
         value = 0.00
         if default_value is not None:
@@ -328,7 +312,6 @@ def render_field_widget(field_name, field_config, default_value = None, key_suff
             disabled=disabled
         )
 
-    # Date fields
     elif field_type == 'date':
         if default_value:
             if isinstance(default_value, str):

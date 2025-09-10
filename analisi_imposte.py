@@ -1,13 +1,8 @@
-from decimal import Decimal, ROUND_HALF_UP
-import plotly.graph_objects as go
 import streamlit as st
 
 from config import uppercase_prefixes
-from utils import setup_page, get_df_metric, remove_prefix
+from utils import setup_page, remove_prefix
 import pandas as pd
-
-from altri_movimenti_config import altri_movimenti_config
-from altri_movimenti_utils import render_movimenti_crud_page
 
 def main():
     user_id, supabase_client, page_can_render = setup_page("Gestione Altri Movimenti")
@@ -23,7 +18,7 @@ def main():
                 st.warning("Nessuna imposta presente nei movimenti passivi")
             else:
 
-                soglia = st.number_input('Soglia imposta X', value = 50, disabled = True, width = 100)
+                soglia = st.number_input('Soglia imposta X', value = 60, disabled = True, width = 100)
 
                 df = pd.DataFrame(result.data)
                 df.columns = [

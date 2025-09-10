@@ -13,7 +13,10 @@ altri_movimenti_config = {
                     - money: appropriate datatype for handling precision, ops and rounding
                     - date
                     I should not have any floating point number outside of money
-        
+                    - selectbox: HACK: unique datatype for creating a dropdown menu with options.
+                        - movimenti_passivi_types
+                        - movimenti_attivi_types
+        'options': list of options to give to type selectbox
         'required': True, Required for both the table and forms, visualizations, etc...
         'placeholder': placeholder text that is displayed where you type values
         'help': text displayed when hovering over '?' symbol in some components
@@ -21,6 +24,7 @@ altri_movimenti_config = {
     },
 }
 """
+from config import mp_tipo_options, ma_tipo_options
 
 altri_movimenti_config = {
 
@@ -44,17 +48,16 @@ altri_movimenti_config = {
         'help': 'Importo totale del movimento in Euro',
     },
     'ma_tipo': {
-        'data_type': 'string',
+        'data_type': 'selectbox',
+        'options': ma_tipo_options,
         'required': False,
         'label': 'Tipologia Movimento',
-        # 'placeholder': 'es. 09876543210',
         'help': 'Categoria del movimento attivo',
     },
     'ma_cliente': {
         'data_type': 'string',
         'required': False,
         'label': 'Denominazione Cliente',
-        # 'placeholder': 'es. 09876543210',
         'help': 'Denominazione del cliente',
     },
 
@@ -80,17 +83,16 @@ altri_movimenti_config = {
         'help': 'Importo totale del movimento in Euro',
     },
     'mp_tipo': {
-        'data_type': 'string',
+        'data_type': 'selectbox',
+        'options': mp_tipo_options,
         'required': False,
         'label': 'Tipologia Movimento',
-        # 'placeholder': 'es. 09876543210',
         'help': 'Categoria del movimento passivo',
     },
     'mp_fornitore': {
         'data_type': 'string',
         'required': False,
         'label': 'Denominazione Fornitore',
-        # 'placeholder': 'es. 09876543210',
         'help': 'Denominazione del cliente',
     },
 

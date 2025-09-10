@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timedelta
 from decimal import Decimal, getcontext, ROUND_HALF_UP
 from dateutil.relativedelta import relativedelta
-from config import uppercase_prefixes, technical_fields
+from config import uppercase_prefixes, technical_fields, ma_tipo_options, mp_tipo_options
 from invoice_utils import render_field_widget
 from utils import extract_prefixed_field_names, get_standard_column_config, fetch_all_records_from_view, \
     fetch_record_from_id, to_money, are_all_required_fields_present, remove_prefix, fetch_all_records, \
@@ -217,7 +217,6 @@ def render_delete_modal(supabase_client, table_name, selected_row, rate_prefix, 
         if st.button("Conferma Eliminazione", type="primary",
                      key = table_name + '_delete_modal_button'):
             try:
-                st.write(selected_row)
                 with st.spinner("Eliminazione in corso..."):
                     record_id = selected_row['id']
 
@@ -313,10 +312,24 @@ def render_modify_modal(supabase_client, table_name, fields_config, selected_id,
             with cols[i % 2]:
                 if field_name in sql_table_fields_names:
                     record_value = selected_row_parent_data.get(field_name, None)
-                    form_data[field_name] = render_field_widget(
-                        field_name, field_config, record_value,
-                        key_suffix=f"modify_{table_name}"
-                    )
+                    # Since in their infinite intelligence they decided that for selecting a value
+                    # from the dropdown menu I need to pass its index, instead of the value itself(!),
+                    # I need to add this branch.
+                    if field_name == 'ma_tipo':
+                        form_data[field_name] = render_field_widget(
+                            field_name, field_config, index=ma_tipo_options.index(record_value),
+                            key_suffix=f"modify_{table_name}"
+                        )
+                    elif field_name == 'mp_tipo':
+                        form_data[field_name] = render_field_widget(
+                            field_name, field_config, index=mp_tipo_options.index(record_value),
+                            key_suffix=f"modify_{table_name}"
+                        )
+                    else:
+                        form_data[field_name] = render_field_widget(
+                            field_name, field_config, record_value,
+                            key_suffix=f"modify_{table_name}"
+                        )
 
         col1, col2 = st.columns([1, 1])
 
