@@ -5,7 +5,6 @@ import streamlit as st
 from dateutil.relativedelta import relativedelta
 from invoice_xml_mapping import XML_FIELD_MAPPING
 from config import technical_fields, uppercase_prefixes
-from invoice_utils import render_generic_xml_upload_section
 from utils import setup_page, money_to_string, to_money, fetch_all_records_from_view, extract_prefixed_field_names, \
     render_field_widget, are_all_required_fields_present, remove_prefix, extract_field_names, fetch_record_from_id, \
     fetch_all_records, get_standard_column_config, format_italian_currency, get_df_metric
@@ -877,7 +876,8 @@ def main():
     user_id, supabase_client, page_can_render = setup_page("Gestione Fatture")
 
     if page_can_render:
-        sommario, emesse, ricevute, upload = st.tabs(["Sommario", "Fatture Emesse", "Fatture Ricevute", "Carica Fatture"])
+        # sommario, emesse, ricevute, upload = st.tabs(["Sommario", "Fatture Emesse", "Fatture Ricevute", "Carica Fatture"])
+        sommario, emesse, ricevute = st.tabs(["Sommario", "Fatture Emesse", "Fatture Ricevute"])
 
         with sommario:
 
@@ -934,8 +934,8 @@ def main():
                                      'rfr_',
                                      XML_FIELD_MAPPING)
 
-        with upload:
-            render_generic_xml_upload_section(supabase_client, user_id)
+        # with upload:
+        #     render_generic_xml_upload_section(supabase_client, user_id)
 
 
 

@@ -55,6 +55,7 @@ def main():
 
         overview = st.Page("page_overview.py", title="Sommario Fatture", icon=":material/search:")
 
+        upload = st.Page("invoice_uploader.py", title="Carica Fatture", icon=":material/upload:")
         fatture_manage = st.Page("invoice_manage.py", title="Fatture", icon=":material/book_2:")
         altri_movimenti_manage = st.Page("altri_movimenti_manage.py", title="Altri Movimenti", icon=":material/book_2:")
 
@@ -70,7 +71,7 @@ def main():
         pg = st.navigation(
             {
             # "Sommario": [overview],
-            "Documenti": [fatture_manage, altri_movimenti_manage],
+            "Documenti": [upload, fatture_manage, altri_movimenti_manage],
             "Analisi": [flussi_di_cassa, analisi_imposte],
             "Profilo": [profile, anagrafica_azienda],
             "Contatti": [feedback],

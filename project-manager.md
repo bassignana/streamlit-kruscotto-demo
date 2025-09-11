@@ -165,9 +165,10 @@ BRAKING:
 [] Screen!
 [] Movimenti > when creating terms with rapid config, then changing the edited df removing one of the 
    amounts, then click auto division, the df is not updated!
-[] Same thing above when update the fattura attesa!
-[] When I add a new entry in the altri movimenti df, I get the old selection index data in the terms df
-[] I HAVE TO FIX ALL OF THESE BUGS IN FATTURE ALSO
+   I think that this I cannot fix since it probably is a problem with the internal state of the streamlit component.
+[x] Same thing above when update the fattura attesa!
+[x] When I add a new entry in the altri movimenti df, I get the old selection index data in the terms df
+[x] Fix the two above bugs in fatture page
 [] When there are no active or passive things, in the flussi di cassa I have an error and an ugly situation.
    I have to check the whole app and see what happens when there are no data or just active stuff or just passive 
    stuff
