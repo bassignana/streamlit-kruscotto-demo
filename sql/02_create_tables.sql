@@ -1363,7 +1363,7 @@ SELECT
 
     ma.ma_tipo as ma_tipo,
     ROUND(ma.ma_importo_totale::numeric, 2) AS ma_importo_totale,
-    COALESCE(pa.totale_pagato, 0.00) AS v_pagato,
+    COALESCE(pa.totale_pagato, 0.00) AS v_incassato,
     COALESCE(pa.totale_saldo, 0.00) AS v_saldo
 
 FROM movimenti_attivi ma

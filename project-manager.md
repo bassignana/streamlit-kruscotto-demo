@@ -172,6 +172,8 @@ BRAKING:
 [] When there are no active or passive things, in the flussi di cassa I have an error and an ugly situation.
    I have to check the whole app and see what happens when there are no data or just active stuff or just passive 
    stuff
+[] Check that in movimenti, when I add a movement, then i modify its import, the term is not updated 
+   and there is no warning that I have a discrepancy!
 
 [] RIUNIONE: visuallizzazione tab caricamento xml: tab, expander, cosi' : tab upload fatture
 []           metric sx grafico: cambiare titoli e metric

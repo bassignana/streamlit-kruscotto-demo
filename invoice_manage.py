@@ -609,13 +609,28 @@ def render_invoice_crud_page(supabase_client, user_id,
                 df_vis = df_vis.drop([tech_field], axis = 1)
         df_vis.columns = [remove_prefix(col, uppercase_prefixes) for col in df_vis.columns]
 
-        df_vis['Anomalie'] = df_vis['Numero Fattura'].apply(lambda x: 'Presenti' if x in anomalies else 'No')
+        df_vis['Anomalie'] = df_vis['Numero Fattura'].apply(lambda x: 'Scadenze Incongruenti' if x in anomalies else 'No')
+
+        if table_name == 'fatture_emesse':
+            money_columns = ['Importo Totale Documento', 'Incassato', 'Saldo']
+        elif table_name == 'fatture_ricevute':
+            money_columns = ['Importo Totale Documento', 'Pagato', 'Saldo']
+        else:
+            raise Exception("Column identification: wrong table name?")
+        column_config = {}
+        for col in df_vis.columns:
+            if col in money_columns:
+                column_config[col] = st.column_config.NumberColumn(
+                    label=col,
+                    format="localized",
+                )
 
         selection = st.dataframe(df_vis, use_container_width=True,
                                  selection_mode = 'single-row',
                                  on_select='rerun',
                                  hide_index = True,
-                                 key = table_name + 'selection_df')
+                                 key = table_name + 'selection_df',
+                                 column_config=column_config)
 
         col1, col2, col3, space = st.columns([1,1,1,4])
         with col1:
@@ -848,7 +863,7 @@ def render_invoice_crud_page(supabase_client, user_id,
                                 st.session_state[terms_key] = up_to_date_terms
                                 st.rerun()
                 with c3:
-                    with st.popover("Verifica, Salva o Annulla"):
+                    with st.popover("Salva o Annulla"):
                         save = st.button("Salva  ", type='primary', key = table_name + '_save_terms', use_container_width=True)
                         cancel = st.button('Annulla', key = table_name + '_cancel_terms', use_container_width=True)
 
@@ -894,6 +909,13 @@ def main():
                 ]
                 df = df.set_index(df.columns[0])
 
+                column_config = {}
+                for col in df.columns:
+                    column_config[col] = st.column_config.NumberColumn(
+                            label=col,
+                            format="localized",
+                            width = 60
+                    )
 
                 c1, c2 = st.columns([1,3])
 
@@ -910,7 +932,7 @@ def main():
                     fig = create_monthly_invoices_summary_chart(df.to_dict(), show_amounts=False)
                     st.plotly_chart(fig)
 
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(df, use_container_width=True, column_config=column_config)
 
                 different_year_attivi = supabase_client.table('fatture_emesse').select('*') \
                     .or_('fe_data_documento.lt.2025-01-01,fe_data_documento.gt.2025-12-31').execute()

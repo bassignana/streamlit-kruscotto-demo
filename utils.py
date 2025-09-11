@@ -31,7 +31,14 @@ def get_df_metric(label, amount):
         # styler = df.style
         # styler.applymap_index(lambda v: "font-weight: bold;", axis="index")
 
-        st.dataframe(df, hide_index = True)
+        column_config = {}
+        for col in df.columns:
+            column_config[col] = st.column_config.NumberColumn(
+                label=col,
+                format="localized",
+            )
+
+        st.dataframe(df, hide_index = True, column_config=column_config)
 
 
 # Ugly version.

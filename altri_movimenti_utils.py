@@ -652,10 +652,32 @@ def render_movimenti_crud_page(supabase_client, user_id,
         if table_name == 'movimenti_passivi':
             column_config['Tipo'] = st.column_config.SelectboxColumn(
                 "Tipo",
-                options=["IMPOSTA"])
+                options=["IMPOSTA"]) # TODO; fix this static options
+
+        # TODO; below
+        # options = fetch_all_records_from_view(supabase_client, 'casse_options')
+        # cleaned_options = [d.get('cassa') for d in options]
+        #
+        # column_config['Nome Cassa'] = st.column_config.SelectboxColumn(
+        #     "Cassa",
+        #     options=cleaned_options)
 
         # For now it is impossible to have anomalie in altri movimenti.
         # df_vis['Anomalie'] = df_vis['Numero'].apply(lambda x: 'Presenti' if x in anomalies else 'No')
+
+        if table_name == 'movimenti_attivi':
+            money_columns = ['Importo Totale', 'Incassato', 'Saldo']
+        elif table_name == 'movimenti_passivi':
+            money_columns = ['Importo Totale', 'Pagato', 'Saldo']
+        else:
+            raise Exception("Column identification: wrong table name?")
+        column_config = {}
+        for col in df_vis.columns:
+            if col in money_columns:
+                column_config[col] = st.column_config.NumberColumn(
+                    label=col,
+                    format="localized",
+                )
 
         selection = st.dataframe(df_vis, use_container_width=True,
                                  selection_mode = 'single-row',
@@ -910,7 +932,7 @@ def render_movimenti_crud_page(supabase_client, user_id,
                                 st.session_state[terms_key] = up_to_date_terms
                                 st.rerun()
                 with c3:
-                    with st.popover("Verifica, Salva o Annulla"):
+                    with st.popover("Salva o Annulla"):
                         save = st.button("Salva  ", type='primary', key = table_name + '_save_terms', use_container_width=True)
                         cancel = st.button('Annulla', key = table_name + '_cancel_terms', use_container_width=True)
 
