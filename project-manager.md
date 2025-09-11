@@ -162,7 +162,15 @@ BRAKING:
    broken state will be used.
 [] In the uploader I have to insert a rerun if I want to update the tables, but doing so will make almost
    impossible to read the summaries and warnings
-[x] Screen!
+[] Screen!
+[] Movimenti > when creating terms with rapid config, then changing the edited df removing one of the 
+   amounts, then click auto division, the df is not updated!
+[] Same thing above when update the fattura attesa!
+[] When I add a new entry in the altri movimenti df, I get the old selection index data in the terms df
+[] I HAVE TO FIX ALL OF THESE BUGS IN FATTURE ALSO
+[] When there are no active or passive things, in the flussi di cassa I have an error and an ugly situation.
+   I have to check the whole app and see what happens when there are no data or just active stuff or just passive 
+   stuff
 
 [] RIUNIONE: visuallizzazione tab caricamento xml: tab, expander, cosi' : tab upload fatture
 []           metric sx grafico: cambiare titoli e metric

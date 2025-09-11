@@ -146,7 +146,7 @@ def auto_split_payment_invoice(importo_totale_documento: Decimal, num_installmen
 
 def save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
                        config, invoice_key, supabase_client, table_name,
-                       backup_terms_key, document_not_nullable_fields):
+                       backup_terms_key, document_not_nullable_fields, are_terms_updated):
     if len(edited) == 0:
         st.warning('Impossibile salvare una fattura senza scadenze di pagamento. '
                    'Inserire delle nuove scadenze o cliccare su Annulla per scartare '
@@ -230,7 +230,7 @@ def save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
 
                 # I've tested it quicly, it seems to work.
                 st.session_state[backup_terms_key] = terms
-
+                st.session_state[are_terms_updated] = True
                 st.rerun()
             else:
                 st.error(f'Errore nel salvataggio: {result}')
@@ -533,8 +533,9 @@ def render_invoice_crud_page(supabase_client, user_id,
     terms_key = table_name + '_terms'
     backup_terms_key = table_name + '_backup_terms'
     selection_key = table_name + table_name + '_selected_invoice'
+    are_terms_updated = table_name + '_are_terms_updated'
 
-    # Selected invoice is only used for knowing when to refetch data
+# Selected invoice is only used for knowing when to refetch data
     # from the terms table when the user changes selection.
     if selection_key not in st.session_state:
         st.session_state[selection_key] = None
@@ -553,7 +554,10 @@ def render_invoice_crud_page(supabase_client, user_id,
     if backup_terms_key not in st.session_state:
         st.session_state[backup_terms_key] = None
 
-
+    # This is for rerunning the piece of code that will update the terms that go into the
+    # terms df viewer after having saved them into the database.
+    if are_terms_updated not in st.session_state:
+        st.session_state[are_terms_updated] = False
 
 
 
@@ -706,7 +710,8 @@ def render_invoice_crud_page(supabase_client, user_id,
                     rate_prefix + 'partita_iva_prestatore': piva_prestatore
                 }
 
-                if st.session_state[terms_key] is None or st.session_state[selection_key] != selection:
+                if st.session_state[terms_key] is None or st.session_state[selection_key] != numero_documento \
+                        or st.session_state[are_terms_updated] == True:
                     try:
                         result = supabase_client.table('rate_' + table_name).select('*').eq('user_id', user_id) \
                             .eq(rate_prefix + 'numero_fattura', numero_documento) \
@@ -723,7 +728,9 @@ def render_invoice_crud_page(supabase_client, user_id,
                             }
                             existing_terms.append(term)
                         st.session_state[terms_key] = existing_terms
-                        st.session_state[selection_key] = selection
+                        st.session_state[selection_key] = numero_documento
+                        st.session_state[are_terms_updated] = False
+
                         # This try should be triggered only on the first loading or when I change selection
                         # so it should be safe to reset the existing terms here.
                         st.session_state[backup_terms_key] = existing_terms
@@ -849,7 +856,7 @@ def render_invoice_crud_page(supabase_client, user_id,
                 if save:
                     save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_documento,
                                         config, document_key, supabase_client, table_name, backup_terms_key,
-                                       document_not_nullable_fields)
+                                       document_not_nullable_fields, are_terms_updated)
                 if cancel:
                     # NOTE IMPORTANT: for some reason, if I do
                     # st.session_state[terms_key] = st.session_state[backup_terms_key],

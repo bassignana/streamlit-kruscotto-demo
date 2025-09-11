@@ -8,5 +8,5 @@ technical_fields = ['Id', 'User Id', 'Created At', 'Updated At']
 #
 # Also, since I want to avoid creating movements with Null as the value due to some errors
 # that might occour, but without touching the tables for now, keep the Altro option first.
-ma_tipo_options = ['Altro','Ordini']
-mp_tipo_options = ['Altro','IMPOSTA']
+ma_tipo_options = ['Altro', 'Ordini', 'Iva']
+mp_tipo_options = ['Altro', 'Iva', 'Salari e Stipendi (netti)', 'Contributi Previdenziali', 'Contributi Fiscali']

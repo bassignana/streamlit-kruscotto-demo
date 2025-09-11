@@ -376,6 +376,14 @@ def render_modify_modal(supabase_client, table_name, fields_config, selected_id,
 
 def auto_split_payment_movement(importo_totale_documento: Decimal, num_installments, start_date,
                                 rate_prefix, interval_days = 30):
+    """
+    In theory this is for initializing a new set of terms, but since users will use this to add things fast
+    to already initialized movements.
+    I tried to preserve current_terms information as much as possible but it cannot be done since I will
+    not know where to insert the new terms.
+    """
+
+
     # Precision 28 is different from decimal places!
     # I need to keep high precision to be able to handle float conversion
     # correctly. Then I can use quantize to force decimal places to two.
@@ -397,18 +405,20 @@ def auto_split_payment_movement(importo_totale_documento: Decimal, num_installme
             installment_amount = amount_per_installment
             total_allocated += installment_amount
         term = {
-
             rate_prefix + 'data_scadenza':  datetime.strptime(start_date, '%Y-%m-%d').date() + timedelta(days=interval_days * (i + 1)),
             rate_prefix + 'importo_pagamento': installment_amount,
             rate_prefix + 'nome_cassa': '',
             rate_prefix + 'notes': f'Rata {i + 1} di {num_installments}',
-            rate_prefix + 'data_pagamento': None  # Not paid yet
+            rate_prefix + 'data_pagamento': None,  # Not paid yet
+            rate_prefix + 'fattura_attesa': 'Nessuna'
         }
         terms.append(term)
 
     return terms
 
-def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento, config, movement_key, supabase_client, table_name, backup_terms_key):
+def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
+                        config, movement_key, supabase_client, table_name,
+                        backup_terms_key, are_terms_updated):
     if len(edited) == 0:
         st.warning('Impossibile salvare un movimento senza scadenze di pagamento. '
                    'Inserire delle nuove scadenze o cliccare su Annulla per scartare '
@@ -498,7 +508,10 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
                 # I've tested it quicly, it seems to work.
                 st.session_state[backup_terms_key] = terms
 
-                time.sleep(2)
+                # TODO: if the above works, maybe i can just update the terms here instead of fetching them twice.
+                #  I have to just remove all the state are_terms_updated and assign the new terms to the current terms key
+                st.session_state[are_terms_updated] = True
+
                 st.rerun()
             else:
                 st.error(f'Errore nel salvataggio: {result}')
@@ -549,6 +562,7 @@ def render_movimenti_crud_page(supabase_client, user_id,
     terms_key = table_name + '_terms'
     backup_terms_key = table_name + '_backup_terms'
     selection_key = table_name + table_name + '_selected_movement'
+    are_terms_updated = table_name + '_are_terms_updated'
 
     # Selected movement is only used for knowing when to refetch data
     # from the terms table when the user changes selection.
@@ -568,6 +582,11 @@ def render_movimenti_crud_page(supabase_client, user_id,
     # to the terms of the new selection.
     if backup_terms_key not in st.session_state:
         st.session_state[backup_terms_key] = None
+
+    # This is for rerunning the piece of code that will update the terms that go into the
+    # terms df viewer after having saved them into the database.
+    if are_terms_updated not in st.session_state:
+        st.session_state[are_terms_updated] = False
 
 
 
@@ -698,7 +717,6 @@ def render_movimenti_crud_page(supabase_client, user_id,
             #  or at least give a label to the selection column.
 
             if selection.selection['rows']:
-
                 selected_index = selection.selection['rows'][0]
                 record_data = movimenti_data[selected_index]
                 numero_documento = record_data[prefix + 'numero']
@@ -727,7 +745,12 @@ def render_movimenti_crud_page(supabase_client, user_id,
                     rate_prefix + 'data': data_documento
                 }
 
-                if st.session_state[terms_key] is None or st.session_state[selection_key] != selection:
+                # I update the terms when: there are no terms (first page load), I've selected another term,
+                # I've saved and updated the terms.
+                # if st.session_state[terms_key] is None or st.session_state[selection_key] != selection \
+                #         or st.session_state[are_terms_updated] == True:
+                if st.session_state[terms_key] is None or st.session_state[selection_key] != numero_documento \
+                        or st.session_state[are_terms_updated] == True:
                     try:
                         result = supabase_client.table('rate_' + table_name).select('*').eq('user_id', user_id) \
                             .eq(rate_prefix + 'numero', numero_documento) \
@@ -740,15 +763,27 @@ def render_movimenti_crud_page(supabase_client, user_id,
                                 rate_prefix + 'data_pagamento': datetime.strptime(row[rate_prefix + 'data_pagamento'], '%Y-%m-%d').date() if row[rate_prefix + 'data_pagamento'] else None,
                                 rate_prefix + 'importo_pagamento': float(row[rate_prefix + 'importo_pagamento']),
                                 rate_prefix + 'nome_cassa': row[rate_prefix + 'nome_cassa'] or '',
+                                rate_prefix + 'fattura_attesa': row[rate_prefix + 'fattura_attesa'] or '',
                                 rate_prefix + 'notes': row[rate_prefix + 'notes'] or '',
                             }
                             existing_terms.append(term)
                         st.session_state[terms_key] = existing_terms
-                        st.session_state[selection_key] = selection
+                        st.session_state[selection_key] = numero_documento
+                        st.session_state[are_terms_updated] = False
+
                         # This try should be triggered only on the first loading or when I change selection
                         # so it should be safe to reset the existing terms here.
                         st.session_state[backup_terms_key] = existing_terms
                     except Exception as e:
+                        #
+                        #
+                        #
+                        #
+                        # TODO; NOTE THAT I LOOSE ALMOsT ALL ERROR MSG EVEN WITH e! or str(e)
+                        #
+                        #
+                        #
+                        #
                         st.error(f"Errore nel caricamento dei termini: {str(e)}")
 
                 # st.write(st.session_state[terms_key])
@@ -779,39 +814,27 @@ def render_movimenti_crud_page(supabase_client, user_id,
 
                 options = fetch_all_records_from_view(supabase_client, 'casse_options')
                 cleaned_options = [d.get('cassa') for d in options]
-                # st.write(cleaned_options)
                 column_config['Nome Cassa'] = st.column_config.SelectboxColumn(
                     "Cassa",
                     options=cleaned_options)
 
+                column_config['Fattura Attesa'] = st.column_config.SelectboxColumn(
+                    'Fattura Attesa',
+                    options=['Nessuna','In Attesa','Ricevuta'])
+
                 column_config['Notes'] = st.column_config.TextColumn("Note")
 
-                # todo: why this assignment?
-                # terms_df = terms_df.style.format({
-                #     'Importo Pagamento': format_italian_currency,
-                # })
                 terms_df.style.format({
                     'Importo Pagamento': format_italian_currency,
                 })
 
 
                 # editing_enabled = st.toggle('Modifica Tabella', key = table_name + '_toggle')
+                # dynamic_key = table_name + '_terms_df_' + str(hash(t.to_csv()))
 
-                column_order = ['Data Scadenza', 'Data Pagamento', 'Importo Pagamento', 'Nome Cassa', 'Notes']
-
-                # @st.fragment
-                # def payment_terms_editor(terms_df, column_config, table_name):
-                #     """Isolated fragment for the data editor, otherwise the first
-                #         save click does not work!"""
-                #     return st.data_editor(terms_df,
-                #                           key=table_name + '_terms_df',
-                #                           column_config=column_config,
-                #                           hide_index=True,
-                #                           num_rows='dynamic',
-                #                           column_order = column_order)
-                # edited = payment_terms_editor(terms_df, column_config, table_name)
-
+                column_order = ['Data Scadenza', 'Data Pagamento', 'Importo Pagamento', 'Nome Cassa', 'Fattura Attesa', 'Notes']
                 edited =  st.data_editor(terms_df,
+                                          # key=dynamic_key,
                                           key=table_name + '_terms_df',
                                           column_config=column_config,
                                           hide_index=True,
@@ -859,7 +882,6 @@ def render_movimenti_crud_page(supabase_client, user_id,
                         else:
                             _edited = edited.copy()
                             _edited.columns = [rate_prefix + col.replace(' ','_').lower() for col in _edited.columns]
-
                             up_to_date_terms = []
                             for k,v in _edited.T.to_dict().items():
                                 up_to_date_terms.append(v)
@@ -894,7 +916,8 @@ def render_movimenti_crud_page(supabase_client, user_id,
 
                 if save:
                     save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
-                                        config, movement_key, supabase_client, table_name, backup_terms_key)
+                                        config, movement_key, supabase_client, table_name,
+                                        backup_terms_key, are_terms_updated)
                 if cancel:
                     # NOTE IMPORTANT: for some reason, if I do
                     # st.session_state[terms_key] = st.session_state[backup_terms_key],

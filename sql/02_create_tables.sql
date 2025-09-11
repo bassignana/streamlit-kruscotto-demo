@@ -243,6 +243,7 @@ CREATE TABLE public.rate_movimenti_attivi (
                                               rma_nome_cassa varchar,
                                               rma_iban_cassa varchar,
                                               rma_notes text,
+                                              rma_fattura_attesa varchar,
                                               created_at timestamp with time zone DEFAULT now(),
                                               updated_at timestamp with time zone DEFAULT now(),
                                               CONSTRAINT rma_pkey PRIMARY KEY (id),
@@ -290,6 +291,7 @@ CREATE TABLE public.rate_movimenti_passivi (
                                               rmp_nome_cassa varchar,
                                               rmp_iban_cassa varchar,
                                               rmp_notes text,
+                                              rmp_fattura_attesa varchar,
                                               created_at timestamp with time zone DEFAULT now(),
                                               updated_at timestamp with time zone DEFAULT now(),
                                               CONSTRAINT rmp_pkey PRIMARY KEY (id),
@@ -806,142 +808,144 @@ SELECT
 FROM unpaid_invoices;
 
 
-
 DROP VIEW IF EXISTS active_cashflow_next_12_months_groupby_casse;
 CREATE VIEW active_cashflow_next_12_months_groupby_casse WITH (security_invoker = true) AS
-    WITH
+WITH
     date_calc AS (
-    SELECT
-    CURRENT_DATE AS today,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day' AS m1_end, -- current month
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '2 months' - INTERVAL '1 day' AS m2_end,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '3 months' - INTERVAL '1 day' AS m3_end,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '4 months' - INTERVAL '1 day' AS m4_end,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '5 months' - INTERVAL '1 day' AS m5_end,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '6 months' - INTERVAL '1 day' AS m6_end,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 months' - INTERVAL '1 day' AS m7_end,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '8 months' - INTERVAL '1 day' AS m8_end,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '9 months' - INTERVAL '1 day' AS m9_end,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '10 months' - INTERVAL '1 day' AS m10_end,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '11 months' - INTERVAL '1 day' AS m11_end,
-    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '12 months' - INTERVAL '1 day' AS m12_end
-),
+        SELECT
+                    CURRENT_DATE AS today,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day' AS m1_end, -- current month
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '2 months' - INTERVAL '1 day' AS m2_end,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '3 months' - INTERVAL '1 day' AS m3_end,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '4 months' - INTERVAL '1 day' AS m4_end,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '5 months' - INTERVAL '1 day' AS m5_end,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '6 months' - INTERVAL '1 day' AS m6_end,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 months' - INTERVAL '1 day' AS m7_end,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '8 months' - INTERVAL '1 day' AS m8_end,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '9 months' - INTERVAL '1 day' AS m9_end,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '10 months' - INTERVAL '1 day' AS m10_end,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '11 months' - INTERVAL '1 day' AS m11_end,
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '12 months' - INTERVAL '1 day' AS m12_end
+    ),
 
     unpaid AS (
-    SELECT
-    rfe_data_scadenza_pagamento,
-    rfe_importo_pagamento_rata,
-    rfe_nome_cassa,
-    rfe_iban_cassa,
-    dc.*,
-    rfe_data_scadenza_pagamento < dc.today AS is_overdue,
-    dc.today - rfe_data_scadenza_pagamento AS overdue_days,
-    COALESCE(
-    c.c_descrizione_cassa,
-    NULLIF(TRIM(rfe_nome_cassa), ''),
-    NULLIF(TRIM(rfe_iban_cassa), ''),
-    'Non specificato'
-) AS cassa
-    FROM rate_fatture_emesse rfe
-    CROSS JOIN date_calc dc
-    LEFT JOIN casse c ON (
-    c.user_id = rfe.user_id
-    AND COALESCE(NULLIF(TRIM(c.c_nome_cassa), ''), '') = COALESCE(NULLIF(TRIM(rfe.rfe_nome_cassa), ''), '')
-    AND COALESCE(NULLIF(TRIM(c.c_iban_cassa), ''), '') = COALESCE(NULLIF(TRIM(rfe.rfe_iban_cassa), ''), '')
-)
-    WHERE rfe_data_pagamento_rata IS NULL AND rfe.user_id = auth.uid()
+        SELECT
+            rfe_data_scadenza_pagamento,
+            rfe_importo_pagamento_rata,
+            rfe_nome_cassa,
+            rfe_iban_cassa,
+            dc.*,
+            rfe_data_scadenza_pagamento < dc.today AS is_overdue,
+            dc.today - rfe_data_scadenza_pagamento AS overdue_days,
+            COALESCE(
+                    c.c_descrizione_cassa,
+                    NULLIF(TRIM(rfe_nome_cassa), ''),
+                    NULLIF(TRIM(rfe_iban_cassa), ''),
+                    'Non specificato'
+            ) AS cassa
+        FROM rate_fatture_emesse rfe
+                 CROSS JOIN date_calc dc
+                 LEFT JOIN casse c ON (
+            c.user_id = rfe.user_id
+                AND COALESCE(NULLIF(TRIM(c.c_nome_cassa), ''), '') = COALESCE(NULLIF(TRIM(rfe.rfe_nome_cassa), ''), '')
+                AND COALESCE(NULLIF(TRIM(c.c_iban_cassa), ''), '') = COALESCE(NULLIF(TRIM(rfe.rfe_iban_cassa), ''), '')
+            )
+        WHERE rfe_data_pagamento_rata IS NULL AND rfe.user_id = auth.uid()
 
-    UNION ALL
+        UNION ALL
 
-    SELECT
-    rma_data_scadenza AS rfe_data_scadenza_pagamento,
-    rma_importo_pagamento AS rfe_importo_pagamento_rata,
-    rma_nome_cassa AS rfe_nome_cassa,
-    rma_iban_cassa AS rfe_iban_cassa,
-    dc.*,
-    rma_data_scadenza < dc.today AS is_overdue,
-    dc.today - rma_data_scadenza AS overdue_days,
-    COALESCE(
-    c.c_descrizione_cassa,
-    NULLIF(TRIM(rma_nome_cassa), ''),
-    NULLIF(TRIM(rma_iban_cassa), ''),
-    'Non specificato'
-) AS cassa
-    FROM rate_movimenti_attivi rma
-    CROSS JOIN date_calc dc
-    LEFT JOIN casse c ON (
-    c.user_id = rma.user_id
-    AND COALESCE(NULLIF(TRIM(c.c_nome_cassa), ''), '') = COALESCE(NULLIF(TRIM(rma.rma_nome_cassa), ''), '')
-    AND COALESCE(NULLIF(TRIM(c.c_iban_cassa), ''), '') = COALESCE(NULLIF(TRIM(rma.rma_iban_cassa), ''), '')
-)
-    WHERE rma_data_pagamento IS NULL AND rma.user_id = auth.uid()
-),
+        SELECT
+            rma_data_scadenza AS rfe_data_scadenza_pagamento,
+            rma_importo_pagamento AS rfe_importo_pagamento_rata,
+            rma_nome_cassa AS rfe_nome_cassa,
+            rma_iban_cassa AS rfe_iban_cassa,
+            dc.*,
+            rma_data_scadenza < dc.today AS is_overdue,
+            dc.today - rma_data_scadenza AS overdue_days,
+            COALESCE(
+                    c.c_descrizione_cassa,
+                    NULLIF(TRIM(rma_nome_cassa), ''),
+                    NULLIF(TRIM(rma_iban_cassa), ''),
+                    'Non specificato'
+            ) AS cassa
+        FROM rate_movimenti_attivi rma
+                 CROSS JOIN date_calc dc
+                 LEFT JOIN casse c ON (
+            c.user_id = rma.user_id
+                AND COALESCE(NULLIF(TRIM(c.c_nome_cassa), ''), '') = COALESCE(NULLIF(TRIM(rma.rma_nome_cassa), ''), '')
+                AND COALESCE(NULLIF(TRIM(c.c_iban_cassa), ''), '') = COALESCE(NULLIF(TRIM(rma.rma_iban_cassa), ''), '')
+            )
+        WHERE rma_data_pagamento IS NULL AND rma.user_id = auth.uid()
+        -- business logic: if I have already got an invoice for that term, then It will show up already in the
+        -- rate_fatture_*, so I remove it from here so that I don't count it twice
+        AND rma_fattura_attesa != 'Ricevuta'
+    ),
 
     cassa_data AS (
-    SELECT
-    cassa,
-    CASE
-    WHEN cassa = 'Non specificato' THEN '2_'
-    ELSE '1_'
-    END || cassa AS sort_key,
+        SELECT
+            cassa,
+            CASE
+                WHEN cassa = 'Non specificato' THEN '2_'
+                ELSE '1_'
+                END || cassa AS sort_key,
 
-    -- Future collections
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento <= m1_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS settembre,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m1_end AND rfe_data_scadenza_pagamento <= m2_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS ottobre,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m2_end AND rfe_data_scadenza_pagamento <= m3_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS novembre,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m3_end AND rfe_data_scadenza_pagamento <= m4_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS dicembre,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m4_end AND rfe_data_scadenza_pagamento <= m5_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS gennaio,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m5_end AND rfe_data_scadenza_pagamento <= m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS febbraio,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m6_end AND rfe_data_scadenza_pagamento <= m7_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS marzo,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m7_end AND rfe_data_scadenza_pagamento <= m8_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS aprile,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m8_end AND rfe_data_scadenza_pagamento <= m9_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS maggio,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m9_end AND rfe_data_scadenza_pagamento <= m10_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS giugno,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end AND rfe_data_scadenza_pagamento <= m11_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS luglio,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m11_end AND rfe_data_scadenza_pagamento <= m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS agosto,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_oltre,
+            -- Future collections
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento <= m1_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS settembre,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m1_end AND rfe_data_scadenza_pagamento <= m2_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS ottobre,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m2_end AND rfe_data_scadenza_pagamento <= m3_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS novembre,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m3_end AND rfe_data_scadenza_pagamento <= m4_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS dicembre,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m4_end AND rfe_data_scadenza_pagamento <= m5_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS gennaio,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m5_end AND rfe_data_scadenza_pagamento <= m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS febbraio,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m6_end AND rfe_data_scadenza_pagamento <= m7_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS marzo,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m7_end AND rfe_data_scadenza_pagamento <= m8_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS aprile,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m8_end AND rfe_data_scadenza_pagamento <= m9_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS maggio,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m9_end AND rfe_data_scadenza_pagamento <= m10_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS giugno,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end AND rfe_data_scadenza_pagamento <= m11_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS luglio,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m11_end AND rfe_data_scadenza_pagamento <= m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS agosto,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_oltre,
 
-    -- Overdue collections
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre
+            -- Overdue collections
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre
 
-    -- Totals
-    --ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_incassare,
-    --ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_scaduti,
-    --ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2) AS totale_generale
-    FROM unpaid
-    GROUP BY cassa
+        -- Totals
+        --ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_incassare,
+        --ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_scaduti,
+        --ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2) AS totale_generale
+        FROM unpaid
+        GROUP BY cassa
 
-    UNION ALL
+        UNION ALL
 
-    -- Totals row
-    SELECT
-    'Totali' AS cassa,
-    '3_Totali' AS sort_key,
+        -- Totals row
+        SELECT
+            'Totali' AS cassa,
+            '3_Totali' AS sort_key,
 
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento <= m1_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m1_end AND rfe_data_scadenza_pagamento <= m2_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m2_end AND rfe_data_scadenza_pagamento <= m3_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m3_end AND rfe_data_scadenza_pagamento <= m4_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m4_end AND rfe_data_scadenza_pagamento <= m5_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m5_end AND rfe_data_scadenza_pagamento <= m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m6_end AND rfe_data_scadenza_pagamento <= m7_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m7_end AND rfe_data_scadenza_pagamento <= m8_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m8_end AND rfe_data_scadenza_pagamento <= m9_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m9_end AND rfe_data_scadenza_pagamento <= m10_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end AND rfe_data_scadenza_pagamento <= m11_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m11_end AND rfe_data_scadenza_pagamento <= m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento <= m1_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m1_end AND rfe_data_scadenza_pagamento <= m2_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m2_end AND rfe_data_scadenza_pagamento <= m3_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m3_end AND rfe_data_scadenza_pagamento <= m4_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m4_end AND rfe_data_scadenza_pagamento <= m5_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m5_end AND rfe_data_scadenza_pagamento <= m6_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m6_end AND rfe_data_scadenza_pagamento <= m7_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m7_end AND rfe_data_scadenza_pagamento <= m8_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m8_end AND rfe_data_scadenza_pagamento <= m9_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m9_end AND rfe_data_scadenza_pagamento <= m10_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end AND rfe_data_scadenza_pagamento <= m11_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m11_end AND rfe_data_scadenza_pagamento <= m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 
-    -- Overdue collections
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2)
+            -- Overdue collections
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2)
 
-    FROM unpaid
-)
+        FROM unpaid
+    )
 SELECT
     cassa,
     settembre, ottobre, novembre, dicembre, gennaio, febbraio,
@@ -1020,6 +1024,9 @@ CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker
     AND COALESCE(NULLIF(TRIM(c.c_iban_cassa), ''), '') = COALESCE(NULLIF(TRIM(rmp.rmp_iban_cassa), ''), '')
 )
     WHERE rmp_data_pagamento IS NULL AND rmp.user_id = auth.uid()
+      -- business logic: if I have already got an invoice for that term, then It will show up already in the
+      -- rate_fatture_*, so I remove it from here so that I don't count it twice
+      AND rmp_fattura_attesa != 'Ricevuta'
 ),
 
     cassa_data AS (
@@ -1430,148 +1437,265 @@ ORDER BY
 
 
 -- Shows monthly totals for sales invoices, purchase invoices, and balance
-DROP VIEW IF EXISTS monthly_invoice_summary;
-CREATE VIEW monthly_invoice_summary
-       WITH (security_invoker = true) AS
-WITH monthly_sales AS (
-    SELECT
-        EXTRACT(MONTH FROM fe_data_documento) AS mese,
-        ROUND(SUM(fe_importo_totale_documento)::numeric, 2) AS importo_vendite
-    FROM fatture_emesse
-    WHERE EXTRACT(YEAR FROM fe_data_documento) = EXTRACT(YEAR FROM CURRENT_DATE)
-          AND user_id = auth.uid()
-    GROUP BY EXTRACT(MONTH FROM fe_data_documento)
-),
-monthly_purchases AS (
-    SELECT
-        EXTRACT(MONTH FROM fr_data_documento) AS mese,
-        ROUND(SUM(fr_importo_totale_documento)::numeric, 2) AS importo_acquisti
-    FROM fatture_ricevute
-    WHERE EXTRACT(YEAR FROM fr_data_documento) = EXTRACT(YEAR FROM CURRENT_DATE)
-          AND user_id = auth.uid()
-    GROUP BY EXTRACT(MONTH FROM fr_data_documento)
-),
-combined_data AS (
-    SELECT
-        COALESCE(s.mese, p.mese, m.mese) AS mese,
-        COALESCE(s.importo_vendite, 0) AS vendite,
-        COALESCE(p.importo_acquisti, 0) AS acquisti,
-        COALESCE(s.importo_vendite, 0) - COALESCE(p.importo_acquisti, 0) AS saldo
-    FROM (SELECT generate_series(1, 12) AS mese) m
-    FULL OUTER JOIN monthly_sales s ON m.mese = s.mese
-    FULL OUTER JOIN monthly_purchases p ON m.mese = p.mese
-)
-SELECT
-    tipo_fattura,
-    ROUND(COALESCE(gennaio, 0.00)::numeric, 2) AS gennaio,
-    ROUND(COALESCE(febbraio, 0.00)::numeric, 2) AS febbraio,
-    ROUND(COALESCE(marzo, 0.00)::numeric, 2) AS marzo,
-    ROUND(COALESCE(aprile, 0.00)::numeric, 2) AS aprile,
-    ROUND(COALESCE(maggio, 0.00)::numeric, 2) AS maggio,
-    ROUND(COALESCE(giugno, 0.00)::numeric, 2) AS giugno,
-    ROUND(COALESCE(luglio, 0.00)::numeric, 2) AS luglio,
-    ROUND(COALESCE(agosto, 0.00)::numeric, 2) AS agosto,
-    ROUND(COALESCE(settembre, 0.00)::numeric, 2) AS settembre,
-    ROUND(COALESCE(ottobre, 0.00)::numeric, 2) AS ottobre,
-    ROUND(COALESCE(novembre, 0.00)::numeric, 2) AS novembre,
-    ROUND(COALESCE(dicembre, 0.00)::numeric, 2) AS dicembre
---     ROUND((COALESCE(gennaio, 0) + COALESCE(febbraio, 0) + COALESCE(marzo, 0) + COALESCE(aprile, 0) +
---            COALESCE(maggio, 0) + COALESCE(giugno, 0) + COALESCE(luglio, 0) + COALESCE(agosto, 0) +
---            COALESCE(settembre, 0) + COALESCE(ottobre, 0) + COALESCE(novembre, 0) + COALESCE(dicembre, 0))::numeric, 2) AS totale_anno
-FROM (
-         -- Sales invoices row
-         SELECT
-             'Fatture Emesse' AS tipo_fattura,
-             SUM(CASE WHEN mese = 1 THEN vendite ELSE 0 END) AS gennaio,
-             SUM(CASE WHEN mese = 2 THEN vendite ELSE 0 END) AS febbraio,
-             SUM(CASE WHEN mese = 3 THEN vendite ELSE 0 END) AS marzo,
-             SUM(CASE WHEN mese = 4 THEN vendite ELSE 0 END) AS aprile,
-             SUM(CASE WHEN mese = 5 THEN vendite ELSE 0 END) AS maggio,
-             SUM(CASE WHEN mese = 6 THEN vendite ELSE 0 END) AS giugno,
-             SUM(CASE WHEN mese = 7 THEN vendite ELSE 0 END) AS luglio,
-             SUM(CASE WHEN mese = 8 THEN vendite ELSE 0 END) AS agosto,
-             SUM(CASE WHEN mese = 9 THEN vendite ELSE 0 END) AS settembre,
-             SUM(CASE WHEN mese = 10 THEN vendite ELSE 0 END) AS ottobre,
-             SUM(CASE WHEN mese = 11 THEN vendite ELSE 0 END) AS novembre,
-             SUM(CASE WHEN mese = 12 THEN vendite ELSE 0 END) AS dicembre,
-             1 AS ordine
-         FROM combined_data
-
-         UNION ALL
-
-         -- Purchase invoices row
-         SELECT
-             'Fatture Ricevute' AS tipo_fattura,
-             SUM(CASE WHEN mese = 1 THEN acquisti ELSE 0 END) AS gennaio,
-             SUM(CASE WHEN mese = 2 THEN acquisti ELSE 0 END) AS febbraio,
-             SUM(CASE WHEN mese = 3 THEN acquisti ELSE 0 END) AS marzo,
-             SUM(CASE WHEN mese = 4 THEN acquisti ELSE 0 END) AS aprile,
-             SUM(CASE WHEN mese = 5 THEN acquisti ELSE 0 END) AS maggio,
-             SUM(CASE WHEN mese = 6 THEN acquisti ELSE 0 END) AS giugno,
-             SUM(CASE WHEN mese = 7 THEN acquisti ELSE 0 END) AS luglio,
-             SUM(CASE WHEN mese = 8 THEN acquisti ELSE 0 END) AS agosto,
-             SUM(CASE WHEN mese = 9 THEN acquisti ELSE 0 END) AS settembre,
-             SUM(CASE WHEN mese = 10 THEN acquisti ELSE 0 END) AS ottobre,
-             SUM(CASE WHEN mese = 11 THEN acquisti ELSE 0 END) AS novembre,
-             SUM(CASE WHEN mese = 12 THEN acquisti ELSE 0 END) AS dicembre,
-             2 AS ordine
-         FROM combined_data
-
-         UNION ALL
-
-         -- Balance row (Sales - Purchases)
-         SELECT
-             'Saldo' AS tipo_fattura,
-             SUM(CASE WHEN mese = 1 THEN saldo ELSE 0 END) AS gennaio,
-             SUM(CASE WHEN mese = 2 THEN saldo ELSE 0 END) AS febbraio,
-             SUM(CASE WHEN mese = 3 THEN saldo ELSE 0 END) AS marzo,
-             SUM(CASE WHEN mese = 4 THEN saldo ELSE 0 END) AS aprile,
-             SUM(CASE WHEN mese = 5 THEN saldo ELSE 0 END) AS maggio,
-             SUM(CASE WHEN mese = 6 THEN saldo ELSE 0 END) AS giugno,
-             SUM(CASE WHEN mese = 7 THEN saldo ELSE 0 END) AS luglio,
-             SUM(CASE WHEN mese = 8 THEN saldo ELSE 0 END) AS agosto,
-             SUM(CASE WHEN mese = 9 THEN saldo ELSE 0 END) AS settembre,
-             SUM(CASE WHEN mese = 10 THEN saldo ELSE 0 END) AS ottobre,
-             SUM(CASE WHEN mese = 11 THEN saldo ELSE 0 END) AS novembre,
-             SUM(CASE WHEN mese = 12 THEN saldo ELSE 0 END) AS dicembre,
-             3 AS ordine
-         FROM combined_data
-     ) summary
-ORDER BY ordine;
+-- DROP VIEW IF EXISTS monthly_invoice_summary;
+-- CREATE VIEW monthly_invoice_summary
+--        WITH (security_invoker = true) AS
+-- WITH monthly_sales AS (
+--     SELECT
+--         EXTRACT(MONTH FROM fe_data_documento) AS mese,
+--         ROUND(SUM(fe_importo_totale_documento)::numeric, 2) AS importo_vendite
+--     FROM fatture_emesse
+--     WHERE EXTRACT(YEAR FROM fe_data_documento) = EXTRACT(YEAR FROM CURRENT_DATE)
+--           AND user_id = auth.uid()
+--     GROUP BY EXTRACT(MONTH FROM fe_data_documento)
+-- ),
+-- monthly_purchases AS (
+--     SELECT
+--         EXTRACT(MONTH FROM fr_data_documento) AS mese,
+--         ROUND(SUM(fr_importo_totale_documento)::numeric, 2) AS importo_acquisti
+--     FROM fatture_ricevute
+--     WHERE EXTRACT(YEAR FROM fr_data_documento) = EXTRACT(YEAR FROM CURRENT_DATE)
+--           AND user_id = auth.uid()
+--     GROUP BY EXTRACT(MONTH FROM fr_data_documento)
+-- ),
+-- combined_data AS (
+--     SELECT
+--         COALESCE(s.mese, p.mese, m.mese) AS mese,
+--         COALESCE(s.importo_vendite, 0) AS vendite,
+--         COALESCE(p.importo_acquisti, 0) AS acquisti,
+--         COALESCE(s.importo_vendite, 0) - COALESCE(p.importo_acquisti, 0) AS saldo
+--     FROM (SELECT generate_series(1, 12) AS mese) m
+--     FULL OUTER JOIN monthly_sales s ON m.mese = s.mese
+--     FULL OUTER JOIN monthly_purchases p ON m.mese = p.mese
+-- )
+-- SELECT
+--     tipo_fattura,
+--     ROUND(COALESCE(gennaio, 0.00)::numeric, 2) AS gennaio,
+--     ROUND(COALESCE(febbraio, 0.00)::numeric, 2) AS febbraio,
+--     ROUND(COALESCE(marzo, 0.00)::numeric, 2) AS marzo,
+--     ROUND(COALESCE(aprile, 0.00)::numeric, 2) AS aprile,
+--     ROUND(COALESCE(maggio, 0.00)::numeric, 2) AS maggio,
+--     ROUND(COALESCE(giugno, 0.00)::numeric, 2) AS giugno,
+--     ROUND(COALESCE(luglio, 0.00)::numeric, 2) AS luglio,
+--     ROUND(COALESCE(agosto, 0.00)::numeric, 2) AS agosto,
+--     ROUND(COALESCE(settembre, 0.00)::numeric, 2) AS settembre,
+--     ROUND(COALESCE(ottobre, 0.00)::numeric, 2) AS ottobre,
+--     ROUND(COALESCE(novembre, 0.00)::numeric, 2) AS novembre,
+--     ROUND(COALESCE(dicembre, 0.00)::numeric, 2) AS dicembre
+-- --     ROUND((COALESCE(gennaio, 0) + COALESCE(febbraio, 0) + COALESCE(marzo, 0) + COALESCE(aprile, 0) +
+-- --            COALESCE(maggio, 0) + COALESCE(giugno, 0) + COALESCE(luglio, 0) + COALESCE(agosto, 0) +
+-- --            COALESCE(settembre, 0) + COALESCE(ottobre, 0) + COALESCE(novembre, 0) + COALESCE(dicembre, 0))::numeric, 2) AS totale_anno
+-- FROM (
+--          -- Sales invoices row
+--          SELECT
+--              'Fatture Emesse' AS tipo_fattura,
+--              SUM(CASE WHEN mese = 1 THEN vendite ELSE 0 END) AS gennaio,
+--              SUM(CASE WHEN mese = 2 THEN vendite ELSE 0 END) AS febbraio,
+--              SUM(CASE WHEN mese = 3 THEN vendite ELSE 0 END) AS marzo,
+--              SUM(CASE WHEN mese = 4 THEN vendite ELSE 0 END) AS aprile,
+--              SUM(CASE WHEN mese = 5 THEN vendite ELSE 0 END) AS maggio,
+--              SUM(CASE WHEN mese = 6 THEN vendite ELSE 0 END) AS giugno,
+--              SUM(CASE WHEN mese = 7 THEN vendite ELSE 0 END) AS luglio,
+--              SUM(CASE WHEN mese = 8 THEN vendite ELSE 0 END) AS agosto,
+--              SUM(CASE WHEN mese = 9 THEN vendite ELSE 0 END) AS settembre,
+--              SUM(CASE WHEN mese = 10 THEN vendite ELSE 0 END) AS ottobre,
+--              SUM(CASE WHEN mese = 11 THEN vendite ELSE 0 END) AS novembre,
+--              SUM(CASE WHEN mese = 12 THEN vendite ELSE 0 END) AS dicembre,
+--              1 AS ordine
+--          FROM combined_data
+--
+--          UNION ALL
+--
+--          -- Purchase invoices row
+--          SELECT
+--              'Fatture Ricevute' AS tipo_fattura,
+--              SUM(CASE WHEN mese = 1 THEN acquisti ELSE 0 END) AS gennaio,
+--              SUM(CASE WHEN mese = 2 THEN acquisti ELSE 0 END) AS febbraio,
+--              SUM(CASE WHEN mese = 3 THEN acquisti ELSE 0 END) AS marzo,
+--              SUM(CASE WHEN mese = 4 THEN acquisti ELSE 0 END) AS aprile,
+--              SUM(CASE WHEN mese = 5 THEN acquisti ELSE 0 END) AS maggio,
+--              SUM(CASE WHEN mese = 6 THEN acquisti ELSE 0 END) AS giugno,
+--              SUM(CASE WHEN mese = 7 THEN acquisti ELSE 0 END) AS luglio,
+--              SUM(CASE WHEN mese = 8 THEN acquisti ELSE 0 END) AS agosto,
+--              SUM(CASE WHEN mese = 9 THEN acquisti ELSE 0 END) AS settembre,
+--              SUM(CASE WHEN mese = 10 THEN acquisti ELSE 0 END) AS ottobre,
+--              SUM(CASE WHEN mese = 11 THEN acquisti ELSE 0 END) AS novembre,
+--              SUM(CASE WHEN mese = 12 THEN acquisti ELSE 0 END) AS dicembre,
+--              2 AS ordine
+--          FROM combined_data
+--
+--          UNION ALL
+--
+--          -- Balance row (Sales - Purchases)
+--          SELECT
+--              'Saldo' AS tipo_fattura,
+--              SUM(CASE WHEN mese = 1 THEN saldo ELSE 0 END) AS gennaio,
+--              SUM(CASE WHEN mese = 2 THEN saldo ELSE 0 END) AS febbraio,
+--              SUM(CASE WHEN mese = 3 THEN saldo ELSE 0 END) AS marzo,
+--              SUM(CASE WHEN mese = 4 THEN saldo ELSE 0 END) AS aprile,
+--              SUM(CASE WHEN mese = 5 THEN saldo ELSE 0 END) AS maggio,
+--              SUM(CASE WHEN mese = 6 THEN saldo ELSE 0 END) AS giugno,
+--              SUM(CASE WHEN mese = 7 THEN saldo ELSE 0 END) AS luglio,
+--              SUM(CASE WHEN mese = 8 THEN saldo ELSE 0 END) AS agosto,
+--              SUM(CASE WHEN mese = 9 THEN saldo ELSE 0 END) AS settembre,
+--              SUM(CASE WHEN mese = 10 THEN saldo ELSE 0 END) AS ottobre,
+--              SUM(CASE WHEN mese = 11 THEN saldo ELSE 0 END) AS novembre,
+--              SUM(CASE WHEN mese = 12 THEN saldo ELSE 0 END) AS dicembre,
+--              3 AS ordine
+--          FROM combined_data
+--      ) summary
+-- ORDER BY ordine;
+--
+--
+--
+-- DROP VIEW IF EXISTS monthly_altri_movimenti_summary_old;
+-- CREATE VIEW monthly_altri_movimenti_summary_old WITH (security_invoker = true) AS
+-- WITH
+-- monthly_sales AS (
+--     SELECT
+--         EXTRACT(MONTH FROM ma_data) AS mese,
+--         ROUND(SUM(ma_importo_totale)::numeric, 2) AS importo_vendite
+--     FROM movimenti_attivi
+--     WHERE EXTRACT(YEAR FROM ma_data) = EXTRACT(YEAR FROM CURRENT_DATE)
+--     AND user_id = auth.uid()
+--     GROUP BY EXTRACT(MONTH FROM ma_data)
+-- ),
+-- monthly_purchases AS (
+--     SELECT
+--         EXTRACT(MONTH FROM mp_data) AS mese,
+--         ROUND(SUM(mp_importo_totale)::numeric, 2) AS importo_acquisti
+--     FROM movimenti_passivi
+--     WHERE EXTRACT(YEAR FROM mp_data) = EXTRACT(YEAR FROM CURRENT_DATE)
+--     AND user_id = auth.uid()
+--     GROUP BY EXTRACT(MONTH FROM mp_data)
+-- ),
+-- combined_data AS (
+--     SELECT
+--         COALESCE(s.mese, p.mese, m.mese) AS mese,
+--         COALESCE(s.importo_vendite, 0) AS vendite,
+--         COALESCE(p.importo_acquisti, 0) AS acquisti,
+--         COALESCE(s.importo_vendite, 0) - COALESCE(p.importo_acquisti, 0) AS saldo
+--     FROM (SELECT generate_series(1, 12) AS mese) m
+--     FULL OUTER JOIN monthly_sales s ON m.mese = s.mese
+--     FULL OUTER JOIN monthly_purchases p ON m.mese = p.mese
+-- )
+-- SELECT
+--     tipo_movimento,
+--     ROUND(COALESCE(gennaio, 0.00)::numeric, 2) AS gennaio,
+--     ROUND(COALESCE(febbraio, 0.00)::numeric, 2) AS febbraio,
+--     ROUND(COALESCE(marzo, 0.00)::numeric, 2) AS marzo,
+--     ROUND(COALESCE(aprile, 0.00)::numeric, 2) AS aprile,
+--     ROUND(COALESCE(maggio, 0.00)::numeric, 2) AS maggio,
+--     ROUND(COALESCE(giugno, 0.00)::numeric, 2) AS giugno,
+--     ROUND(COALESCE(luglio, 0.00)::numeric, 2) AS luglio,
+--     ROUND(COALESCE(agosto, 0.00)::numeric, 2) AS agosto,
+--     ROUND(COALESCE(settembre, 0.00)::numeric, 2) AS settembre,
+--     ROUND(COALESCE(ottobre, 0.00)::numeric, 2) AS ottobre,
+--     ROUND(COALESCE(novembre, 0.00)::numeric, 2) AS novembre,
+--     ROUND(COALESCE(dicembre, 0.00)::numeric, 2) AS dicembre
+-- --     ROUND((COALESCE(gennaio, 0) + COALESCE(febbraio, 0) + COALESCE(marzo, 0) + COALESCE(aprile, 0) +
+-- --            COALESCE(maggio, 0) + COALESCE(giugno, 0) + COALESCE(luglio, 0) + COALESCE(agosto, 0) +
+-- --            COALESCE(settembre, 0) + COALESCE(ottobre, 0) + COALESCE(novembre, 0) + COALESCE(dicembre, 0))::numeric, 2) AS totale_anno
+-- FROM (
+--          -- Sales invoices row
+--          SELECT
+--              'Movimenti Attivi' AS tipo_movimento,
+--              SUM(CASE WHEN mese = 1 THEN vendite ELSE 0 END) AS gennaio,
+--              SUM(CASE WHEN mese = 2 THEN vendite ELSE 0 END) AS febbraio,
+--              SUM(CASE WHEN mese = 3 THEN vendite ELSE 0 END) AS marzo,
+--              SUM(CASE WHEN mese = 4 THEN vendite ELSE 0 END) AS aprile,
+--              SUM(CASE WHEN mese = 5 THEN vendite ELSE 0 END) AS maggio,
+--              SUM(CASE WHEN mese = 6 THEN vendite ELSE 0 END) AS giugno,
+--              SUM(CASE WHEN mese = 7 THEN vendite ELSE 0 END) AS luglio,
+--              SUM(CASE WHEN mese = 8 THEN vendite ELSE 0 END) AS agosto,
+--              SUM(CASE WHEN mese = 9 THEN vendite ELSE 0 END) AS settembre,
+--              SUM(CASE WHEN mese = 10 THEN vendite ELSE 0 END) AS ottobre,
+--              SUM(CASE WHEN mese = 11 THEN vendite ELSE 0 END) AS novembre,
+--              SUM(CASE WHEN mese = 12 THEN vendite ELSE 0 END) AS dicembre,
+--              1 AS ordine
+--          FROM combined_data
+--
+--          UNION ALL
+--
+--          -- Purchase invoices row
+--          SELECT
+--              'Movimenti Passivi' AS tipo_movimento,
+--              SUM(CASE WHEN mese = 1 THEN acquisti ELSE 0 END) AS gennaio,
+--              SUM(CASE WHEN mese = 2 THEN acquisti ELSE 0 END) AS febbraio,
+--              SUM(CASE WHEN mese = 3 THEN acquisti ELSE 0 END) AS marzo,
+--              SUM(CASE WHEN mese = 4 THEN acquisti ELSE 0 END) AS aprile,
+--              SUM(CASE WHEN mese = 5 THEN acquisti ELSE 0 END) AS maggio,
+--              SUM(CASE WHEN mese = 6 THEN acquisti ELSE 0 END) AS giugno,
+--              SUM(CASE WHEN mese = 7 THEN acquisti ELSE 0 END) AS luglio,
+--              SUM(CASE WHEN mese = 8 THEN acquisti ELSE 0 END) AS agosto,
+--              SUM(CASE WHEN mese = 9 THEN acquisti ELSE 0 END) AS settembre,
+--              SUM(CASE WHEN mese = 10 THEN acquisti ELSE 0 END) AS ottobre,
+--              SUM(CASE WHEN mese = 11 THEN acquisti ELSE 0 END) AS novembre,
+--              SUM(CASE WHEN mese = 12 THEN acquisti ELSE 0 END) AS dicembre,
+--              2 AS ordine
+--          FROM combined_data
+--
+--          UNION ALL
+--
+--          -- Balance row (Sales - Purchases)
+--          SELECT
+--              'Saldo' AS tipo_movimento,
+--              SUM(CASE WHEN mese = 1 THEN saldo ELSE 0 END) AS gennaio,
+--              SUM(CASE WHEN mese = 2 THEN saldo ELSE 0 END) AS febbraio,
+--              SUM(CASE WHEN mese = 3 THEN saldo ELSE 0 END) AS marzo,
+--              SUM(CASE WHEN mese = 4 THEN saldo ELSE 0 END) AS aprile,
+--              SUM(CASE WHEN mese = 5 THEN saldo ELSE 0 END) AS maggio,
+--              SUM(CASE WHEN mese = 6 THEN saldo ELSE 0 END) AS giugno,
+--              SUM(CASE WHEN mese = 7 THEN saldo ELSE 0 END) AS luglio,
+--              SUM(CASE WHEN mese = 8 THEN saldo ELSE 0 END) AS agosto,
+--              SUM(CASE WHEN mese = 9 THEN saldo ELSE 0 END) AS settembre,
+--              SUM(CASE WHEN mese = 10 THEN saldo ELSE 0 END) AS ottobre,
+--              SUM(CASE WHEN mese = 11 THEN saldo ELSE 0 END) AS novembre,
+--              SUM(CASE WHEN mese = 12 THEN saldo ELSE 0 END) AS dicembre,
+--              3 AS ordine
+--          FROM combined_data
+--      ) summary
+-- ORDER BY ordine;
 
 
 
 DROP VIEW IF EXISTS monthly_altri_movimenti_summary;
 CREATE VIEW monthly_altri_movimenti_summary WITH (security_invoker = true) AS
 WITH
-monthly_sales AS (
-    SELECT
-        EXTRACT(MONTH FROM ma_data) AS mese,
-        ROUND(SUM(ma_importo_totale)::numeric, 2) AS importo_vendite
-    FROM movimenti_attivi
-    WHERE EXTRACT(YEAR FROM ma_data) = EXTRACT(YEAR FROM CURRENT_DATE)
-    AND user_id = auth.uid()
-    GROUP BY EXTRACT(MONTH FROM ma_data)
-),
-monthly_purchases AS (
-    SELECT
-        EXTRACT(MONTH FROM mp_data) AS mese,
-        ROUND(SUM(mp_importo_totale)::numeric, 2) AS importo_acquisti
-    FROM movimenti_passivi
-    WHERE EXTRACT(YEAR FROM mp_data) = EXTRACT(YEAR FROM CURRENT_DATE)
-    AND user_id = auth.uid()
-    GROUP BY EXTRACT(MONTH FROM mp_data)
-),
-combined_data AS (
-    SELECT
-        COALESCE(s.mese, p.mese, m.mese) AS mese,
-        COALESCE(s.importo_vendite, 0) AS vendite,
-        COALESCE(p.importo_acquisti, 0) AS acquisti,
-        COALESCE(s.importo_vendite, 0) - COALESCE(p.importo_acquisti, 0) AS saldo
-    FROM (SELECT generate_series(1, 12) AS mese) m
-    FULL OUTER JOIN monthly_sales s ON m.mese = s.mese
-    FULL OUTER JOIN monthly_purchases p ON m.mese = p.mese
-)
+    monthly_sales AS (
+        SELECT
+            EXTRACT(MONTH FROM rma_data) AS mese,
+            ROUND(SUM(rma_importo_pagamento)::numeric, 2) AS importo_vendite
+        FROM rate_movimenti_attivi
+        WHERE EXTRACT(YEAR FROM rma_data) = EXTRACT(YEAR FROM CURRENT_DATE)
+          AND user_id = auth.uid()
+        -- Business constraint: unlike the summary of invoices, here I use the terms to understand
+        -- if a term has already received the invoice
+        AND (rma_fattura_attesa != 'Ricevuta' OR rma_fattura_attesa IS NULL)
+        GROUP BY EXTRACT(MONTH FROM rma_data)
+    ),
+    monthly_purchases AS (
+        SELECT
+            EXTRACT(MONTH FROM rmp_data) AS mese,
+            ROUND(SUM(rmp_importo_pagamento)::numeric, 2) AS importo_acquisti
+        FROM rate_movimenti_passivi
+        WHERE EXTRACT(YEAR FROM rmp_data) = EXTRACT(YEAR FROM CURRENT_DATE)
+          AND user_id = auth.uid()
+          -- Business constraint: unlike the summary of invoices, here I use the terms to understand
+          -- if a term has already received the invoice
+          AND (rmp_fattura_attesa != 'Ricevuta' OR rmp_fattura_attesa IS NULL)
+        GROUP BY EXTRACT(MONTH FROM rmp_data)
+    ),
+    combined_data AS (
+        SELECT
+            COALESCE(s.mese, p.mese, m.mese) AS mese,
+            COALESCE(s.importo_vendite, 0) AS vendite,
+            COALESCE(p.importo_acquisti, 0) AS acquisti,
+            COALESCE(s.importo_vendite, 0) - COALESCE(p.importo_acquisti, 0) AS saldo
+        FROM (SELECT generate_series(1, 12) AS mese) m
+                 FULL OUTER JOIN monthly_sales s ON m.mese = s.mese
+                 FULL OUTER JOIN monthly_purchases p ON m.mese = p.mese
+    )
 SELECT
     tipo_movimento,
     ROUND(COALESCE(gennaio, 0.00)::numeric, 2) AS gennaio,
@@ -1649,8 +1773,6 @@ FROM (
          FROM combined_data
      ) summary
 ORDER BY ordine;
-
-
 
 -- The final columns have to be named with the same name of
 -- public.casse fields, so that I can do the delete.

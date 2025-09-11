@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 import plotly.graph_objects as go
 import streamlit as st
@@ -155,7 +156,7 @@ def main():
 
     if page_can_render:
 
-        with sommario:
+        with (sommario):
             result = supabase_client.table('monthly_altri_movimenti_summary').select('*').execute()
 
             if not result.data:
@@ -187,16 +188,41 @@ def main():
 
                 st.dataframe(df, use_container_width=True)
 
+
+                avvisi = []
+                today_iso = date.today().isoformat()
+
                 different_year_attivi = supabase_client.table('movimenti_attivi').select('*') \
                     .or_('ma_data.lt.2025-01-01,ma_data.gt.2025-12-31').execute()
                 different_year_passivi = supabase_client.table('movimenti_passivi').select('*') \
                     .or_('mp_data.lt.2025-01-01,mp_data.gt.2025-12-31').execute()
 
                 if any([different_year_attivi.data, different_year_passivi.data]):
-                    with st.expander('Avvisi'):
-                        st.info("""Sono caricati movimenti con data diversa dall'anno 2025.
+                    avvisi.append("""Sono caricati movimenti con data diversa dall'anno 2025.
                      Nel TAB Sommario saranno mostrati solo i dati relativi all'anno corrente.""")
 
+                attivi_in_attesa = supabase_client.table('rate_movimenti_attivi').select('*') \
+                                    .eq('rma_fattura_attesa','In Attesa') \
+                                    .lt('rma_data_scadenza', today_iso).execute()
+                passivi_in_attesa = supabase_client.table('rate_movimenti_passivi').select('*') \
+                                    .eq('rmp_fattura_attesa','In Attesa') \
+                                    .lt('rmp_data_scadenza', today_iso).execute()
+
+                if attivi_in_attesa.data:
+                    for movement in attivi_in_attesa.data:
+                        movement_number = movement['rma_numero']
+                        term_date = movement['rma_data_scadenza']
+                    avvisi.append(f'La rata con data scadenza {term_date} del movimento attivo numero {movement_number} è ancora in attesa di fattura.')
+                if passivi_in_attesa.data:
+                    for movement in passivi_in_attesa.data:
+                        movement_number = movement['rmp_numero']
+                        term_date = movement['rmp_data_scadenza']
+                    avvisi.append(f'La rata con data scadenza {term_date} del movimento passivo numero {movement_number} è ancora in attesa di fattura.')
+
+                if avvisi:
+                    with st.expander('Avvisi'):
+                        for avviso in avvisi:
+                            st.warning(avviso)
 
         with attivi:
             render_movimenti_crud_page(supabase_client, user_id,
@@ -208,10 +234,6 @@ def main():
                                        'movimenti_passivi', 'mp_',
                                        'rmp_',
                                        altri_movimenti_config)
-
-
-
-
 
 
 if __name__ == '__main__':
