@@ -17,7 +17,7 @@ uv add 'streamlit==1.47.0'
 uv add 'pandas==2.3.0'
 uv add 'supabase==2.16'
 uv add 'plotly==6.2'
-
+uv add 'pytest==8.4.2'
 ```
 uv add 'streamlit-aggrid==1.1.7'
 

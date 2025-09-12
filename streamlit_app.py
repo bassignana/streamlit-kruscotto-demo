@@ -34,6 +34,7 @@ def init_supabase():
 
 
 def main():
+    # st.write(st.session_state)
     st.set_page_config(page_title="Kruscotto", page_icon="", layout="wide")
 
     supabase_client = init_supabase()
@@ -71,7 +72,7 @@ def main():
         pg = st.navigation(
             {
             # "Sommario": [overview],
-            "Documenti": [upload, fatture_manage, altri_movimenti_manage],
+            "Documenti": [fatture_manage, upload, altri_movimenti_manage],
             "Analisi": [flussi_di_cassa, analisi_imposte],
             "Profilo": [profile, anagrafica_azienda],
             "Contatti": [feedback],
