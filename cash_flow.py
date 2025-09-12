@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from utils import setup_page
+from utils import setup_page, fetch_all_records
+
 
 def get_cashflow_column_config(df_columns):
     column_config = {}
@@ -39,8 +40,69 @@ def get_cashflow_column_config(df_columns):
 
     return column_config
 
+def are_terms_total_congruent(supabase_client, table_name, user_id, prefix):
+
+    # Here I fetch data to be sure to have the most up to date data,
+    # but in the future this might be simplified.
+    check_documents = fetch_all_records(supabase_client, table_name, user_id)
+    check_terms = pd.DataFrame(fetch_all_records(supabase_client, 'rate_' + table_name, user_id))
+    errors = []
+
+    if 'fatture' in table_name:
+        for invoice in check_documents:
+
+            number_key = invoice[prefix + 'numero_fattura']
+            date_key = invoice[prefix + 'data_documento']
+
+            i_terms = check_terms[(check_terms['r' + prefix + 'numero_fattura'] == number_key) & \
+                                  (check_terms['r' + prefix + 'data_documento'] == date_key)]
+
+
+            total_i = invoice[prefix + 'importo_totale_documento']
+            total_i_terms = i_terms['r' + prefix + 'importo_pagamento_rata'].sum()
+
+            if total_i != total_i_terms:
+                errors.append((f'La fattura numero {number_key}, in data {date_key} ha un importo '
+                           f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
+                           f'totale di {total_i_terms} Euro.'))
+
+        return errors
+
+    elif 'movimenti' in table_name:
+        for movement in check_documents:
+
+            number_key = movement[prefix + 'numero']
+            date_key = movement[prefix + 'data']
+
+            i_terms = check_terms[(check_terms['r' + prefix + 'numero'] == number_key) & \
+                                  (check_terms['r' + prefix + 'data'] == date_key)]
+
+
+            total_i = movement[prefix + 'importo_totale']
+            total_i_terms = i_terms['r' + prefix + 'importo_pagamento'].sum()
+
+            if total_i != total_i_terms:
+                errors.append((f'Il movimento numero {number_key}, in data {date_key} ha un importo '
+                               f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
+                               f'totale di {total_i_terms} Euro.'))
+
+        return errors
+
+    else:
+        raise Exception("Check terms congruency: table name not supported")
+
+
 def main():
     user_id, supabase_client, page_can_render = setup_page("Gestione Altri Movimenti")
+
+    active_errors = are_terms_total_congruent(supabase_client, 'fatture_emesse', user_id, 'fe_')
+    passive_errors = are_terms_total_congruent(supabase_client, 'fatture_ricevute', user_id, 'fr_')
+    discrepancy_errors = active_errors + passive_errors
+    if any(discrepancy_errors):
+        with st.expander('Errori Gravi', expanded = True):
+            st.error('Le cifre in questa pagina saranno errate fino a quando gli errori qui sotto non verranno corretti.')
+            for e in discrepancy_errors:
+                st.warning(e)
 
     active_result = supabase_client.table('active_cashflow_next_12_months_groupby_casse').select('*').execute()
     passive_result = supabase_client.table('passive_cashflow_next_12_months_groupby_casse').select('*').execute()

@@ -172,10 +172,16 @@ BRAKING:
 [] When there are no active or passive things, in the flussi di cassa I have an error and an ugly situation.
    I have to check the whole app and see what happens when there are no data or just active stuff or just passive 
    stuff
-[] Check that in movimenti, when I add a movement, then i modify its import, the term is not updated 
+[x] Check that in movimenti, when I add a movement, then i modify its import, the term is not updated 
    and there is no warning that I have a discrepancy!
 [] Fatture ricevute > modify > i cannot modify the PIVA of fornitore!
-[] Check I have "scadenze incongruenti" but no alert is appearing under the summary
+[x] Check I have "scadenze incongruenti" but no alert is appearing under the summary.
+[] There are a couple of manual things: 
+   - the month in cashflow is not dynamic
+   - this (movimenti e fatture): different_year_attivi = supabase_client.table('fatture_emesse').select('*') \
+    .or_('fe_data_documento.lt.2025-01-01,fe_data_documento.gt.2025-12-31').execute()
+      different_year_passivi = supabase_client.table('fatture_ricevute').select('*') \
+    .or_('fr_data_documento.lt.2025-01-01,fr_data_documento.gt.2025-12-31').execute()
 
 [] Pagina IVA: get data and analysis with soglia
 

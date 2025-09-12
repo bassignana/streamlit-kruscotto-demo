@@ -571,7 +571,7 @@ def render_invoice_crud_page(supabase_client, user_id,
         total_i = invoice[prefix + 'importo_totale_documento']
         total_i_terms = i_terms[rate_prefix + 'importo_pagamento_rata'].sum()
         if total_i != total_i_terms:
-            anomalies[number_key] = (f'ANOMALIA: La fattura numero {number_key}, in data {date_key} ha un importo '
+            anomalies[number_key] = (f'ANOMALIA: La fattura ha un importo '
                                      f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
                                      f'totale di {total_i_terms} Euro. Assicurarsi di far combaciare gli importi')
 
@@ -670,28 +670,6 @@ def render_invoice_crud_page(supabase_client, user_id,
                 else:
                     st.warning('Seleziona un movimento da eliminare')
 
-
-        # Here I fetch data to be sure to have the most up to date data,
-        # but in the future this might be simplified.
-        # check_invoices = fetch_all_records(supabase_client, table_name, user_id)
-        # check_terms = pd.DataFrame(fetch_all_records(supabase_client, 'rate_' + table_name, user_id))
-        #
-        # for invoice in check_invoices:
-        #
-        #     number_key = invoice[prefix + 'numero_fattura']
-        #     date_key = invoice[prefix + 'data_documento']
-        #
-        #     i_terms = check_terms[(check_terms[rate_prefix + 'numero_fattura'] == number_key) & \
-        #                           (check_terms[rate_prefix + 'data_documento'] == date_key)]
-        #
-        #
-        #     total_i = invoice[prefix + 'importo_totale_documento']
-        #     total_i_terms = i_terms[rate_prefix + 'importo_pagamento_rata'].sum()
-        #
-        #     if total_i != total_i_terms:
-        #         st.warning(f'ATTENZIONE: La fattura numero {number_key}, in data {date_key} ha un importo '
-        #                    f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
-        #                    f'totale di {total_i_terms} Euro. Assicurarsi di far combaciare gli importi')
 
         with st.expander("Visualizza e Modifica Scadenze"):
 
