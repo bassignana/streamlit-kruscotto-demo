@@ -28,13 +28,13 @@ def get_cashflow_column_config(df_columns):
             column_config[col] = st.column_config.NumberColumn(
                 label=col[:3],
                 format="localized",
-                width = 60
+                width = 78
             )
         else:
             column_config[col] = st.column_config.NumberColumn(
                 label=col,
                 format="localized",
-                width = 100
+                width = 95
             )
 
     return column_config
@@ -115,10 +115,10 @@ def main():
                 'Lug',
                 'Ago',
                 'Netto Oltre',
-                'Scaduti 30gg',
-                'Scaduti 60gg',
-                'Scaduti 90gg',
-                'Netto Scaduti'
+                'Netto 30gg',
+                'Netto 60gg',
+                'Netto 90gg',
+                'Totale'
             ]
 
             saldo = pd.DataFrame(active_totals.values - passive_totals.values,

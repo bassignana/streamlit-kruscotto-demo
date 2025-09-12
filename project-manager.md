@@ -200,10 +200,12 @@ Riunione 5 settembre:
 
 
 flussi di cassa
-[] cambiare colonna come da mail
-[] verificare che nei mesi ci stiano almeno xxx.xxx,xx cifre
-[] chiedere nomi aggiornati per le colonne e verificarne gli ingombri, magari mettere 9 mesi?
-[] Adjust pixel column size.
+[] Ask: mettere colonna totali a sx?
+[] Mettere ...string if cassa is too long, with tooltip that will tell to go change name?
+[x] cambiare colonna come da mail
+[x] verificare che nei mesi ci stiano almeno -xxx.xxx,xx cifre
+[x] chiedere nomi aggiornati per le colonne e verificarne gli ingombri, magari mettere 9 mesi?
+[x] Adjust pixel column size.
 
 [] columns in df visualization are not numeric and sort does not work correctly
 

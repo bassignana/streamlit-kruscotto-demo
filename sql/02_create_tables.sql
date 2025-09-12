@@ -907,13 +907,13 @@ WITH
             -- Overdue collections
             ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
-            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
-            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre
+--             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
 
         -- Totals
         --ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_incassare,
         --ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_scaduti,
-        --ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2) AS totale_generale
+            ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2) AS totale_attivi
         FROM unpaid
         GROUP BY cassa
 
@@ -941,8 +941,10 @@ WITH
             -- Overdue collections
             ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2)
+--             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+
+            ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2)
 
         FROM unpaid
     )
@@ -950,7 +952,7 @@ SELECT
     cassa,
     settembre, ottobre, novembre, dicembre, gennaio, febbraio,
     marzo, aprile, maggio, giugno, luglio, agosto, incassare_oltre,
-    scaduti_30gg, scaduti_60gg, scaduti_90gg, scaduti_oltre
+    scaduti_30gg, scaduti_60gg, scaduti_oltre, totale_attivi
 FROM cassa_data
 ORDER BY sort_key;
 
@@ -1055,8 +1057,10 @@ CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker
     -- Overdue collections
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre
+--     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
+
+    ROUND(SUM(rfr_importo_pagamento_rata)::numeric, 2) AS totale_passivi
 
     FROM unpaid
     GROUP BY cassa
@@ -1085,8 +1089,10 @@ CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker
     -- Overdue collections
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2)
+--     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(rfr_importo_pagamento_rata)::numeric, 2)
+
 
     FROM unpaid
 )
@@ -1094,7 +1100,7 @@ SELECT
     cassa,
     settembre, ottobre, novembre, dicembre, gennaio, febbraio,
     marzo, aprile, maggio, giugno, luglio, agosto, pagare_oltre,
-    scaduti_30gg, scaduti_60gg, scaduti_90gg, scaduti_oltre
+    scaduti_30gg, scaduti_60gg, scaduti_oltre, totale_passivi
 FROM cassa_data
 ORDER BY sort_key;
 
