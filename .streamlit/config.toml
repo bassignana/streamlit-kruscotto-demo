@@ -1,2 +1,4 @@
 [theme]
 base="light"
+primaryColor="#1086A3"
+baseRadius="none"

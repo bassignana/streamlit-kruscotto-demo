@@ -160,7 +160,7 @@ BRAKING:
 [] In the annulla button I have to implement the refetch: it is easier to implement and right now
    the state management is broken, so that when I save and fail a control and click annulla, the 
    broken state will be used.
-[] In the uploader I have to insert a rerun if I want to update the tables, but doing so will make almost
+[x] In the uploader I have to insert a rerun if I want to update the tables, but doing so will make almost
    impossible to read the summaries and warnings
 [] Screen!
 [] Movimenti > when creating terms with rapid config, then changing the edited df removing one of the 
@@ -174,6 +174,10 @@ BRAKING:
    stuff
 [] Check that in movimenti, when I add a movement, then i modify its import, the term is not updated 
    and there is no warning that I have a discrepancy!
+[] Fatture ricevute > modify > i cannot modify the PIVA of fornitore!
+[] Check I have "scadenze incongruenti" but no alert is appearing under the summary
+
+[] Pagina IVA: get data and analysis with soglia
 
 [] RIUNIONE: visuallizzazione tab caricamento xml: tab, expander, cosi' : tab upload fatture
 []           metric sx grafico: cambiare titoli e metric
@@ -195,6 +199,11 @@ Riunione 5 settembre:
 [x] SOLO FATTURE E MOVIMENTI DEL 2025, avviso per sommario
 
 
+flussi di cassa
+[] cambiare colonna come da mail
+[] verificare che nei mesi ci stiano almeno xxx.xxx,xx cifre
+[] chiedere nomi aggiornati per le colonne e verificarne gli ingombri, magari mettere 9 mesi?
+[] Adjust pixel column size.
 
 [] columns in df visualization are not numeric and sort does not work correctly
 

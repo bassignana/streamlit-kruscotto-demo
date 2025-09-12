@@ -94,7 +94,8 @@ def show_login_and_render_form(supabase_client):
     """
     # st.header("Kruscotto")
 
-    st.image("Logo20250818.jpeg")
+    # st.image("Logo20250818.jpeg")
+    st.image("LogoK-Largo.png")
 
     tab1, tab2 = st.tabs(["Login", "Registrazione"])
 

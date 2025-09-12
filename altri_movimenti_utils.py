@@ -648,20 +648,6 @@ def render_movimenti_crud_page(supabase_client, user_id,
                 df_vis = df_vis.drop([tech_field], axis = 1)
         df_vis.columns = [remove_prefix(col, uppercase_prefixes) for col in df_vis.columns]
 
-        column_config = {}
-        if table_name == 'movimenti_passivi':
-            column_config['Tipo'] = st.column_config.SelectboxColumn(
-                "Tipo",
-                options=["IMPOSTA"]) # TODO; fix this static options
-
-        # TODO; below
-        # options = fetch_all_records_from_view(supabase_client, 'casse_options')
-        # cleaned_options = [d.get('cassa') for d in options]
-        #
-        # column_config['Nome Cassa'] = st.column_config.SelectboxColumn(
-        #     "Cassa",
-        #     options=cleaned_options)
-
         # For now it is impossible to have anomalie in altri movimenti.
         # df_vis['Anomalie'] = df_vis['Numero'].apply(lambda x: 'Presenti' if x in anomalies else 'No')
 
@@ -671,6 +657,7 @@ def render_movimenti_crud_page(supabase_client, user_id,
             money_columns = ['Importo Totale', 'Pagato', 'Saldo']
         else:
             raise Exception("Column identification: wrong table name?")
+
         column_config = {}
         for col in df_vis.columns:
             if col in money_columns:
