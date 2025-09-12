@@ -418,8 +418,7 @@ def render_invoice_modify_modal(supabase_client, table_name, fields_config, sele
             with cols[int(column_flag)]:
                 if field_name in sql_table_fields_names:
                     record_value = selected_row_parent_data.get(prefix + field_name, None)
-                    # TODO: test that I don't need to specify a separate branch for each table.
-                    if field_name == 'partita_iva_prestatore':
+                    if field_name == 'partita_iva_prestatore' and table_name == 'fatture_emesse':
                         form_data[field_name] = render_field_widget(
                             field_name, field_config,
                             record_value, f"add_{table_name}", True)
