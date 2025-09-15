@@ -567,16 +567,12 @@ def render_invoice_crud_page(supabase_client, user_id,
         date_key = invoice[prefix + 'data_documento']
         i_terms = check_terms[(check_terms[rate_prefix + 'numero_fattura'] == number_key) & \
                               (check_terms[rate_prefix + 'data_documento'] == date_key)]
-        total_i = invoice[prefix + 'importo_totale_documento']
-        total_i_terms = i_terms[rate_prefix + 'importo_pagamento_rata'].sum()
+        total_i = to_money(invoice[prefix + 'importo_totale_documento'])
+        total_i_terms = to_money(i_terms[rate_prefix + 'importo_pagamento_rata'].sum())
         if total_i != total_i_terms:
             anomalies[number_key] = (f'ANOMALIA: La fattura ha un importo '
                                      f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
                                      f'totale di {total_i_terms} Euro. Assicurarsi di far combaciare gli importi')
-
-
-
-
 
     invoices_data = fetch_all_records_from_view(supabase_client, table_name + '_overview')
 
@@ -713,7 +709,8 @@ def render_invoice_crud_page(supabase_client, user_id,
                             term = {
                                 rate_prefix + 'data_scadenza_pagamento': datetime.strptime(row[rate_prefix + 'data_scadenza_pagamento'], '%Y-%m-%d').date(),
                                 rate_prefix + 'data_pagamento_rata': datetime.strptime(row[rate_prefix + 'data_pagamento_rata'], '%Y-%m-%d').date() if row[rate_prefix + 'data_pagamento_rata'] else None,
-                                rate_prefix + 'importo_pagamento_rata': float(row[rate_prefix + 'importo_pagamento_rata']),
+                                # rate_prefix + 'importo_pagamento_rata': float(row[rate_prefix + 'importo_pagamento_rata']),
+                                rate_prefix + 'importo_pagamento_rata': to_money(row[rate_prefix + 'importo_pagamento_rata']),
                                 rate_prefix + 'nome_cassa': row[rate_prefix + 'nome_cassa'] or '',
                                 rate_prefix + 'notes': row[rate_prefix + 'notes'] or '',
                             }

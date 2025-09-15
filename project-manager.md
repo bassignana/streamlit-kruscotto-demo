@@ -182,6 +182,12 @@ BRAKING:
     .or_('fe_data_documento.lt.2025-01-01,fe_data_documento.gt.2025-12-31').execute()
       different_year_passivi = supabase_client.table('fatture_ricevute').select('*') \
     .or_('fr_data_documento.lt.2025-01-01,fr_data_documento.gt.2025-12-31').execute()
+[x] Screen: When I divide automatically the malformed example terms, I get an error in floating point 
+   conversion.
+[] Uploader: sometimes (the first time) the button 'carica fatture' appears. The following times the upload starts
+   immediately
+[] I've modified the malformed invoice, deleted it, then reaploaded it, the old terms are still in the session state
+   hopefully not in the db
 
 [] Pagina IVA: get data and analysis with soglia
 

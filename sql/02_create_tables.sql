@@ -640,8 +640,6 @@ $$ LANGUAGE plpgsql SECURITY INVOKER;
 
 
 
-
--- FATTURE EMESSE CASH FLOW
 DROP VIEW IF EXISTS cashflow_next_12_months;
 CREATE VIEW cashflow_next_12_months WITH (security_invoker = true) AS
 WITH date_calculations AS (
@@ -1106,9 +1104,6 @@ ORDER BY sort_key;
 
 
 
--- FATTURE EMESSE MAIN DASHBOARD
--- Invoice Payment Summary View
--- Shows invoice details with payment status from both tables
 DROP VIEW IF EXISTS invoice_payment_summary;
 CREATE VIEW invoice_payment_summary WITH (security_invoker = true) AS
 WITH payment_aggregates AS (
@@ -1194,8 +1189,6 @@ FROM fatture_emesse fe
 ORDER BY
     COALESCE(pa.ultima_data_pagamento, fe.fe_data_documento) DESC,
     fe.fe_numero_fattura;
-
-
 
 
 
@@ -1443,225 +1436,114 @@ ORDER BY
 
 
 -- Shows monthly totals for sales invoices, purchase invoices, and balance
--- DROP VIEW IF EXISTS monthly_invoice_summary;
--- CREATE VIEW monthly_invoice_summary
---        WITH (security_invoker = true) AS
--- WITH monthly_sales AS (
---     SELECT
---         EXTRACT(MONTH FROM fe_data_documento) AS mese,
---         ROUND(SUM(fe_importo_totale_documento)::numeric, 2) AS importo_vendite
---     FROM fatture_emesse
---     WHERE EXTRACT(YEAR FROM fe_data_documento) = EXTRACT(YEAR FROM CURRENT_DATE)
---           AND user_id = auth.uid()
---     GROUP BY EXTRACT(MONTH FROM fe_data_documento)
--- ),
--- monthly_purchases AS (
---     SELECT
---         EXTRACT(MONTH FROM fr_data_documento) AS mese,
---         ROUND(SUM(fr_importo_totale_documento)::numeric, 2) AS importo_acquisti
---     FROM fatture_ricevute
---     WHERE EXTRACT(YEAR FROM fr_data_documento) = EXTRACT(YEAR FROM CURRENT_DATE)
---           AND user_id = auth.uid()
---     GROUP BY EXTRACT(MONTH FROM fr_data_documento)
--- ),
--- combined_data AS (
---     SELECT
---         COALESCE(s.mese, p.mese, m.mese) AS mese,
---         COALESCE(s.importo_vendite, 0) AS vendite,
---         COALESCE(p.importo_acquisti, 0) AS acquisti,
---         COALESCE(s.importo_vendite, 0) - COALESCE(p.importo_acquisti, 0) AS saldo
---     FROM (SELECT generate_series(1, 12) AS mese) m
---     FULL OUTER JOIN monthly_sales s ON m.mese = s.mese
---     FULL OUTER JOIN monthly_purchases p ON m.mese = p.mese
--- )
--- SELECT
---     tipo_fattura,
---     ROUND(COALESCE(gennaio, 0.00)::numeric, 2) AS gennaio,
---     ROUND(COALESCE(febbraio, 0.00)::numeric, 2) AS febbraio,
---     ROUND(COALESCE(marzo, 0.00)::numeric, 2) AS marzo,
---     ROUND(COALESCE(aprile, 0.00)::numeric, 2) AS aprile,
---     ROUND(COALESCE(maggio, 0.00)::numeric, 2) AS maggio,
---     ROUND(COALESCE(giugno, 0.00)::numeric, 2) AS giugno,
---     ROUND(COALESCE(luglio, 0.00)::numeric, 2) AS luglio,
---     ROUND(COALESCE(agosto, 0.00)::numeric, 2) AS agosto,
---     ROUND(COALESCE(settembre, 0.00)::numeric, 2) AS settembre,
---     ROUND(COALESCE(ottobre, 0.00)::numeric, 2) AS ottobre,
---     ROUND(COALESCE(novembre, 0.00)::numeric, 2) AS novembre,
---     ROUND(COALESCE(dicembre, 0.00)::numeric, 2) AS dicembre
--- --     ROUND((COALESCE(gennaio, 0) + COALESCE(febbraio, 0) + COALESCE(marzo, 0) + COALESCE(aprile, 0) +
--- --            COALESCE(maggio, 0) + COALESCE(giugno, 0) + COALESCE(luglio, 0) + COALESCE(agosto, 0) +
--- --            COALESCE(settembre, 0) + COALESCE(ottobre, 0) + COALESCE(novembre, 0) + COALESCE(dicembre, 0))::numeric, 2) AS totale_anno
--- FROM (
---          -- Sales invoices row
---          SELECT
---              'Fatture Emesse' AS tipo_fattura,
---              SUM(CASE WHEN mese = 1 THEN vendite ELSE 0 END) AS gennaio,
---              SUM(CASE WHEN mese = 2 THEN vendite ELSE 0 END) AS febbraio,
---              SUM(CASE WHEN mese = 3 THEN vendite ELSE 0 END) AS marzo,
---              SUM(CASE WHEN mese = 4 THEN vendite ELSE 0 END) AS aprile,
---              SUM(CASE WHEN mese = 5 THEN vendite ELSE 0 END) AS maggio,
---              SUM(CASE WHEN mese = 6 THEN vendite ELSE 0 END) AS giugno,
---              SUM(CASE WHEN mese = 7 THEN vendite ELSE 0 END) AS luglio,
---              SUM(CASE WHEN mese = 8 THEN vendite ELSE 0 END) AS agosto,
---              SUM(CASE WHEN mese = 9 THEN vendite ELSE 0 END) AS settembre,
---              SUM(CASE WHEN mese = 10 THEN vendite ELSE 0 END) AS ottobre,
---              SUM(CASE WHEN mese = 11 THEN vendite ELSE 0 END) AS novembre,
---              SUM(CASE WHEN mese = 12 THEN vendite ELSE 0 END) AS dicembre,
---              1 AS ordine
---          FROM combined_data
---
---          UNION ALL
---
---          -- Purchase invoices row
---          SELECT
---              'Fatture Ricevute' AS tipo_fattura,
---              SUM(CASE WHEN mese = 1 THEN acquisti ELSE 0 END) AS gennaio,
---              SUM(CASE WHEN mese = 2 THEN acquisti ELSE 0 END) AS febbraio,
---              SUM(CASE WHEN mese = 3 THEN acquisti ELSE 0 END) AS marzo,
---              SUM(CASE WHEN mese = 4 THEN acquisti ELSE 0 END) AS aprile,
---              SUM(CASE WHEN mese = 5 THEN acquisti ELSE 0 END) AS maggio,
---              SUM(CASE WHEN mese = 6 THEN acquisti ELSE 0 END) AS giugno,
---              SUM(CASE WHEN mese = 7 THEN acquisti ELSE 0 END) AS luglio,
---              SUM(CASE WHEN mese = 8 THEN acquisti ELSE 0 END) AS agosto,
---              SUM(CASE WHEN mese = 9 THEN acquisti ELSE 0 END) AS settembre,
---              SUM(CASE WHEN mese = 10 THEN acquisti ELSE 0 END) AS ottobre,
---              SUM(CASE WHEN mese = 11 THEN acquisti ELSE 0 END) AS novembre,
---              SUM(CASE WHEN mese = 12 THEN acquisti ELSE 0 END) AS dicembre,
---              2 AS ordine
---          FROM combined_data
---
---          UNION ALL
---
---          -- Balance row (Sales - Purchases)
---          SELECT
---              'Saldo' AS tipo_fattura,
---              SUM(CASE WHEN mese = 1 THEN saldo ELSE 0 END) AS gennaio,
---              SUM(CASE WHEN mese = 2 THEN saldo ELSE 0 END) AS febbraio,
---              SUM(CASE WHEN mese = 3 THEN saldo ELSE 0 END) AS marzo,
---              SUM(CASE WHEN mese = 4 THEN saldo ELSE 0 END) AS aprile,
---              SUM(CASE WHEN mese = 5 THEN saldo ELSE 0 END) AS maggio,
---              SUM(CASE WHEN mese = 6 THEN saldo ELSE 0 END) AS giugno,
---              SUM(CASE WHEN mese = 7 THEN saldo ELSE 0 END) AS luglio,
---              SUM(CASE WHEN mese = 8 THEN saldo ELSE 0 END) AS agosto,
---              SUM(CASE WHEN mese = 9 THEN saldo ELSE 0 END) AS settembre,
---              SUM(CASE WHEN mese = 10 THEN saldo ELSE 0 END) AS ottobre,
---              SUM(CASE WHEN mese = 11 THEN saldo ELSE 0 END) AS novembre,
---              SUM(CASE WHEN mese = 12 THEN saldo ELSE 0 END) AS dicembre,
---              3 AS ordine
---          FROM combined_data
---      ) summary
--- ORDER BY ordine;
---
---
---
--- DROP VIEW IF EXISTS monthly_altri_movimenti_summary_old;
--- CREATE VIEW monthly_altri_movimenti_summary_old WITH (security_invoker = true) AS
--- WITH
--- monthly_sales AS (
---     SELECT
---         EXTRACT(MONTH FROM ma_data) AS mese,
---         ROUND(SUM(ma_importo_totale)::numeric, 2) AS importo_vendite
---     FROM movimenti_attivi
---     WHERE EXTRACT(YEAR FROM ma_data) = EXTRACT(YEAR FROM CURRENT_DATE)
---     AND user_id = auth.uid()
---     GROUP BY EXTRACT(MONTH FROM ma_data)
--- ),
--- monthly_purchases AS (
---     SELECT
---         EXTRACT(MONTH FROM mp_data) AS mese,
---         ROUND(SUM(mp_importo_totale)::numeric, 2) AS importo_acquisti
---     FROM movimenti_passivi
---     WHERE EXTRACT(YEAR FROM mp_data) = EXTRACT(YEAR FROM CURRENT_DATE)
---     AND user_id = auth.uid()
---     GROUP BY EXTRACT(MONTH FROM mp_data)
--- ),
--- combined_data AS (
---     SELECT
---         COALESCE(s.mese, p.mese, m.mese) AS mese,
---         COALESCE(s.importo_vendite, 0) AS vendite,
---         COALESCE(p.importo_acquisti, 0) AS acquisti,
---         COALESCE(s.importo_vendite, 0) - COALESCE(p.importo_acquisti, 0) AS saldo
---     FROM (SELECT generate_series(1, 12) AS mese) m
---     FULL OUTER JOIN monthly_sales s ON m.mese = s.mese
---     FULL OUTER JOIN monthly_purchases p ON m.mese = p.mese
--- )
--- SELECT
---     tipo_movimento,
---     ROUND(COALESCE(gennaio, 0.00)::numeric, 2) AS gennaio,
---     ROUND(COALESCE(febbraio, 0.00)::numeric, 2) AS febbraio,
---     ROUND(COALESCE(marzo, 0.00)::numeric, 2) AS marzo,
---     ROUND(COALESCE(aprile, 0.00)::numeric, 2) AS aprile,
---     ROUND(COALESCE(maggio, 0.00)::numeric, 2) AS maggio,
---     ROUND(COALESCE(giugno, 0.00)::numeric, 2) AS giugno,
---     ROUND(COALESCE(luglio, 0.00)::numeric, 2) AS luglio,
---     ROUND(COALESCE(agosto, 0.00)::numeric, 2) AS agosto,
---     ROUND(COALESCE(settembre, 0.00)::numeric, 2) AS settembre,
---     ROUND(COALESCE(ottobre, 0.00)::numeric, 2) AS ottobre,
---     ROUND(COALESCE(novembre, 0.00)::numeric, 2) AS novembre,
---     ROUND(COALESCE(dicembre, 0.00)::numeric, 2) AS dicembre
--- --     ROUND((COALESCE(gennaio, 0) + COALESCE(febbraio, 0) + COALESCE(marzo, 0) + COALESCE(aprile, 0) +
--- --            COALESCE(maggio, 0) + COALESCE(giugno, 0) + COALESCE(luglio, 0) + COALESCE(agosto, 0) +
--- --            COALESCE(settembre, 0) + COALESCE(ottobre, 0) + COALESCE(novembre, 0) + COALESCE(dicembre, 0))::numeric, 2) AS totale_anno
--- FROM (
---          -- Sales invoices row
---          SELECT
---              'Movimenti Attivi' AS tipo_movimento,
---              SUM(CASE WHEN mese = 1 THEN vendite ELSE 0 END) AS gennaio,
---              SUM(CASE WHEN mese = 2 THEN vendite ELSE 0 END) AS febbraio,
---              SUM(CASE WHEN mese = 3 THEN vendite ELSE 0 END) AS marzo,
---              SUM(CASE WHEN mese = 4 THEN vendite ELSE 0 END) AS aprile,
---              SUM(CASE WHEN mese = 5 THEN vendite ELSE 0 END) AS maggio,
---              SUM(CASE WHEN mese = 6 THEN vendite ELSE 0 END) AS giugno,
---              SUM(CASE WHEN mese = 7 THEN vendite ELSE 0 END) AS luglio,
---              SUM(CASE WHEN mese = 8 THEN vendite ELSE 0 END) AS agosto,
---              SUM(CASE WHEN mese = 9 THEN vendite ELSE 0 END) AS settembre,
---              SUM(CASE WHEN mese = 10 THEN vendite ELSE 0 END) AS ottobre,
---              SUM(CASE WHEN mese = 11 THEN vendite ELSE 0 END) AS novembre,
---              SUM(CASE WHEN mese = 12 THEN vendite ELSE 0 END) AS dicembre,
---              1 AS ordine
---          FROM combined_data
---
---          UNION ALL
---
---          -- Purchase invoices row
---          SELECT
---              'Movimenti Passivi' AS tipo_movimento,
---              SUM(CASE WHEN mese = 1 THEN acquisti ELSE 0 END) AS gennaio,
---              SUM(CASE WHEN mese = 2 THEN acquisti ELSE 0 END) AS febbraio,
---              SUM(CASE WHEN mese = 3 THEN acquisti ELSE 0 END) AS marzo,
---              SUM(CASE WHEN mese = 4 THEN acquisti ELSE 0 END) AS aprile,
---              SUM(CASE WHEN mese = 5 THEN acquisti ELSE 0 END) AS maggio,
---              SUM(CASE WHEN mese = 6 THEN acquisti ELSE 0 END) AS giugno,
---              SUM(CASE WHEN mese = 7 THEN acquisti ELSE 0 END) AS luglio,
---              SUM(CASE WHEN mese = 8 THEN acquisti ELSE 0 END) AS agosto,
---              SUM(CASE WHEN mese = 9 THEN acquisti ELSE 0 END) AS settembre,
---              SUM(CASE WHEN mese = 10 THEN acquisti ELSE 0 END) AS ottobre,
---              SUM(CASE WHEN mese = 11 THEN acquisti ELSE 0 END) AS novembre,
---              SUM(CASE WHEN mese = 12 THEN acquisti ELSE 0 END) AS dicembre,
---              2 AS ordine
---          FROM combined_data
---
---          UNION ALL
---
---          -- Balance row (Sales - Purchases)
---          SELECT
---              'Saldo' AS tipo_movimento,
---              SUM(CASE WHEN mese = 1 THEN saldo ELSE 0 END) AS gennaio,
---              SUM(CASE WHEN mese = 2 THEN saldo ELSE 0 END) AS febbraio,
---              SUM(CASE WHEN mese = 3 THEN saldo ELSE 0 END) AS marzo,
---              SUM(CASE WHEN mese = 4 THEN saldo ELSE 0 END) AS aprile,
---              SUM(CASE WHEN mese = 5 THEN saldo ELSE 0 END) AS maggio,
---              SUM(CASE WHEN mese = 6 THEN saldo ELSE 0 END) AS giugno,
---              SUM(CASE WHEN mese = 7 THEN saldo ELSE 0 END) AS luglio,
---              SUM(CASE WHEN mese = 8 THEN saldo ELSE 0 END) AS agosto,
---              SUM(CASE WHEN mese = 9 THEN saldo ELSE 0 END) AS settembre,
---              SUM(CASE WHEN mese = 10 THEN saldo ELSE 0 END) AS ottobre,
---              SUM(CASE WHEN mese = 11 THEN saldo ELSE 0 END) AS novembre,
---              SUM(CASE WHEN mese = 12 THEN saldo ELSE 0 END) AS dicembre,
---              3 AS ordine
---          FROM combined_data
---      ) summary
--- ORDER BY ordine;
+DROP VIEW IF EXISTS monthly_invoice_summary;
+CREATE VIEW monthly_invoice_summary
+       WITH (security_invoker = true) AS
+WITH monthly_sales AS (
+    SELECT
+        EXTRACT(MONTH FROM fe_data_documento) AS mese,
+        ROUND(SUM(fe_importo_totale_documento)::numeric, 2) AS importo_vendite
+    FROM fatture_emesse
+    WHERE EXTRACT(YEAR FROM fe_data_documento) = EXTRACT(YEAR FROM CURRENT_DATE)
+          AND user_id = auth.uid()
+    GROUP BY EXTRACT(MONTH FROM fe_data_documento)
+),
+monthly_purchases AS (
+    SELECT
+        EXTRACT(MONTH FROM fr_data_documento) AS mese,
+        ROUND(SUM(fr_importo_totale_documento)::numeric, 2) AS importo_acquisti
+    FROM fatture_ricevute
+    WHERE EXTRACT(YEAR FROM fr_data_documento) = EXTRACT(YEAR FROM CURRENT_DATE)
+          AND user_id = auth.uid()
+    GROUP BY EXTRACT(MONTH FROM fr_data_documento)
+),
+combined_data AS (
+    SELECT
+        COALESCE(s.mese, p.mese, m.mese) AS mese,
+        COALESCE(s.importo_vendite, 0) AS vendite,
+        COALESCE(p.importo_acquisti, 0) AS acquisti,
+        COALESCE(s.importo_vendite, 0) - COALESCE(p.importo_acquisti, 0) AS saldo
+    FROM (SELECT generate_series(1, 12) AS mese) m
+    FULL OUTER JOIN monthly_sales s ON m.mese = s.mese
+    FULL OUTER JOIN monthly_purchases p ON m.mese = p.mese
+)
+SELECT
+    tipo_fattura,
+    ROUND(COALESCE(gennaio, 0.00)::numeric, 2) AS gennaio,
+    ROUND(COALESCE(febbraio, 0.00)::numeric, 2) AS febbraio,
+    ROUND(COALESCE(marzo, 0.00)::numeric, 2) AS marzo,
+    ROUND(COALESCE(aprile, 0.00)::numeric, 2) AS aprile,
+    ROUND(COALESCE(maggio, 0.00)::numeric, 2) AS maggio,
+    ROUND(COALESCE(giugno, 0.00)::numeric, 2) AS giugno,
+    ROUND(COALESCE(luglio, 0.00)::numeric, 2) AS luglio,
+    ROUND(COALESCE(agosto, 0.00)::numeric, 2) AS agosto,
+    ROUND(COALESCE(settembre, 0.00)::numeric, 2) AS settembre,
+    ROUND(COALESCE(ottobre, 0.00)::numeric, 2) AS ottobre,
+    ROUND(COALESCE(novembre, 0.00)::numeric, 2) AS novembre,
+    ROUND(COALESCE(dicembre, 0.00)::numeric, 2) AS dicembre
+--     ROUND((COALESCE(gennaio, 0) + COALESCE(febbraio, 0) + COALESCE(marzo, 0) + COALESCE(aprile, 0) +
+--            COALESCE(maggio, 0) + COALESCE(giugno, 0) + COALESCE(luglio, 0) + COALESCE(agosto, 0) +
+--            COALESCE(settembre, 0) + COALESCE(ottobre, 0) + COALESCE(novembre, 0) + COALESCE(dicembre, 0))::numeric, 2) AS totale_anno
+FROM (
+         -- Sales invoices row
+         SELECT
+             'Fatture Emesse' AS tipo_fattura,
+             SUM(CASE WHEN mese = 1 THEN vendite ELSE 0 END) AS gennaio,
+             SUM(CASE WHEN mese = 2 THEN vendite ELSE 0 END) AS febbraio,
+             SUM(CASE WHEN mese = 3 THEN vendite ELSE 0 END) AS marzo,
+             SUM(CASE WHEN mese = 4 THEN vendite ELSE 0 END) AS aprile,
+             SUM(CASE WHEN mese = 5 THEN vendite ELSE 0 END) AS maggio,
+             SUM(CASE WHEN mese = 6 THEN vendite ELSE 0 END) AS giugno,
+             SUM(CASE WHEN mese = 7 THEN vendite ELSE 0 END) AS luglio,
+             SUM(CASE WHEN mese = 8 THEN vendite ELSE 0 END) AS agosto,
+             SUM(CASE WHEN mese = 9 THEN vendite ELSE 0 END) AS settembre,
+             SUM(CASE WHEN mese = 10 THEN vendite ELSE 0 END) AS ottobre,
+             SUM(CASE WHEN mese = 11 THEN vendite ELSE 0 END) AS novembre,
+             SUM(CASE WHEN mese = 12 THEN vendite ELSE 0 END) AS dicembre,
+             1 AS ordine
+         FROM combined_data
+
+         UNION ALL
+
+         -- Purchase invoices row
+         SELECT
+             'Fatture Ricevute' AS tipo_fattura,
+             SUM(CASE WHEN mese = 1 THEN acquisti ELSE 0 END) AS gennaio,
+             SUM(CASE WHEN mese = 2 THEN acquisti ELSE 0 END) AS febbraio,
+             SUM(CASE WHEN mese = 3 THEN acquisti ELSE 0 END) AS marzo,
+             SUM(CASE WHEN mese = 4 THEN acquisti ELSE 0 END) AS aprile,
+             SUM(CASE WHEN mese = 5 THEN acquisti ELSE 0 END) AS maggio,
+             SUM(CASE WHEN mese = 6 THEN acquisti ELSE 0 END) AS giugno,
+             SUM(CASE WHEN mese = 7 THEN acquisti ELSE 0 END) AS luglio,
+             SUM(CASE WHEN mese = 8 THEN acquisti ELSE 0 END) AS agosto,
+             SUM(CASE WHEN mese = 9 THEN acquisti ELSE 0 END) AS settembre,
+             SUM(CASE WHEN mese = 10 THEN acquisti ELSE 0 END) AS ottobre,
+             SUM(CASE WHEN mese = 11 THEN acquisti ELSE 0 END) AS novembre,
+             SUM(CASE WHEN mese = 12 THEN acquisti ELSE 0 END) AS dicembre,
+             2 AS ordine
+         FROM combined_data
+
+         UNION ALL
+
+         -- Balance row (Sales - Purchases)
+         SELECT
+             'Saldo' AS tipo_fattura,
+             SUM(CASE WHEN mese = 1 THEN saldo ELSE 0 END) AS gennaio,
+             SUM(CASE WHEN mese = 2 THEN saldo ELSE 0 END) AS febbraio,
+             SUM(CASE WHEN mese = 3 THEN saldo ELSE 0 END) AS marzo,
+             SUM(CASE WHEN mese = 4 THEN saldo ELSE 0 END) AS aprile,
+             SUM(CASE WHEN mese = 5 THEN saldo ELSE 0 END) AS maggio,
+             SUM(CASE WHEN mese = 6 THEN saldo ELSE 0 END) AS giugno,
+             SUM(CASE WHEN mese = 7 THEN saldo ELSE 0 END) AS luglio,
+             SUM(CASE WHEN mese = 8 THEN saldo ELSE 0 END) AS agosto,
+             SUM(CASE WHEN mese = 9 THEN saldo ELSE 0 END) AS settembre,
+             SUM(CASE WHEN mese = 10 THEN saldo ELSE 0 END) AS ottobre,
+             SUM(CASE WHEN mese = 11 THEN saldo ELSE 0 END) AS novembre,
+             SUM(CASE WHEN mese = 12 THEN saldo ELSE 0 END) AS dicembre,
+             3 AS ordine
+         FROM combined_data
+     ) summary
+ORDER BY ordine;
 
 
 

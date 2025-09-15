@@ -604,8 +604,8 @@ def render_movimenti_crud_page(supabase_client, user_id,
     #                           (check_terms[rate_prefix + 'data'] == date_key)]
     #
     #
-    #     total_m = mov[prefix + 'importo_totale']
-    #     total_m_terms = m_terms[rate_prefix + 'importo_pagamento'].sum()
+    #     total_m = to_money(mov[prefix + 'importo_totale'])
+    #     total_m_terms = to_money(m_terms[rate_prefix + 'importo_pagamento'].sum())
     #
     #     if total_m != total_m_terms:
     #         anomalies[number_key] = (f'ANOMALIA: Il movimento numero {number_key}, in data {date_key} ha un importo '
