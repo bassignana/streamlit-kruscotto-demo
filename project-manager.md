@@ -184,6 +184,7 @@ BRAKING:
     .or_('fr_data_documento.lt.2025-01-01,fr_data_documento.gt.2025-12-31').execute()
 [x] Screen: When I divide automatically the malformed example terms, I get an error in floating point 
    conversion.
+[] I should check floating to money conversion everywhere
 [] Uploader: sometimes (the first time) the button 'carica fatture' appears. The following times the upload starts
    immediately
 [] I've modified the malformed invoice, deleted it, then reaploaded it, the old terms are still in the session state
@@ -239,6 +240,29 @@ all add and modify modal
 [] Scrollbar always present in tabular things
 [] Quando modifico l'importo di un movimento, gli importi delle scadenze non vengono
    modificati! Aprire un menu di modifica o, comunque, impedire la prosecuzione.
+
+Riunione 15 Settembre:
+[] centrare maschera login
+[] Errori gravi: Documenti da Verificare, chiusa, sotto
+[] aggiungere categoria ordini nei passivi
+[] Controllo sintassi CF: x lettere e x numeri. PIVA 11 numeri.
+[] Limite sulle fatture caricate 100 fatture acquisto / vendita in caricamento. ...(in questa varsione
+   è possibile caricare fino a 50 fatture di acquisto e 50 di vendita)
+[] sempre due centesimi nelle griglie delle tabelle
+[] ordinameto fatture discendente data e mettere numero come chiave ordinaria
+
+
+[] fatture ritenute sono quelle che hanno le scadenze diverse
+[] flussi di cassa passivi, le casse devono essere LE MIE (accade in upload)  
+[] se nella fattura c'e la **condizione di pagamento MP 01** va direttamente nella cassa contanti e devo crearla se non esiste
+[] mp 05 banca di default, tutto il resto non specificato
+[] banca di default per le fatture emesse con colonna o menu spuntabile
+[] mail supporto@kruscotto.it
+[] doppio indice nel dataframe mettendo: Da Incassare, dopo Scaduti. Totale attivi dopo Agosto. Rimuovere 'Da incassare scaduti' 
+[] Come sopra: Da Pagere, 'da pagare scaduti'
+[] Importo secco per il saldo iniziale nell'anagrafica azienda. Saldo Iniziale Mese Corrente.
+   Aggiornato con il saldo finale del mese prima. Sempre modificabile.
+
 
 PATHS:
 Documenti-movimenti-sommario

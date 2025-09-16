@@ -1,8 +1,14 @@
 import streamlit as st
-import datetime
 from invoice_record_creation import extract_xml_records
 from invoice_xml_processor import process_xml_list
 from utils import setup_page
+import streamlit.components.v1 as components
+
+def update_key():
+    st.session_state.uploader_key += 1
+
+def toggle_is_processing_true():
+    st.session_state.is_processing = True
 
 def render_generic_xml_upload_section(supabase_client, user_id):
 
@@ -14,16 +20,66 @@ def render_generic_xml_upload_section(supabase_client, user_id):
     partita_iva_result = supabase_client.table('user_data').select('ud_partita_iva').eq('user_id',user_id).execute()
     partita_iva_azienda = partita_iva_result.data[0].get('ud_partita_iva', None)
 
-    def update_key():
-        st.session_state.uploader_key += 1
-
     # TODO: better error message, I should cast, not communicate the to the user.
     #  At best I can try to validate the format of the PIVA and tell the user
     #  that the PIVA inserted in its profile is incorrect.
     if not isinstance(partita_iva_azienda, str):
         st.error("La partita IVA dell'azienda e' in un formato inatteso.")
 
-    # dynamic_key = str(datetime.datetime.now())
+    # change_uploader_text = """
+    # <style>
+    #     div[data-testid="stFileUploader"]>section[data-testid="stFileUploadDropzone"]>button[data-testid="stBaseButton-secondary"] {
+    #        color:white;
+    #     }
+    #     div[data-testid="stFileUploader"]>section[data-testid="stFileUploadDropzone"]>button[data-testid="stBaseButton-secondary"]::after {
+    #         content: "Carica Fatture";
+    #         color:black;
+    #         display: block;
+    #         position: absolute;
+    #     }
+    #     div[data-testid="stFileDropzoneInstructions"]>div>span {
+    #        visibility:hidden;
+    #     }
+    #     div[data-testid="stFileDropzoneInstructions"]>div>span::after {
+    #        content:"Clicca o trascina le fatture qui";
+    #        visibility:visible;
+    #        display:block;
+    #     }
+    #      div[data-testid="stFileDropzoneInstructions"]>div>small {
+    #        visibility:hidden;
+    #     }
+    #     div[data-testid="stFileDropzoneInstructions"]>div>small::before {
+    #        content:"";
+    #        visibility:visible;
+    #        display:block;
+    #     }
+    # </style>
+    # """
+
+#     change_uploader_text = """
+# <style>
+# div[data-testid="stFileDropzoneInstructions"]>div>span {
+#     font-size: 0px;
+# }
+# </style>
+# """
+#
+#     /* Replace with custom text */
+# div[data-testid="stFileDropzoneInstructions"]>div>span::after {
+#     content: "TEST";
+# font-size: 16px;
+# color: #000;
+# }
+# </style>
+#
+# /* Optional: hide the small note under uploader */
+# div[data-testid="stFileDropzoneInstructions"] small {
+#     display: none;
+# }
+
+    # st.markdown(change_uploader_text, unsafe_allow_html=True)
+    # components.html(change_uploader_text,height=0)
+
     uploaded_files = st.file_uploader(
         "Carica fatture in formato XML. Trascina qui le tue fatture o clicca per selezionare",
         type=['xml'],
@@ -31,11 +87,11 @@ def render_generic_xml_upload_section(supabase_client, user_id):
         help="Carica fino a 20 fatture XML contemporaneamente",
         key=f"uploader_{st.session_state.uploader_key}"
     )
+
     # NOTE: with the key, the state is_processing is not working anymore as intended,
     # But for now it can be a goog solution!.
 
     if uploaded_files:
-        # st.toast(f"{len(uploaded_files)} file pronti per il caricamento.")
 
         if not st.session_state.is_processing:
 
@@ -43,13 +99,10 @@ def render_generic_xml_upload_section(supabase_client, user_id):
 
             with col1:
                 st.info(f"{len(uploaded_files)} file pronti per il caricamento.")
+                st.button("Carica Fatture", type="primary",
+                           use_container_width=True, on_click=toggle_is_processing_true)
 
-                def callback():
-                    st.session_state.is_processing = True
-                process_button = st.button("Carica Fatture", type="primary",
-                                           use_container_width=True, on_click=callback)
-
-        # if process_button:
+        # if Carica Fatture is pressed:
         if st.session_state.is_processing:
             with st.spinner("Elaborazione XML in corso..."):
                 parsing_results, error = process_xml_list(uploaded_files)
@@ -157,9 +210,11 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                     successful_upload_count = len([res for res in outs if res['status'] == 'success'])
                     if successful_upload_count < 1:
                         st.warning("Nessuna nuova fattura caricata.")
+                        st.session_state.is_processing = False
                     else:
                         st.success(f"Numero di fatture caricate correttamente: {successful_upload_count}")
-                    # st.info("Clicca il pulsane qui sotto per aggiornare le tabelle una volta letti tutti gli avvisi.")
+                        st.session_state.is_processing = False
+
                     if st.button('Carica Altre Fatture', key="rerun", on_click=update_key):
                         st.session_state.is_processing = False
                         st.rerun()
