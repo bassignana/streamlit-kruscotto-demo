@@ -189,7 +189,7 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
                             # FROM information_schema.routines
                             # WHERE routine_name = 'insert_record_fixed';
 
-                            result = supabase_client.rpc('insert_record_fixed', {
+                            result = supabase_client.rpc('insert_record', {
                                 'table_name': table_name,
                                 'record_data': processed_data,
                                 'terms_table_name': 'rate_' + table_name,

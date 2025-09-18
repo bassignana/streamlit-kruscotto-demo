@@ -36,12 +36,39 @@ uv export --format requirements-txt --output-file requirements.txt
 
 # 2. Commit the changes.
 ```
+NOTE: Now that I add packages that I don't need for the deployment, like
+pytest and cypress, how do I create the requirement file for production?
+Maybe the easiest thing is to not make this distinction to have both envs
+equal, or I can create a dummy prod env and do the above with that.
 
 For the list of COMMON and UNCOMMON tags between all invoices:
 python3 invoice_common_tags.py fatture_emesse/ fatture_ricevute 
 
+OLD
 Seeding the database
 python3 tool_reset_db.py --noseed
+
+Lunch db tests
+Create .pgpass and give right permissions with `chmod 0660 .pgpass` like mentioned
+in Postgres docs.
+Install pgprove. TODO: link to the page with instructions.
+```bash
+source .secrets/.env.sh
+
+pg_prove -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --ext .sql -r "$PGTAP_TEST_PATH"
+pg_prove -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --ext .sql -r "$PGTAP_TEST_PATH"/specific_test_file.sql
+```
+
+Cypress testing: 
+installation procedure detailed in the ObsVault folder.
+run with:
+```bash
+cd e2e-tests
+source ../.secrets/.env.sh
+
+npx cypress open
+```
+
 
 # 2. DB
 Here I prefer a managed supabase account in order to avoid to 
@@ -250,6 +277,7 @@ Riunione 15 Settembre:
    è possibile caricare fino a 50 fatture di acquisto e 50 di vendita)
 [] sempre due centesimi nelle griglie delle tabelle
 [] ordinameto fatture discendente data e mettere numero come chiave ordinaria
+[] check that the default time in the dataset is not behind by two hours 2025-09-16 08:33:07.588974 +00:00
 
 
 [] fatture ritenute sono quelle che hanno le scadenze diverse

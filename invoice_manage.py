@@ -372,7 +372,7 @@ def render_invoice_add_modal(supabase_client, table_name, fields_config, prefix)
                             else:
                                 raise Exception("Uniche tabelle supportate: fatture_emesse, fatture_ricevute.")
 
-                            result = supabase_client.rpc('insert_record_fixed', {
+                            result = supabase_client.rpc('insert_record', {
                                 'table_name': table_name,
                                 'record_data': prefixed_processed_data,
                                 'terms_table_name': 'rate_' + table_name,

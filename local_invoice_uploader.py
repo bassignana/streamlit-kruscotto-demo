@@ -12,27 +12,27 @@ import toml
 import glob
 import os
 
+secrets_path = Path(".streamlit/secrets.toml")
+secrets = toml.load(secrets_path)
+url = secrets.get("SUPABASE_URL")
+service_key = secrets.get("SUPABASE_SERVICE_ROLE_KEY")
+
+if not secrets_path.exists():
+    raise FileNotFoundError("Missing .streamlit/secrets.toml file")
+if not url or not service_key:
+    raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in secrets.toml")
+
+supabase_client =  create_client(url, service_key)
+
+# Invoices changed manually with this P IVA value
+partita_iva_azienda = '04228480408'
+
+# Taken from test db
+USER_ID = '86eda584-e990-4e13-9d93-d61b7811da8e'
+xml_files = glob.glob(os.path.join('fatture_ricevute/', "*.xml"))
+
 if __name__ == '__main__':
 
-    secrets_path = Path(".streamlit/secrets.toml")
-
-    if not secrets_path.exists():
-        raise FileNotFoundError("Missing .streamlit/secrets.toml file")
-
-    secrets = toml.load(secrets_path)
-    url = secrets.get("SUPABASE_URL")
-    service_key = secrets.get("SUPABASE_SERVICE_ROLE_KEY")
-
-    if not url or not service_key:
-        raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in secrets.toml")
-
-    supabase_client =  create_client(url, service_key)
-
-    # Invoices changed manually with this P IVA value
-    partita_iva_azienda = '04228480408'
-    # Taken from test db
-    USER_ID = 'c7b70c85-68be-4047-ba1e-9ad0d66a3d13'
-    xml_files = glob.glob(os.path.join('fe_scadenze_multiple/', "*.xml"))
     parsing_results, error = process_xml_list(xml_files)
 
     outs = []
@@ -76,7 +76,7 @@ if __name__ == '__main__':
                     # The best thing should be that all RPC functions will work the same.
                     record_to_insert['user_id'] = USER_ID
 
-                    result = supabase_client.rpc('insert_record_fixed', {
+                    result = supabase_client.rpc('insert_record', {
                         'table_name': 'fatture_emesse',
                         'record_data': out['record'],
                         'terms_table_name': 'rate_fatture_emesse',
@@ -102,7 +102,7 @@ if __name__ == '__main__':
                     record_to_insert = out['record'].copy()
                     record_to_insert['user_id'] = USER_ID
 
-                    result = supabase_client.rpc('insert_record_fixed', {
+                    result = supabase_client.rpc('insert_record', {
                         'table_name': 'fatture_ricevute',
                         'record_data': out['record'],
                         'terms_table_name': 'rate_fatture_ricevute',
@@ -129,23 +129,6 @@ if __name__ == '__main__':
                 print(f'EXCEPTION: {e}')
                 outs.append(out)
                 continue # to the next xml
-
-        # Probably I should tell the user only about errors that he/she can understand,
-        # # like missing fields in XML files. Other than that only in logs or prints.
-        # if successful_inserts_count > 0:
-        #     st.success(f"{successful_inserts_count}/{len(uploaded_files)} fatture caricate con successo")
-        #
-        # if len(error_xml_parsings) > 0:
-        #     st.warning(f"Leggendo l'XML delle seguenti {len(error_xml_parsings)} fatture si sono riscontrati errori")
-        #     with st.expander('Dettagli errori lettura XML', expanded = False):
-        #         for xml in error_xml_parsings:
-        #             st.write(f"File: {xml['filename']}, errore: {xml['error_message']}")
-        #
-        # if len(error_inserts_data) > 0:
-        #     st.warning(f"Caricando sul database le seguenti {len(error_xml_parsings)} fatture si sono riscontrati errori")
-        #     with st.expander('Dettagli errori caricamento XML', expanded = False):
-        #         for xml in error_inserts_data:
-        #             st.write(f"File: {xml['filename']}, tabella: {xml['insert_table']}, risultato: {xml['insert_result']}")
 
     else:
         pass

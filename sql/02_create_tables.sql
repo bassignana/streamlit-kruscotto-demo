@@ -70,6 +70,12 @@ ALTER TABLE public.user_data ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage only their own data" ON public.user_data
 FOR ALL USING (auth.uid() = user_id);
 
+-- Unique constraint on user_id for enabling upsert ( on conflict ) using
+-- only user_id. This is done for seeding and testing.
+ALTER TABLE public.user_data
+    ADD CONSTRAINT user_data_unique_user_id
+        UNIQUE (user_id);
+
 
 
 CREATE TABLE public.fatture_emesse (
@@ -473,7 +479,7 @@ BEGIN
         );
     END IF;
 
-    -- Clean data: remove nulls and auto-generated fields
+    -- Clean data: remove auto-generated fields
     FOR key, value IN SELECT * FROM jsonb_each(record_data)
         LOOP
             IF key NOT IN ('id', 'created_at', 'updated_at', 'user_id') AND value != 'null'::JSONB THEN
@@ -540,6 +546,117 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY INVOKER;
 
+CREATE OR REPLACE FUNCTION insert_record(
+    table_name TEXT,
+    record_data JSONB,
+    terms_table_name TEXT DEFAULT NULL,
+    terms_data JSONB[] DEFAULT NULL,
+    test_user_id TEXT DEFAULT NULL
+) RETURNS JSONB AS $$
+DECLARE
+    sql_query TEXT;
+    record_id UUID;
+    current_user_id UUID;
+    cleaned_data JSONB := '{}'::JSONB;
+    key TEXT;
+    value JSONB;
+    insertable_columns TEXT;
+    term JSONB;
+    term_result JSONB;
+BEGIN
+    -- This is for testing the function without an authenticated user.
+    IF test_user_id IS NULL THEN
+        -- Get authenticated user ID
+        current_user_id := auth.uid();
+    ELSE
+        current_user_id := test_user_id::UUID; -- casting UUID from TEXT to avoid errors.
+    END IF;
+
+    -- Just to be sure, double check that the user is logged in.
+    IF current_user_id IS NULL THEN
+        RETURN jsonb_build_object(
+                'success', false,
+                'error', 'User not authenticated - auth.uid() returned NULL'
+               );
+    END IF;
+
+    -- Clean data: remove auto-generated fields
+    FOR key, value IN SELECT * FROM jsonb_each(record_data)
+        LOOP
+            IF key NOT IN ('id', 'created_at', 'updated_at', 'user_id') AND value != 'null'::JSONB THEN
+                cleaned_data := cleaned_data || jsonb_build_object(key, value);
+            END IF;
+        END LOOP;
+
+    cleaned_data := cleaned_data || jsonb_build_object('user_id', current_user_id);
+
+    -- Get only the columns we're actually providing data for
+    -- using j.key because, if not,  'column reference "key" is ambiguous',
+    SELECT string_agg(quote_ident(j.key), ', ' ORDER BY j.key) INTO insertable_columns
+    FROM jsonb_each_text(cleaned_data) j;
+
+    -- Build INSERT that only specifies the columns we have data for
+    sql_query := format('
+            INSERT INTO %I (%s)
+            SELECT %s FROM jsonb_populate_record(NULL::%I, $1)
+            RETURNING id',
+                        table_name,
+                        insertable_columns,
+                        insertable_columns,
+                        table_name
+                 );
+
+    EXECUTE sql_query USING cleaned_data INTO record_id;
+
+    -- Handle terms.
+    IF terms_table_name IS NOT NULL AND terms_data IS NOT NULL AND array_length(terms_data, 1) > 0 THEN
+        FOR i IN 1..array_length(terms_data, 1) LOOP
+                term := terms_data[i];
+
+                -- Business logic: if it is a received invoice, I remove the cassa name and iban info from
+                -- the term since I will fill that field with MY OWN cassa and iban.
+                if table_name = 'fatture_ricevute' THEN
+                    term := (term - 'user_id' - 'id' - 'created_at' - 'updated_at' - 'rfr_iban_cassa' - 'rfr_nome_cassa') ||
+                            jsonb_build_object('user_id', current_user_id);
+                else
+                    term := (term - 'user_id' - 'id' - 'created_at' - 'updated_at') ||
+                            jsonb_build_object('user_id', current_user_id);
+                end if;
+
+--                PERFORM insert_record(terms_table_name, term, NULL, NULL, test_user_id);
+                term_result := insert_record(terms_table_name, term, NULL, NULL, test_user_id);
+                IF term_result->>'success' = 'false' THEN
+                    RAISE EXCEPTION 'Error inserting term: %', term_result;
+                END IF;
+            END LOOP;
+    END IF;
+
+    RETURN jsonb_build_object(
+            'success', true,
+        -- only available in except blocks
+        -- 'error', SQLERRM,
+        -- 'error_detail', SQLSTATE,
+            'table_name', table_name,
+            'original_record_data', record_data,
+            'current_user_id', current_user_id,
+            'test_user_id', test_user_id,
+            'sql_query', sql_query
+           );
+
+EXCEPTION WHEN OTHERS THEN
+
+    RETURN jsonb_build_object(
+            'success', false,
+            'error', SQLERRM,
+            'error_detail', SQLSTATE,
+            'table_name', table_name,
+            'original_record_data', record_data,
+            'current_user_id', current_user_id,
+            'test_user_id', test_user_id,
+            'sql_query', sql_query
+           );
+END;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
 
 -- Use for testing, while impersonating.
 -- SELECT upsert_terms(

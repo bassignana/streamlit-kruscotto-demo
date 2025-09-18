@@ -151,7 +151,7 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                                 # The best thing should be that all RPC functions will work the same.
                                 record_to_insert['user_id'] = user_id
 
-                                result = supabase_client.rpc('insert_record_fixed', {
+                                result = supabase_client.rpc('insert_record', {
                                     'table_name': 'fatture_emesse',
                                     'record_data': out['record'],
                                     'terms_table_name': 'rate_fatture_emesse',
@@ -177,7 +177,7 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                                 record_to_insert = out['record'].copy()
                                 record_to_insert['user_id'] = user_id
 
-                                result = supabase_client.rpc('insert_record_fixed', {
+                                result = supabase_client.rpc('insert_record', {
                                     'table_name': 'fatture_ricevute',
                                     'record_data': out['record'],
                                     'terms_table_name': 'rate_fatture_ricevute',
