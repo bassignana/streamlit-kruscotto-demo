@@ -20,72 +20,45 @@ def render_generic_xml_upload_section(supabase_client, user_id):
     partita_iva_result = supabase_client.table('user_data').select('ud_partita_iva').eq('user_id',user_id).execute()
     partita_iva_azienda = partita_iva_result.data[0].get('ud_partita_iva', None)
 
-    # TODO: better error message, I should cast, not communicate the to the user.
-    #  At best I can try to validate the format of the PIVA and tell the user
-    #  that the PIVA inserted in its profile is incorrect.
-    if not isinstance(partita_iva_azienda, str):
-        st.error("La partita IVA dell'azienda e' in un formato inatteso.")
+    response = supabase_client.table('fatture_emesse').select('id', count='exact').eq('user_id',user_id).execute()
+    count_active = response.count
+    response = supabase_client.table('fatture_ricevute').select('id', count='exact').eq('user_id',user_id).execute()
+    count_passive = response.count
 
-    # change_uploader_text = """
-    # <style>
-    #     div[data-testid="stFileUploader"]>section[data-testid="stFileUploadDropzone"]>button[data-testid="stBaseButton-secondary"] {
-    #        color:white;
-    #     }
-    #     div[data-testid="stFileUploader"]>section[data-testid="stFileUploadDropzone"]>button[data-testid="stBaseButton-secondary"]::after {
-    #         content: "Carica Fatture";
-    #         color:black;
-    #         display: block;
-    #         position: absolute;
-    #     }
-    #     div[data-testid="stFileDropzoneInstructions"]>div>span {
-    #        visibility:hidden;
-    #     }
-    #     div[data-testid="stFileDropzoneInstructions"]>div>span::after {
-    #        content:"Clicca o trascina le fatture qui";
-    #        visibility:visible;
-    #        display:block;
-    #     }
-    #      div[data-testid="stFileDropzoneInstructions"]>div>small {
-    #        visibility:hidden;
-    #     }
-    #     div[data-testid="stFileDropzoneInstructions"]>div>small::before {
-    #        content:"";
-    #        visibility:visible;
-    #        display:block;
-    #     }
-    # </style>
-    # """
-
-#     change_uploader_text = """
-# <style>
-# div[data-testid="stFileDropzoneInstructions"]>div>span {
-#     font-size: 0px;
-# }
-# </style>
-# """
-#
-#     /* Replace with custom text */
-# div[data-testid="stFileDropzoneInstructions"]>div>span::after {
-#     content: "TEST";
-# font-size: 16px;
-# color: #000;
-# }
-# </style>
-#
-# /* Optional: hide the small note under uploader */
-# div[data-testid="stFileDropzoneInstructions"] small {
-#     display: none;
-# }
-
-    # st.markdown(change_uploader_text, unsafe_allow_html=True)
-    # components.html(change_uploader_text,height=0)
+    if count_active + count_passive > 100:
+        st.warning("Superato il limite massimo di 100 fatture. Contattare l'assistenza per ricevere più spazio.")
+        return
 
     uploaded_files = st.file_uploader(
-        "Carica fatture in formato XML. Trascina qui le tue fatture o clicca per selezionare",
+        "Carica fatture in formato XML. Attualmente è consentito caricare fino a 100 fatture.",
         type=['xml'],
         accept_multiple_files=True,
-        help="Carica fino a 20 fatture XML contemporaneamente",
+        # help="Carica fino a 20 fatture XML contemporaneamente",
         key=f"uploader_{st.session_state.uploader_key}"
+    )
+    st.html(
+        """
+        <style>
+    
+        [data-testid='stFileUploaderDropzoneInstructions'] > div > span {
+        display: none;
+        }
+    
+        [data-testid='stFileUploaderDropzoneInstructions'] > div::before {
+        content: 'Trascinare qui le fatture';
+        }
+    
+        [data-testid='stFileUploader'] [data-testid='stBaseButton-secondary'] { text-indent: -9999px; line-height: 0; } 
+        
+        [data-testid='stFileUploader'] [data-testid='stBaseButton-secondary']::after { line-height: initial; 
+        content: "Seleziona"; text-indent: 0; }
+    
+        [data-testid='stFileUploaderDropzoneInstructions'] > div > small {
+        display: none;
+        }
+        
+        </style>
+        """
     )
 
     # NOTE: with the key, the state is_processing is not working anymore as intended,

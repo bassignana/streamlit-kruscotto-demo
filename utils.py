@@ -35,7 +35,7 @@ def get_df_metric(label, amount):
         for col in df.columns:
             column_config[col] = st.column_config.NumberColumn(
                 label=col,
-                format="localized",
+                format="accounting",
             )
 
         st.dataframe(df, hide_index = True, column_config=column_config)
@@ -210,7 +210,7 @@ def get_standard_column_config(money_columns = None,
         for col in money_columns:
             column_config[col] = st.column_config.NumberColumn(
                 label=col + '*' if col in required_columns else col,
-                format="localized",
+                format="accounting",
             )
 
     # todo: do I need to start with None param in the signature and check?

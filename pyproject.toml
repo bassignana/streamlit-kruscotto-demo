@@ -9,5 +9,6 @@ dependencies = [
     "plotly==6.2",
     "pytest==8.4.2",
     "streamlit==1.47.0",
+    "streamlit-aggrid==0.3.3",
     "supabase==2.16",
 ]

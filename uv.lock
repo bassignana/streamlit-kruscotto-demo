@@ -654,6 +654,15 @@ wheels = [
 ]
 
 [[package]]
+name = "python-decouple"
+version = "3.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/97/373dcd5844ec0ea5893e13c39a2c67e7537987ad8de3842fe078db4582fa/python-decouple-3.8.tar.gz", hash = "sha256:ba6e2657d4f376ecc46f77a3a615e058d93ba5e465c01bbe57289bfb7cce680f", size = 9612, upload-time = "2023-03-01T19:38:38.143Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a2/d4/9193206c4563ec771faf2ccf54815ca7918529fe81f6adb22ee6d0e06622/python_decouple-3.8-py3-none-any.whl", hash = "sha256:d0d45340815b25f4de59c974b855bb38d03151d81b037d9e3f463b0c9f8cbd66", size = 9947, upload-time = "2023-03-01T19:38:36.015Z" },
+]
+
+[[package]]
 name = "pytz"
 version = "2025.2"
 source = { registry = "https://pypi.org/simple" }
@@ -836,6 +845,20 @@ wheels = [
 ]
 
 [[package]]
+name = "streamlit-aggrid"
+version = "0.3.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pandas" },
+    { name = "python-decouple" },
+    { name = "streamlit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f4/ff/5635f6e00976a963db20ab91d4decf47fc88fa4ae7f21e7963b10e638b23/streamlit-aggrid-0.3.3.tar.gz", hash = "sha256:d96edb102df98450f3b6bcf5a52b64e6ceef9678e82e2dba9cfef074e7f134ab", size = 3204332, upload-time = "2022-08-27T15:33:41.492Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/51/dd/2cfd7a11b8c80069d5da9812fdee9fbdf2e58f3767a6082d9843d7c5ee93/streamlit_aggrid-0.3.3-py3-none-any.whl", hash = "sha256:c5202347b1257c4246ef3541b233866f57bc930b97040be58b059093c4fee22e", size = 3234006, upload-time = "2022-08-27T15:33:45.587Z" },
+]
+
+[[package]]
 name = "streamlit-kruscotto-demo"
 version = "0.1.0"
 source = { virtual = "." }
@@ -844,6 +867,7 @@ dependencies = [
     { name = "plotly" },
     { name = "pytest" },
     { name = "streamlit" },
+    { name = "streamlit-aggrid" },
     { name = "supabase" },
 ]
 
@@ -853,6 +877,7 @@ requires-dist = [
     { name = "plotly", specifier = "==6.2" },
     { name = "pytest", specifier = "==8.4.2" },
     { name = "streamlit", specifier = "==1.47.0" },
+    { name = "streamlit-aggrid", specifier = "==0.3.3" },
     { name = "supabase", specifier = "==2.16" },
 ]
 

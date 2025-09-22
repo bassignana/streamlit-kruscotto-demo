@@ -663,8 +663,10 @@ def render_movimenti_crud_page(supabase_client, user_id,
             if col in money_columns:
                 column_config[col] = st.column_config.NumberColumn(
                     label=col,
-                    format="localized",
+                    format="accounting",
                 )
+
+        df_vis = df_vis.sort_values(by = ['Data', 'Numero'])
 
         selection = st.dataframe(df_vis, use_container_width=True,
                                  selection_mode = 'single-row',
@@ -833,17 +835,16 @@ def render_movimenti_crud_page(supabase_client, user_id,
 
                 column_config['Notes'] = st.column_config.TextColumn("Note")
 
+                terms_df = terms_df.sort_values(by=['Data Scadenza'])
+
                 terms_df.style.format({
                     'Importo Pagamento': format_italian_currency,
                 })
 
-
                 # editing_enabled = st.toggle('Modifica Tabella', key = table_name + '_toggle')
-                # dynamic_key = table_name + '_terms_df_' + str(hash(t.to_csv()))
 
                 column_order = ['Data Scadenza', 'Data Pagamento', 'Importo Pagamento', 'Nome Cassa', 'Fattura Attesa', 'Notes']
                 edited =  st.data_editor(terms_df,
-                                          # key=dynamic_key,
                                           key=table_name + '_terms_df',
                                           column_config=column_config,
                                           hide_index=True,

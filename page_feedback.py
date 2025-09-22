@@ -235,44 +235,6 @@ def feedback_form():
                     st.success("Comunicazione inviata correttamente.")
                 # st.error("Se il problema persiste, scrivi direttamente a: assistenza@kruscotto.it")
 
-def feedback_sidebar():
-    """Compact feedback widget for sidebar"""
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 💬 Feedback Rapido")
-    
-    with st.sidebar.form("quick_feedback"):
-        quick_message = st.text_area(
-            "Invia un suggerimento veloce:",
-            placeholder="Il tuo feedback...",
-            height=100
-        )
-        
-        quick_email = st.text_input(
-            "Email (opzionale):",
-            placeholder="per risposta"
-        )
-        
-        if st.form_submit_button("Invia"):
-            if quick_message.strip():
-                feedback_data = {
-                    'type': '💬 Feedback Rapido',
-                    'name': 'Utente Anonimo',
-                    'email': quick_email or 'Non fornita',
-                    'company': '',
-                    'subject': 'Feedback Rapido',
-                    'message': quick_message,
-                    'timestamp': datetime.now().isoformat(),
-                    'user_agent': 'Sidebar Widget'
-                }
-                
-                success, message = send_email_feedback(feedback_data)
-                if success:
-                    st.sidebar.success("Grazie per il feedback!")
-                else:
-                    st.sidebar.error("Errore nell'invio")
-            else:
-                st.sidebar.error("Scrivi un messaggio")
-
 # Main function for standalone use
 def main():
     st.set_page_config(

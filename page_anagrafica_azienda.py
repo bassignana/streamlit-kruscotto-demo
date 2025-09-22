@@ -1,4 +1,5 @@
 import logging
+import re
 
 import streamlit as st
 import time
@@ -34,7 +35,19 @@ def render_anagrafica_azienda_form(client, user_id):
                 return
 
             cf_clean = codice_fiscale.strip().upper()
+            # Pattern breakdown
+            # 6 letters: [a-zA-Z]{6}
+            # 2 numbers: \d{2}
+            # ...
+            cf_pattern = r"[a-zA-Z]{6}\d{2}[a-zA-Z]{1}\d{2}[a-zA-Z]{1}\d{3}[a-zA-Z]{1}"
+            if not re.fullmatch(cf_pattern, cf_clean):
+                st.error("La struttura del Codice Fiscale non è corretta")
+                return
+
             piva_clean = partita_iva.strip()
+            if not re.fullmatch(r"\d{11}", piva_clean):
+                st.error("La Partita IVA deve essere composta da 11 numeri")
+                return
 
             try:
                 if existing_data:
@@ -246,7 +259,6 @@ def render_delete_casse_modal(supabase_client, selected_row, emesse_names, emess
 
             except Exception as e:
                 raise Exception(f'Error deleting cassa manually: {e}')
-
 
 def render_casse(supabase_client, config):
     # widget_key = 'anagrafica_azienda_'

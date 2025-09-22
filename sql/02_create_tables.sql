@@ -53,6 +53,24 @@ FOR ALL USING (auth.uid() = user_id);
 
 
 
+CREATE TABLE public.notifications (
+                              id uuid NOT NULL DEFAULT gen_random_uuid(),
+                              user_id uuid NOT NULL,
+                              notification_type varchar,
+                              notification_body varchar,
+                              created_at timestamp with time zone DEFAULT now(),
+                              updated_at timestamp with time zone DEFAULT now(),
+                              CONSTRAINT notifications_pkey PRIMARY KEY (id)
+);
+
+-- Even if it is not necessary:
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage only their own data" ON public.notifications
+    FOR ALL USING (auth.uid() = user_id);
+
+
+
 CREATE TABLE public.user_data (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -379,6 +397,13 @@ CREATE TRIGGER update_payment_terms_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_payment_terms_updated_at
+    BEFORE UPDATE ON public.notifications
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+
+
 -- Create a function specifically for setting created_at on INSERT
 CREATE OR REPLACE FUNCTION set_created_at_column()
 RETURNS TRIGGER AS $$
@@ -431,6 +456,11 @@ CREATE TRIGGER set_payment_terms_created_at
 
 CREATE TRIGGER set_payment_terms_created_at
     BEFORE INSERT ON public.casse
+    FOR EACH ROW
+    EXECUTE FUNCTION set_created_at_column();
+
+CREATE TRIGGER set_payment_terms_created_at
+    BEFORE INSERT ON public.notifications
     FOR EACH ROW
     EXECUTE FUNCTION set_created_at_column();
 
@@ -991,9 +1021,9 @@ WITH
                 AND COALESCE(NULLIF(TRIM(c.c_iban_cassa), ''), '') = COALESCE(NULLIF(TRIM(rma.rma_iban_cassa), ''), '')
             )
         WHERE rma_data_pagamento IS NULL AND rma.user_id = auth.uid()
-        -- business logic: if I have already got an invoice for that term, then It will show up already in the
-        -- rate_fatture_*, so I remove it from here so that I don't count it twice
-        AND rma_fattura_attesa != 'Ricevuta'
+          -- business logic: if I have already got an invoice for that term, then It will show up already in the
+          -- rate_fatture_*, so I remove it from here so that I don't count it twice
+          AND rma_fattura_attesa != 'Ricevuta'
     ),
 
     cassa_data AS (
@@ -1025,9 +1055,9 @@ WITH
 --             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
 
-        -- Totals
-        --ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_incassare,
-        --ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_scaduti,
+            -- Totals
+            ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_incassare,
+            ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_scaduti,
             ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2) AS totale_attivi
         FROM unpaid
         GROUP BY cassa
@@ -1059,15 +1089,34 @@ WITH
 --             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 
+            -- Totals
+            ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
             ROUND(SUM(rfe_importo_pagamento_rata)::numeric, 2)
 
         FROM unpaid
     )
 SELECT
-    cassa,
-    settembre, ottobre, novembre, dicembre, gennaio, febbraio,
-    marzo, aprile, maggio, giugno, luglio, agosto, incassare_oltre,
-    scaduti_30gg, scaduti_60gg, scaduti_oltre, totale_attivi
+    cassa                   AS cassa              ,
+    settembre               AS settembre          ,
+    ottobre                 AS ottobre            ,
+    novembre                AS novembre           ,
+    dicembre                AS dicembre           ,
+    gennaio                 AS gennaio            ,
+    febbraio                AS febbraio           ,
+    marzo                   AS marzo              ,
+    aprile                  AS aprile             ,
+    maggio                  AS maggio             ,
+    giugno                  AS giugno             ,
+    luglio                  AS luglio             ,
+    agosto                  AS agosto             ,
+    incassare_oltre         AS incassare_oltre    ,
+    totale_da_incassare     AS totale_da_incassare,
+    scaduti_30gg            AS scaduti_30gg       ,
+    scaduti_60gg            AS scaduti_60gg       ,
+    scaduti_oltre           AS scaduti_oltre      ,
+    totale_scaduti          AS totale_scaduti     ,
+    totale_attivi           AS totale_attivi
 FROM cassa_data
 ORDER BY sort_key;
 
@@ -1175,6 +1224,10 @@ CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker
 --     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
 
+
+    -- Totals
+    ROUND(SUM(CASE WHEN NOT is_overdue THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_pagare,
+    ROUND(SUM(CASE WHEN is_overdue THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_scaduti,
     ROUND(SUM(rfr_importo_pagamento_rata)::numeric, 2) AS totale_passivi
 
     FROM unpaid
@@ -1206,16 +1259,34 @@ CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 --     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+
+        -- Totals
+    ROUND(SUM(CASE WHEN NOT is_overdue THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN is_overdue THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
     ROUND(SUM(rfr_importo_pagamento_rata)::numeric, 2)
-
-
     FROM unpaid
 )
 SELECT
-    cassa,
-    settembre, ottobre, novembre, dicembre, gennaio, febbraio,
-    marzo, aprile, maggio, giugno, luglio, agosto, pagare_oltre,
-    scaduti_30gg, scaduti_60gg, scaduti_oltre, totale_passivi
+    cassa                   AS cassa              ,
+    settembre               AS settembre          ,
+    ottobre                 AS ottobre            ,
+    novembre                AS novembre           ,
+    dicembre                AS dicembre           ,
+    gennaio                 AS gennaio            ,
+    febbraio                AS febbraio           ,
+    marzo                   AS marzo              ,
+    aprile                  AS aprile             ,
+    maggio                  AS maggio             ,
+    giugno                  AS giugno             ,
+    luglio                  AS luglio             ,
+    agosto                  AS agosto             ,
+    pagare_oltre            AS pagare_oltre       ,
+    totale_da_pagare        AS totale_da_pagare   ,
+    scaduti_30gg            AS scaduti_30gg       ,
+    scaduti_60gg            AS scaduti_60gg       ,
+    scaduti_oltre           AS scaduti_oltre      ,
+    totale_scaduti          AS totale_scaduti     ,
+    totale_passivi          AS totale_passivi
 FROM cassa_data
 ORDER BY sort_key;
 

@@ -74,6 +74,13 @@ npx cypress open
 Here I prefer a managed supabase account in order to avoid to 
 manage the local supabase instance for now.
 
+Remember to set the correct timezone.
+It will influence automatically inserted data!
+```sql
+alter database postgres
+set timezone to 'Europe/Rome';
+```
+
 For a temporary development environment, I've created a new 
 Supabase project and I manually switch the credentials in the 
 secrets.toml file.
@@ -157,6 +164,7 @@ altri movimenti: menu a tendina blindata
 
 Beta:
 BRAKING:
+[] IDEA: can I use st.html() to always show the scrollbar in the df that I know that will be large?
 [x] quando creo un movimento, modifico dalla tabella un valore e poi clicco quando sono
    ancora nella tabella sul puslante salva, NON SALVA, ma devo cliccare una seconda 
    volta! Sembra che il primo click faccia uscire la persona dalla tabella in modifica, 
@@ -189,7 +197,8 @@ BRAKING:
    broken state will be used.
 [x] In the uploader I have to insert a rerun if I want to update the tables, but doing so will make almost
    impossible to read the summaries and warnings
-[] Screen!
+[x] Screen: in fatture analisi, if there are no attivi o passivi, there is a floating point errors.
+[] Test everyware that when there is few data, the app behaves correctly
 [] Movimenti > when creating terms with rapid config, then changing the edited df removing one of the 
    amounts, then click auto division, the df is not updated!
    I think that this I cannot fix since it probably is a problem with the internal state of the streamlit component.
@@ -267,27 +276,44 @@ all add and modify modal
 [] Scrollbar always present in tabular things
 [] Quando modifico l'importo di un movimento, gli importi delle scadenze non vengono
    modificati! Aprire un menu di modifica o, comunque, impedire la prosecuzione.
+Things to solve with regards to the database:
+- [ ] always shown horizontal scrollbar
+- [ ] left AND right fixed columns
+- [ ] dropdown with suggestions or custom field
+- [ ] selectable dataframe
+- [ ] css to be streamlit like
+- [ ] complex index
+- [ ] font change
+- [ ] testable
+- [ ] be able to add or remove row 
 
 Riunione 15 Settembre:
-[] centrare maschera login
-[] Errori gravi: Documenti da Verificare, chiusa, sotto
-[] aggiungere categoria ordini nei passivi
-[] Controllo sintassi CF: x lettere e x numeri. PIVA 11 numeri.
-[] Limite sulle fatture caricate 100 fatture acquisto / vendita in caricamento. ...(in questa varsione
+[x] centrare maschera login
+[x] Errori gravi: Documenti da Verificare, chiusa, sotto
+[x] aggiungere categoria ordini nei passivi
+[x] Controllo sintassi CF: x lettere e x numeri. PIVA 11 numeri.
+[] TEST, with appV1: Controllo sintassi CF: x lettere e x numeri. PIVA 11 numeri.
+[x] Limite sulle fatture caricate 100 fatture acquisto / vendita in caricamento. ...(in questa varsione
    è possibile caricare fino a 50 fatture di acquisto e 50 di vendita)
-[] sempre due centesimi nelle griglie delle tabelle
-[] ordinameto fatture discendente data e mettere numero come chiave ordinaria
-[] check that the default time in the dataset is not behind by two hours 2025-09-16 08:33:07.588974 +00:00
+[] Test max invoice upload limit
+[x] sempre due centesimi nelle griglie delle tabelle
+[] do I need to test for the above? maybe not, there are more urgent things 
+[x] ordinameto fatture discendente data e mettere numero come chiave ordinaria
+[] How do I test the above? with V1? only tested visually now
+[x] check that the default time in the dataset is not behind by two hours 2025-09-16 08:33:07.588974 +00:00
+[] Totale attivi dopo Agosto.
+[] doppio indice nel dataframe mettendo: Da Incassare, dopo Scaduti.  Rimuovere 'Da incassare scaduti'
+[] Come sopra: Da Pagere, 'da pagare scaduti'
+[] Verificare calcolo del totale nelle query
+[] Test sui totali? V1?
 
 
+[x] flussi di cassa passivi, le casse devono essere LE MIE (accade in upload)  
 [] fatture ritenute sono quelle che hanno le scadenze diverse
-[] flussi di cassa passivi, le casse devono essere LE MIE (accade in upload)  
 [] se nella fattura c'e la **condizione di pagamento MP 01** va direttamente nella cassa contanti e devo crearla se non esiste
 [] mp 05 banca di default, tutto il resto non specificato
 [] banca di default per le fatture emesse con colonna o menu spuntabile
-[] mail supporto@kruscotto.it
-[] doppio indice nel dataframe mettendo: Da Incassare, dopo Scaduti. Totale attivi dopo Agosto. Rimuovere 'Da incassare scaduti' 
-[] Come sopra: Da Pagere, 'da pagare scaduti'
+[] mail supporto@kruscotto.it. La comunicazione di streamlit va nei log del db, mentre metto un messaggio per la mail.
 [] Importo secco per il saldo iniziale nell'anagrafica azienda. Saldo Iniziale Mese Corrente.
    Aggiornato con il saldo finale del mese prima. Sempre modificabile.
 

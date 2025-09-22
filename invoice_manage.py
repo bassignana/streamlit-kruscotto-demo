@@ -617,8 +617,10 @@ def render_invoice_crud_page(supabase_client, user_id,
             if col in money_columns:
                 column_config[col] = st.column_config.NumberColumn(
                     label=col,
-                    format="localized",
+                    format="accounting",
                 )
+
+        df_vis = df_vis.sort_values(by = ['Data Documento', 'Numero Fattura'])
 
         selection = st.dataframe(df_vis, use_container_width=True,
                                  selection_mode = 'single-row',
@@ -754,6 +756,8 @@ def render_invoice_crud_page(supabase_client, user_id,
 
                 column_config['Notes'] = st.column_config.TextColumn("Note")
 
+                terms_df = terms_df.sort_values(by=['Data Scadenza'])
+
                 terms_df.style.format({
                     'Importo Pagamento Rata': format_italian_currency,
                 })
@@ -887,7 +891,7 @@ def main():
                 for col in df.columns:
                     column_config[col] = st.column_config.NumberColumn(
                             label=col,
-                            format="localized",
+                            format="accounting",
                             width = 60
                     )
 
