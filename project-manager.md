@@ -318,6 +318,28 @@ Riunione 15 Settembre:
    Aggiornato con il saldo finale del mese prima. Sempre modificabile.
 
 
+RIUNIONE Lun 22 Settembre
+[] <ImponibileImporto> È l'unico campo che ci interessa.
+[] X Venerdi, cassa default in anagrafica azienda
+
+PER RILASCIO:
+[] BUG: screen, probabilmente dovuta all'ordering della colonna, se seleziono una fattura, non vedo i termini
+   corrispondenti.
+[] BUG: screen, duplicazione cassa quando creo una nuova cassa e poi la vado a selezionare in una fattura.
+[] PWD Dimenticata
+[] Aumentare tempo sessione
+[] Analisi imposte: "Prossimo Rilascio"
+[] Contatti: mandare mail al supporto@kruscotto
+[] se non c'e la scadenza, DATA DOCUMENTO, sia per acquisti che vendite
+[] Togliere 2 mesi -> in oltre ASSICURANDOSI DI MANDARE TUTTI I TOTALI IN OLTRE DEI DUE MESI
+[] Tile sx: aggiungere totali a dx df, Fatture ed altri mov.
+[] TEST: i totali nelle varie pagine devono essere corretti, occhio ai BUG nelle casse
+[] Fatture mensili -> Fatturato (comprensivo di IVA)
+
+
+
+
+
 PATHS:
 Documenti-movimenti-sommario
 Documenti-movimenti-movimenti attivi

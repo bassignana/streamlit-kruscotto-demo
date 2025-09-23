@@ -209,36 +209,19 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
                 print(f'Error adding movimento manually: {e}')
 
 @st.dialog("Rimuovi movimento")
-def render_delete_modal(supabase_client, table_name, selected_row, rate_prefix, prefix):
+def render_delete_modal(supabase_client, table_name, record_id):
 
     col1, col2 = st.columns([1, 1])
-
     with col1:
         if st.button("Conferma Eliminazione", type="primary",
                      key = table_name + '_delete_modal_button'):
             try:
                 with st.spinner("Eliminazione in corso..."):
-                    record_id = selected_row['id']
-
-                    # movement_key = {
-                    #     rate_prefix + 'numero': selected_row[prefix + 'numero'],
-                    #     rate_prefix + 'data': selected_row[prefix + 'data'],
-                    # }
-
-                    # I need to add prefix now to be able to find the columns for delete.
-                    # prefixed_selected_row = {}
-                    # for k,v in selected_row.items():
-                    #     prefixed_selected_row[prefix + k] = v
 
                     # Supabase delete always returns empty data, so we check for no exception
                     result = supabase_client.table(table_name).delete() \
                         .eq('user_id', st.session_state.user.id) \
                         .eq('id', record_id).execute()
-                    #
-                    # query = supabase_client.table(table_name).delete()
-                    # for field, value in prefixed_selected_row.items():
-                    #     query = query.eq(field, value)
-                    # result = query.eq('user_id', st.session_state.user.id).execute()
 
                     has_errored = (hasattr(result, 'error') and result.error)
 
@@ -247,20 +230,8 @@ def render_delete_modal(supabase_client, table_name, selected_row, rate_prefix, 
                         # CASCADE clause. In the future I might use an ad hoc transaction to
                         # make the system more robust to sql definition errors.
 
-                        # Delete terms if movement is deleted correctly
-                        # query = supabase_client.table(rate_prefix + table_name).delete()
-                        # for field, value in movement_key.items():
-                        #     query = query.eq(field, value)
-                        # result = query.eq('user_id', st.session_state.user.id).execute()
-                        #
-                        # has_errored = (hasattr(result, 'error') and result.error)
-                        #
-                        # if not has_errored:
-
                         st.success("Dati eliminati con successo!")
                         st.rerun()
-                        # else:
-                        #     st.error(f"Errore rimozione termini movimento: {result.error.message}")
 
                     else:
                         st.error(f"Errore rimozione movimento: {result.error.message}")
@@ -269,10 +240,6 @@ def render_delete_modal(supabase_client, table_name, selected_row, rate_prefix, 
             except Exception as e:
                 raise Exception(f'Error deleting movement: {e}')
 
-    # with col2:
-    #     if st.button("🚫 Annulla", use_container_width=True):
-    #         st.session_state[f"crud_mode_{table_name}"] = "view"
-    #         st.rerun()
 
 @st.dialog("Modifica movimento")
 def render_modify_modal(supabase_client, table_name, fields_config, selected_id, prefix):
@@ -707,48 +674,49 @@ def render_movimenti_crud_page(supabase_client, user_id,
             if delete:
                 if selection.selection['rows']:
                     selected_index = selection.selection['rows'][0]
-                    selected_row = movimenti_data[selected_index]
-                    #
-                    #
-                    #
-                    # TODO; When I delete movement, I need to delete relative terms also!
-                    # For now that I have to give the app to test, I'm going to delete manually the terms
-                    #
-                    #
-                    #
-                    render_delete_modal(supabase_client, table_name, selected_row, rate_prefix, prefix)
+                    # This line below will not work since the index of selection is relative to
+                    # df_vis and not movimenti_data.
+                    # selected_row = movimenti_data[selected_index]
+
+                    # So where I need the id, I can call .name but cannot do to_dict() because I lose the index
+                    # if I don't reset the index before.
+                    record_id = df_vis.iloc[selected_index].name #.to_dict()
+
+                    render_delete_modal(supabase_client, table_name, record_id)
                 else:
                     st.warning('Seleziona un movimento da eliminare')
 
 
         with st.expander("Visualizza e Modifica Scadenze"):
-            # TODO: In order to help the user understand that the rows of the dataframe can be clicked,
-            #  start with the first checkbox selected,
-            #  or at least visible by default
-            #  or at least give a label to the selection column.
+            # Selected row.
+            #
+            # ATT: here I'm relying on the fact that the index, as I've already
+            # verified, will be always relative to the index of the data that are
+            # an input to the dataframe. In this case I am assuming that this relationship
+            # holds also for movimenti_data.
+            #
+            # Note that reading from a view, I have names of columns that are different
+            # from the prefixed names in the table.
+            # Most notably I don't have prefixes.
 
             if selection.selection['rows']:
                 selected_index = selection.selection['rows'][0]
-                record_data = movimenti_data[selected_index]
-                numero_documento = record_data[prefix + 'numero']
-                data_documento   = record_data[prefix + 'data']
-                importo_totale_movimento = to_money(record_data[prefix + 'importo_totale'])
+                # If I query data from something other than df_vis, any sorting will result in
+                # selecting the wrong index.
+                #
+                # I commented the old version for reference.
+                # record_data = movimenti_data[selected_index]
+                # numero_documento = record_data[prefix + 'numero']
+                # data_documento   = record_data[prefix + 'data']
+                # importo_totale_movimento = to_money(record_data[prefix + 'importo_totale'])
+                record_data = df_vis.iloc[selected_index].to_dict()
+                numero_documento = record_data['Numero']
+                data_documento   = record_data['Data']
+                importo_totale_movimento = to_money(record_data['Importo Totale'])
 
                 # For now it is impossible to have anomalies in altri movimenti.
                 # if numero_documento in anomalies:
                 #     st.warning(anomalies.get(numero_documento))
-
-                # Selected row.
-                #
-                # ATT: here I'm relying on the fact that the index, as I've already
-                # verified, will be always relative to the index of the data that are
-                # an input to the dataframe. In this case I am assuming that this relationship
-                # holds also for movimenti_data.
-                #
-                # Note that reading from a view, I have names of columns that are different
-                # from the prefixed names in the table.
-                # Most notably I don't have prefixes.
-
 
 
                 movement_key = {

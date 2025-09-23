@@ -479,7 +479,7 @@ def render_invoice_modify_modal(supabase_client, table_name, fields_config, sele
                 raise
 
 @st.dialog("Rimuovi fattura")
-def render_invoice_delete_modal(supabase_client, table_name, selected_row, rate_prefix, prefix):
+def render_invoice_delete_modal(supabase_client, table_name, record_id):
 
     col1, col2 = st.columns([1, 1])
 
@@ -488,7 +488,6 @@ def render_invoice_delete_modal(supabase_client, table_name, selected_row, rate_
                      key = table_name + '_delete_modal_button'):
             try:
                 with st.spinner("Eliminazione in corso..."):
-                    record_id = selected_row['id']
 
                     # Supabase delete always returns empty data, so we check for no exception
                     result = supabase_client.table(table_name).delete() \
@@ -661,9 +660,9 @@ def render_invoice_crud_page(supabase_client, user_id,
             if delete:
                 if selection.selection['rows']:
                     selected_index = selection.selection['rows'][0]
-                    selected_row = invoices_data[selected_index]
+                    record_id = df_vis[selected_index].name
 
-                    render_invoice_delete_modal(supabase_client, table_name, selected_row, rate_prefix, prefix)
+                    render_invoice_delete_modal(supabase_client, table_name, record_id)
                 else:
                     st.warning('Seleziona un movimento da eliminare')
 
@@ -672,22 +671,21 @@ def render_invoice_crud_page(supabase_client, user_id,
 
             if selection.selection['rows']:
                 selected_index = selection.selection['rows'][0]
-                record_data = invoices_data[selected_index]
-                numero_documento = record_data[prefix + 'numero_fattura']
-                data_documento   = record_data[prefix + 'data_documento']
-                importo_totale_documento = to_money(record_data[prefix + 'importo_totale_documento'])
+                record_data = df_vis.iloc[selected_index]
+                numero_documento = record_data['Numero Fattura']
+                data_documento   = record_data['Data Documento']
+                importo_totale_documento = to_money(record_data['Importo Totale Documento'])
 
                 if numero_documento in anomalies:
                     st.warning(anomalies.get(numero_documento))
 
                 result = supabase_client.table(table_name).select(prefix + 'partita_iva_prestatore') \
-                                        .eq('id', record_data['id']) \
+                                        .eq('id', record_data.name) \
                                         .eq('user_id', st.session_state.user.id).execute()
                 piva_prestatore = result.data[0].get(prefix + 'partita_iva_prestatore', None)
                 if piva_prestatore is None:
                     st.error('Errore nel reperire la P.IVA prestatore')
                     return
-
 
 
                 document_key = {
@@ -711,7 +709,6 @@ def render_invoice_crud_page(supabase_client, user_id,
                             term = {
                                 rate_prefix + 'data_scadenza_pagamento': datetime.strptime(row[rate_prefix + 'data_scadenza_pagamento'], '%Y-%m-%d').date(),
                                 rate_prefix + 'data_pagamento_rata': datetime.strptime(row[rate_prefix + 'data_pagamento_rata'], '%Y-%m-%d').date() if row[rate_prefix + 'data_pagamento_rata'] else None,
-                                # rate_prefix + 'importo_pagamento_rata': float(row[rate_prefix + 'importo_pagamento_rata']),
                                 rate_prefix + 'importo_pagamento_rata': to_money(row[rate_prefix + 'importo_pagamento_rata']),
                                 rate_prefix + 'nome_cassa': row[rate_prefix + 'nome_cassa'] or '',
                                 rate_prefix + 'notes': row[rate_prefix + 'notes'] or '',
@@ -756,7 +753,7 @@ def render_invoice_crud_page(supabase_client, user_id,
 
                 column_config['Notes'] = st.column_config.TextColumn("Note")
 
-                terms_df = terms_df.sort_values(by=['Data Scadenza'])
+                terms_df = terms_df.sort_values(by=['Data Scadenza Pagamento'])
 
                 terms_df.style.format({
                     'Importo Pagamento Rata': format_italian_currency,

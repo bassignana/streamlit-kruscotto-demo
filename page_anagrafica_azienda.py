@@ -130,27 +130,23 @@ def render_add_casse_modal(supabase_client, config, emesse_names, emesse_iban):
                 raise Exception(f'Error adding cassa manually: {e}')
 
 @st.dialog("Modifica cassa")
-def render_modify_casse_modal(supabase_client, config, selected_row, emesse_names, emesse_iban):
+def render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_names, emesse_iban):
 
     with st.form(f"modify_casse_form",
                  clear_on_submit=False,
                  enter_to_submit=False):
         form_data = {}
 
+        selected_row = {
+            'c_nome_cassa': selected_db_row['Nome Cassa'],
+            'c_iban_cassa': selected_db_row['Iban Cassa'],
+            'c_descrizione_cassa': selected_db_row['Descrizione Cassa']
+        }
+
         is_read_from_emesse = selected_row['c_nome_cassa'] in emesse_names or selected_row['c_iban_cassa'] in emesse_iban
 
         if is_read_from_emesse:
             st.info('Attualmente, per le casse lette da fatture emesse, è possibile modificare solo la descrizione')
-
-            # for i, (field_name, field_config) in enumerate(config.items()):
-            #     if field_name in ['c_descrizione_cassa']:
-            #         record_value = selected_row.get(field_name, None)
-            #         form_data[field_name] = render_field_widget(
-            #             field_name, field_config, record_value,
-            #             key_suffix=f"casse_anagrafica"
-            #         )
-
-        # else:
 
         for i, (field_name, field_config) in enumerate(config.items()):
             if field_name in ['c_nome_cassa','c_iban_cassa','c_descrizione_cassa']:
@@ -222,7 +218,12 @@ def render_modify_casse_modal(supabase_client, config, selected_row, emesse_name
                     raise Exception(f'Error modifying cassa manually: {e}')
 
 @st.dialog("Elimina cassa")
-def render_delete_casse_modal(supabase_client, selected_row, emesse_names, emesse_iban):
+def render_delete_casse_modal(supabase_client, selected_db_row, emesse_names, emesse_iban):
+    selected_row = {
+        'c_nome_cassa': selected_db_row['Nome Cassa'],
+        'c_iban_cassa': selected_db_row['Iban Cassa'],
+        'c_descrizione_cassa': selected_db_row['Descrizione Cassa']
+    }
 
     error = ''
     if selected_row['c_nome_cassa'] in emesse_names:
@@ -322,8 +323,8 @@ def render_casse(supabase_client, config):
         if st.button("Modifica Cassa", key = '_modify_first_cassa'):
             if selection.selection['rows']:
                 selected_index = selection.selection['rows'][0]
-                selected_row = casse_data[selected_index]
-                render_modify_casse_modal(supabase_client, config, selected_row, emesse_names, emesse_iban)
+                selected_db_row = casse_df.iloc[selected_index]
+                render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_names, emesse_iban)
             else:
                 st.warning('Seleziona una cassa da modificare')
 
@@ -331,8 +332,8 @@ def render_casse(supabase_client, config):
         if st.button("Elimina Cassa",  key = '_delete_first_cassa'):
             if selection.selection['rows']:
                 selected_index = selection.selection['rows'][0]
-                selected_row = casse_data[selected_index]
-                render_delete_casse_modal(supabase_client, selected_row, emesse_names, emesse_iban)
+                selected_db_row = casse_df.iloc[selected_index]
+                render_delete_casse_modal(supabase_client, selected_db_row, emesse_names, emesse_iban)
             else:
                 st.warning('Seleziona una cassa da eliminare')
 
