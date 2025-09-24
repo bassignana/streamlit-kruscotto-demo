@@ -124,9 +124,12 @@ def show_login_and_render_form(supabase_client):
                 if submitted:
                     if not all([signup_email, signup_password, signup_confirm_password]):
                         st.error("Riempire tutti i campi obbligatori")
+                        # TODO: rerunning here is bad UX, but for now this will do.
+                        time.sleep(1)
                         return
                     elif signup_password != signup_confirm_password:
                         st.error("Le password non corrispondono")
+                        time.sleep(1)
                         return
                     else:
                         is_email_valid, email_error_msg = validate_email(signup_email)
@@ -134,9 +137,11 @@ def show_login_and_render_form(supabase_client):
 
                         if not is_email_valid:
                             st.error(email_error_msg)
+                            time.sleep(1)
                             return
                         elif not is_pwd_valid:
                             st.error(pwd_error_msg)
+                            time.sleep(1)
                             return
                         else:
                             full_name = None
@@ -171,6 +176,7 @@ def show_login_and_render_form(supabase_client):
                                 # st.session_state.signup_confirm_password = ""
                             else:
                                 st.error(message)
+                                time.sleep(1)
                                 return
 
         # with tab3:
