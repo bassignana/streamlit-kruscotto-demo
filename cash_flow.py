@@ -181,8 +181,8 @@ def main():
                'Da Incassare',              #aprile
                'Da Incassare',              #maggio
                'Da Incassare',              #giugno
-               'Da Incassare',              #luglio
-               'Da Incassare',              #agosto
+               # 'Da Incassare',              #luglio
+               # 'Da Incassare',              #agosto
                'Da Incassare',              #incassare_oltre
                'Da Incassare',              #totale_da_incassare
                'Da Incassare Scaduti',      #scaduti_30gg
@@ -226,8 +226,8 @@ def main():
             'Da Pagare',                 #aprile
             'Da Pagare',                 #maggio
             'Da Pagare',                 #giugno
-            'Da Pagare',                 #luglio
-            'Da Pagare',                 #agosto
+            # 'Da Pagare',                 #luglio
+            # 'Da Pagare',                 #agosto
             'Da Pagare',                 #incassare_oltre
             'Da Pagare',                 #totale_da_incassare
             'Da Pagare Scaduti',         #scaduti_30gg
@@ -282,8 +282,8 @@ def main():
                 'Apr',                  # aprile
                 'Mag',                  # maggio
                 'Giu',                  # giugno
-                'Lug',                  # luglio
-                'Ago',                  # agosto
+                # 'Lug',                  # luglio
+                # 'Ago',                  # agosto
                 'Oltre',                # pagare_oltre
                 'Totale',               # totale_da_pagare
                 '30GG',                 # scaduti_30gg
@@ -303,7 +303,23 @@ def main():
             #     **{'color': '#75777E'}
             # )
 
-            column_config = get_cashflow_column_config(saldo.columns, months)
+            # column_config = get_cashflow_column_config(saldo.columns, months)
+            # Don't know why the above stopped working: now it gives incorrect pixel sizes
+            saldo_config = {}
+            for col in saldo.columns:
+                if col == 'Cassa':
+                    saldo_config[col] = st.column_config.TextColumn(
+                        label='Cassa',
+                        width = 200,
+                        pinned = True
+                    )
+                else:
+                    saldo_config[col] = st.column_config.NumberColumn(
+                        label=col,
+                        format="accounting",
+                        width = 78
+                    )
+
 
             saldo.columns = pd.MultiIndex.from_arrays([[
                 'FLUSSO DI CASSA',        #cassa
@@ -317,8 +333,8 @@ def main():
                 'Futuro',                 #'Apr',
                 'Futuro',                 #'Mag',
                 'Futuro',                 #'Giu',
-                'Futuro',                 #'Lug',
-                'Futuro',                 #'Ago',
+                # 'Futuro',                 #'Lug',
+                # 'Futuro',                 #'Ago',
                 'Futuro',                 #'Oltre',
                 'Futuro',                 #'Totale',
                 'Scaduto',                #'30GG',
@@ -333,7 +349,7 @@ def main():
 
             # todo: small, verify if in column config labels I can use markdown for bold.
             # todo: small, verify if I can use spaces to ident MultiIndex labels to the center.
-            st.dataframe(saldo, use_container_width=True, hide_index=True,  column_config=column_config)
+            st.dataframe(saldo, use_container_width=True, hide_index=True,  column_config=saldo_config)
 
         except Exception as e:
             st.error(f"Errore nel calcolo del netto: {str(e)}")

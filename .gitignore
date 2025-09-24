@@ -4,6 +4,7 @@ uv.lock
 .python-version
 
 .streamlit/secrets.toml
+.streamlit/config.toml
 .secrets/
 
 fatture_emesse

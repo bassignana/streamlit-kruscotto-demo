@@ -1060,15 +1060,15 @@ WITH
             ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m7_end AND rfe_data_scadenza_pagamento <= m8_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS aprile,
             ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m8_end AND rfe_data_scadenza_pagamento <= m9_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS maggio,
             ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m9_end AND rfe_data_scadenza_pagamento <= m10_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS giugno,
-            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end AND rfe_data_scadenza_pagamento <= m11_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS luglio,
-            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m11_end AND rfe_data_scadenza_pagamento <= m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS agosto,
-            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_oltre,
+--             ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end AND rfe_data_scadenza_pagamento <= m11_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS luglio,
+--             ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m11_end AND rfe_data_scadenza_pagamento <= m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS agosto,
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS incassare_oltre,
 
             -- Overdue collections
             ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
 --             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
-            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
 
             -- Totals
             ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS totale_da_incassare,
@@ -1094,15 +1094,15 @@ WITH
             ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m7_end AND rfe_data_scadenza_pagamento <= m8_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
             ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m8_end AND rfe_data_scadenza_pagamento <= m9_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
             ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m9_end AND rfe_data_scadenza_pagamento <= m10_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end AND rfe_data_scadenza_pagamento <= m11_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m11_end AND rfe_data_scadenza_pagamento <= m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+--             ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end AND rfe_data_scadenza_pagamento <= m11_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+--             ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m11_end AND rfe_data_scadenza_pagamento <= m12_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN NOT is_overdue AND rfe_data_scadenza_pagamento > m10_end THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 
             -- Overdue collections
             ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 --             ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+            ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 
             -- Totals
             ROUND(SUM(CASE WHEN NOT is_overdue THEN rfe_importo_pagamento_rata ELSE 0 END)::numeric, 2),
@@ -1123,8 +1123,8 @@ SELECT
     aprile                  AS aprile             ,
     maggio                  AS maggio             ,
     giugno                  AS giugno             ,
-    luglio                  AS luglio             ,
-    agosto                  AS agosto             ,
+--     luglio                  AS luglio             ,
+--     agosto                  AS agosto             ,
     incassare_oltre         AS incassare_oltre    ,
     totale_da_incassare     AS totale_da_incassare,
     scaduti_30gg            AS scaduti_30gg       ,
@@ -1233,15 +1233,15 @@ CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker
     ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m7_end AND rfr_data_scadenza_pagamento <= m8_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS aprile,
     ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m8_end AND rfr_data_scadenza_pagamento <= m9_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS maggio,
     ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m9_end AND rfr_data_scadenza_pagamento <= m10_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS giugno,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m10_end AND rfr_data_scadenza_pagamento <= m11_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS luglio,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m11_end AND rfr_data_scadenza_pagamento <= m12_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS agosto,
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m12_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS pagare_oltre,
+--     ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m10_end AND rfr_data_scadenza_pagamento <= m11_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS luglio,
+--     ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m11_end AND rfr_data_scadenza_pagamento <= m12_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS agosto,
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m10_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS pagare_oltre,
 
     -- Overdue collections
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_30gg,
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_60gg,
 --     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_90gg,
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2) AS scaduti_oltre,
 
 
     -- Totals
@@ -1269,15 +1269,15 @@ CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker
     ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m7_end AND rfr_data_scadenza_pagamento <= m8_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
     ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m8_end AND rfr_data_scadenza_pagamento <= m9_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
     ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m9_end AND rfr_data_scadenza_pagamento <= m10_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m10_end AND rfr_data_scadenza_pagamento <= m11_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m11_end AND rfr_data_scadenza_pagamento <= m12_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m12_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+--     ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m10_end AND rfr_data_scadenza_pagamento <= m11_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+--     ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m11_end AND rfr_data_scadenza_pagamento <= m12_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN NOT is_overdue AND rfr_data_scadenza_pagamento > m10_end THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 
     -- Overdue collections
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days <= 30 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 30 AND overdue_days <= 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 --     ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 AND overdue_days <= 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
-    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 90 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
+    ROUND(SUM(CASE WHEN is_overdue AND overdue_days > 60 THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
 
         -- Totals
     ROUND(SUM(CASE WHEN NOT is_overdue THEN rfr_importo_pagamento_rata ELSE 0 END)::numeric, 2),
@@ -1297,8 +1297,8 @@ SELECT
     aprile                  AS aprile             ,
     maggio                  AS maggio             ,
     giugno                  AS giugno             ,
-    luglio                  AS luglio             ,
-    agosto                  AS agosto             ,
+--     luglio                  AS luglio             ,
+--     agosto                  AS agosto             ,
     pagare_oltre            AS pagare_oltre       ,
     totale_da_pagare        AS totale_da_pagare   ,
     scaduti_30gg            AS scaduti_30gg       ,
