@@ -209,14 +209,42 @@ def render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_n
         ricevute_affected_ids = result.data
 
 
-        # st.write(emesse_affected_ids)
+        movimenti_attivi_query = supabase_client.table('rate_movimenti_attivi').select('id')
+        if selected_row2['c_nome_cassa'] is None:
+            movimenti_attivi_query = movimenti_attivi_query.is_('rma_nome_cassa', None)
+        else:
+            movimenti_attivi_query = movimenti_attivi_query.eq('rma_nome_cassa', selected_row2['c_nome_cassa'])
+        if selected_row2['c_iban_cassa'] is None:
+            movimenti_attivi_query = movimenti_attivi_query.is_('rma_iban_cassa', None)
+        else:
+            movimenti_attivi_query = movimenti_attivi_query.eq('rma_iban_cassa', selected_row2['c_iban_cassa'])
+        movimenti_attivi_query = movimenti_attivi_query.eq('user_id', st.session_state.user.id)
+        result = movimenti_attivi_query.execute()
+        movimenti_attivi_affected_ids = result.data
+
+        movimenti_passivi_query = supabase_client.table('rate_movimenti_passivi').select('id')
+        if selected_row2['c_nome_cassa'] is None:
+            movimenti_passivi_query = movimenti_passivi_query.is_('rmp_nome_cassa', None)
+        else:
+            movimenti_passivi_query = movimenti_passivi_query.eq('rmp_nome_cassa', selected_row2['c_nome_cassa'])
+        if selected_row2['c_iban_cassa'] is None:
+            movimenti_passivi_query = movimenti_passivi_query.is_('rmp_iban_cassa', None)
+        else:
+            movimenti_passivi_query = movimenti_passivi_query.eq('rmp_iban_cassa', selected_row2['c_iban_cassa'])
+        movimenti_passivi_query = movimenti_passivi_query.eq('user_id', st.session_state.user.id)
+        result = movimenti_passivi_query.execute()
+        movimenti_passivi_affected_ids = result.data
+
 
         is_read_from_emesse = selected_row['c_nome_cassa'] in emesse_names or selected_row['c_iban_cassa'] in emesse_iban
 
         if is_read_from_emesse:
             st.info('Attualmente, per le casse lette da fatture emesse, è possibile modificare solo la descrizione')
 
-        else: #todo: This is necessary only for the case where...?
+        else: #todo: what I'm really saying here is that is_read_from_emesse means that there are
+            #  no row in the casse table...? this is the incorrect way to check anyway, hence the bug that sometimes
+            #  result.data[0].get('id') fails.
+
             # Immediately fetch data that I need in the upsert, if I do it in the upsert section,
             # for some reason it does not fetch data.
             result = supabase_client.table('casse').select('id') \
@@ -280,10 +308,6 @@ def render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_n
 
                         display_value = upsert_data.get('c_descrizione_cassa') or upsert_data.get('c_nome_cassa') or upsert_data.get('c_iban_cassa', None)
 
-                        # st.write(display_value)
-                        # st.write(is_read_from_emesse)
-                        # st.write(upsert_data)
-
                         if is_read_from_emesse:
 
                             query = supabase_client.table('casse').select('id').eq('user_id', st.session_state.user.id)
@@ -336,6 +360,14 @@ def render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_n
                                 result = supabase_client.table('rate_fatture_ricevute').update({'rfr_display_cassa': display_value}) \
                                 .eq('id',row_id.get('id')).execute()
 
+                            for row_id in movimenti_attivi_affected_ids:
+                                result = supabase_client.table('rate_movimenti_attivi').update({'rma_display_cassa': display_value}) \
+                                    .eq('id',row_id.get('id')).execute()
+
+                            for row_id in movimenti_passivi_affected_ids:
+                                result = supabase_client.table('rate_movimenti_passivi').update({'rmp_display_cassa': display_value}) \
+                                    .eq('id',row_id.get('id')).execute()
+
                         else:
                             # Here I need to use another condition, id, to handle conflict,
                             # otherwise I get duplication.
@@ -348,11 +380,17 @@ def render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_n
                             for row_id in emesse_affected_ids:
                                 result = supabase_client.table('rate_fatture_emesse').update({'rfe_display_cassa': display_value}) \
                                     .eq('id',row_id.get('id')).execute()
-                                if not result.data:
-                                    st.error(result)
 
                             for row_id in ricevute_affected_ids:
                                 result = supabase_client.table('rate_fatture_ricevute').update({'rfr_display_cassa': display_value}) \
+                                    .eq('id',row_id.get('id')).execute()
+
+                            for row_id in movimenti_attivi_affected_ids:
+                                result = supabase_client.table('rate_movimenti_attivi').update({'rma_display_cassa': display_value}) \
+                                    .eq('id',row_id.get('id')).execute()
+
+                            for row_id in movimenti_passivi_affected_ids:
+                                result = supabase_client.table('rate_movimenti_passivi').update({'rmp_display_cassa': display_value}) \
                                     .eq('id',row_id.get('id')).execute()
 
                         has_errored = (hasattr(result, 'error') and result.error)

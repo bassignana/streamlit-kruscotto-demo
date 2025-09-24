@@ -798,6 +798,18 @@ def render_invoice_crud_page(supabase_client, user_id,
 
                 options = fetch_all_records_from_view(supabase_client, 'casse_options')
                 cleaned_options = [d.get('cassa') for d in options]
+
+                # # Check for any mismatches
+                # if 'Display Cassa' in terms_df.columns:
+                #     unique_values = [str(x).strip() for x in terms_df['Display Cassa'].dropna().unique()]
+                #     mismatches = [val for val in unique_values if val not in cleaned_options and val != 'nan']
+                #     if mismatches:
+                #         st.warning(f"Found {len(mismatches)} values in 'Display Cassa' that don't match any option:")
+                #         st.write("\nAvailable options from database:")
+                #         st.write(cleaned_options)
+                #         st.write('terms values')
+                #         st.write(unique_values)
+
                 column_config['Display Cassa'] = st.column_config.SelectboxColumn(
                     "Cassa",
                     options=cleaned_options)

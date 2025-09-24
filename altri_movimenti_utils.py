@@ -405,7 +405,7 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
             for k,v in _edited.T.to_dict().items():
                 up_to_date_terms.append(v)
             terms = up_to_date_terms
-
+            
             # Verify total configured
             # TODO; This does not work at first try
             total_configured = to_money(0)
@@ -477,7 +477,7 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
                     result = supabase_client.table('rate_' + table_name).select('*') \
                         .eq('id', row_id) \
                         .eq('user_id', st.session_state.user.id).execute()
-
+                    
                     nome = result.data[0].get(rate_prefix + 'nome_cassa')
                     iban = result.data[0].get(rate_prefix + 'iban_cassa')
                     term[rate_prefix + 'nome_cassa'] = nome
@@ -488,17 +488,16 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
                 'delete_key': movement_key,
                 'terms': terms_to_save
             }).execute()
-
+            
             if result.data.get('success', False):
                 st.success("Modifiche eseguite con successo")
 
-                # I've tested it quicly, it seems to work.
                 st.session_state[backup_terms_key] = terms
 
                 # TODO: if the above works, maybe i can just update the terms here instead of fetching them twice.
                 #  I have to just remove all the state are_terms_updated and assign the new terms to the current terms key
                 st.session_state[are_terms_updated] = True
-
+                
                 st.rerun()
             else:
                 st.error(f'Errore nel salvataggio: {result}')
@@ -821,7 +820,19 @@ def render_movimenti_crud_page(supabase_client, user_id,
                                                            )
 
                 options = fetch_all_records_from_view(supabase_client, 'casse_options')
-                cleaned_options = [d.get('cassa') for d in options]
+                cleaned_options = [str(d.get('cassa')).strip() for d in options if d.get('cassa') is not None]
+
+                # Check for any mismatches
+                # if 'Display Cassa' in terms_df.columns:
+                #     unique_values = [str(x).strip() for x in terms_df['Display Cassa'].dropna().unique()]
+                #     mismatches = [val for val in unique_values if val not in cleaned_options and val != 'nan']
+                #     if mismatches:
+                #         st.warning(f"Found {len(mismatches)} values in 'Display Cassa' that don't match any option:")
+                #         st.write("\nAvailable options from database:")
+                #         st.write(cleaned_options)
+                #         st.write('terms values')
+                #         st.write(unique_values)
+                
                 column_config['Display Cassa'] = st.column_config.SelectboxColumn(
                     "Cassa",
                     options=cleaned_options)
