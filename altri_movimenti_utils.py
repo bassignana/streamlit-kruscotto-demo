@@ -180,7 +180,7 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
                                 term['rmp_numero'] = processed_data['mp_numero']
                                 term['rmp_data'] = processed_data['mp_data']
                                 term['rmp_importo_pagamento'] = processed_data['mp_importo_totale']
-                                term['rmp_data_scadenza'] = processed_data['ma_data']
+                                term['rmp_data_scadenza'] = processed_data['mp_data']
                             else:
                                 raise Exception("Uniche tabelle supportate: movimenti_attivi, movimenti_passivi.")
 
