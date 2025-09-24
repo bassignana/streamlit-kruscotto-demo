@@ -54,6 +54,10 @@ def main():
         show_login_and_render_form(supabase_client)
     else:
 
+        # Hack. Find a better placement
+        if 'force_update' not in st.session_state:
+            st.session_state.force_update = False
+
         overview = st.Page("page_overview.py", title="Sommario Fatture", icon=":material/search:")
 
         upload = st.Page("invoice_uploader.py", title="Carica Fatture", icon=":material/upload:")

@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS public.rate_movimenti_attivi CASCADE;
 DROP TABLE IF EXISTS public.movimenti_passivi CASCADE;
 DROP TABLE IF EXISTS public.rate_movimenti_passivi CASCADE;
 DROP TABLE IF EXISTS public.casse CASCADE;
+DROP TABLE IF EXISTS public.notifications CASCADE;
 
 
 
@@ -41,10 +42,13 @@ CREATE TABLE public.casse (
       --    public.rate_fatture_emesse (user_id, rfe_nome_cassa, rfe_iban_cassa)
 );
 
--- WHY do I have c_descrizione_cassa in the unique constraint?
+-- The below can be wrong:
+-- Note that if I add c_descrizione_cassa to the unique(), I get duplicated rows
+-- each time I modify any values because each modification is a unique 'tuple'
+-- to be inserted in the table.
 ALTER TABLE public.casse
     ADD CONSTRAINT casse_composite_key
-        UNIQUE (user_id, c_nome_cassa, c_iban_cassa, c_descrizione_cassa);
+        UNIQUE (user_id, c_nome_cassa, c_iban_cassa);
 
 ALTER TABLE public.casse ENABLE ROW LEVEL SECURITY;
 
@@ -155,6 +159,9 @@ CREATE TABLE public.rate_fatture_emesse (
     -- be present in the invoice though.
     rfe_nome_cassa varchar,
     rfe_iban_cassa varchar,
+    -- display is a field that is used for assigning the value to display,
+    -- so that I don't overwrite the above cassa fields.
+    rfe_display_cassa varchar,
     rfe_notes text,
     -- is_paid can be derived by checking the field rfe_data_pagamento_rata for null
     -- rfe_is_paid boolean DEFAULT false,
@@ -214,6 +221,7 @@ CREATE TABLE public.rate_fatture_ricevute (
     -- is cassa nullable?
  rfr_nome_cassa varchar,
  rfr_iban_cassa varchar,
+ rfr_display_cassa varchar,
  rfr_notes text,
  rfr_data_pagamento_rata date,
  created_at timestamp with time zone DEFAULT now(),
@@ -266,6 +274,7 @@ CREATE TABLE public.rate_movimenti_attivi (
                                               rma_importo_pagamento numeric NOT NULL,
                                               rma_nome_cassa varchar,
                                               rma_iban_cassa varchar,
+                                              rma_display_cassa varchar,
                                               rma_notes text,
                                               rma_fattura_attesa varchar,
                                               created_at timestamp with time zone DEFAULT now(),
@@ -314,6 +323,7 @@ CREATE TABLE public.rate_movimenti_passivi (
                                               rmp_importo_pagamento numeric NOT NULL,
                                               rmp_nome_cassa varchar,
                                               rmp_iban_cassa varchar,
+                                              rmp_display_cassa varchar,
                                               rmp_notes text,
                                               rmp_fattura_attesa varchar,
                                               created_at timestamp with time zone DEFAULT now(),
@@ -982,12 +992,17 @@ WITH
             dc.*,
             rfe_data_scadenza_pagamento < dc.today AS is_overdue,
             dc.today - rfe_data_scadenza_pagamento AS overdue_days,
+--             COALESCE(
+--                     c.c_descrizione_cassa,
+--                     NULLIF(TRIM(rfe_nome_cassa), ''),
+--                     NULLIF(TRIM(rfe_iban_cassa), ''),
+--                     'Non specificato'
+--             ) AS cassa
             COALESCE(
-                    c.c_descrizione_cassa,
-                    NULLIF(TRIM(rfe_nome_cassa), ''),
-                    NULLIF(TRIM(rfe_iban_cassa), ''),
-                    'Non specificato'
-            ) AS cassa
+                        NULLIF(TRIM(rfe_display_cassa), ''),
+                        'Non specificato'
+                ) AS cassa
+
         FROM rate_fatture_emesse rfe
                  CROSS JOIN date_calc dc
                  LEFT JOIN casse c ON (
@@ -1151,12 +1166,16 @@ CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker
     dc.*,
     rfr_data_scadenza_pagamento < dc.today AS is_overdue,
     dc.today - rfr_data_scadenza_pagamento AS overdue_days,
+--     COALESCE(
+--     c.c_descrizione_cassa,
+--     NULLIF(TRIM(rfr_nome_cassa), ''),
+--     NULLIF(TRIM(rfr_iban_cassa), ''),
+--     'Non specificato'
+--     ) as cassa
     COALESCE(
-    c.c_descrizione_cassa,
-    NULLIF(TRIM(rfr_nome_cassa), ''),
-    NULLIF(TRIM(rfr_iban_cassa), ''),
-    'Non specificato'
-) AS cassa
+            NULLIF(TRIM(rfr_display_cassa), ''),
+            'Non specificato'
+    ) AS cassa
     FROM rate_fatture_ricevute rfr
     CROSS JOIN date_calc dc
     LEFT JOIN casse c ON (
@@ -1859,7 +1878,7 @@ SELECT DISTINCT
     t1.iban_cassa as c_iban_cassa,
     t2.c_descrizione_cassa
 FROM (
-         -- I need to filter out rows that are all null because the union will take
+         -- I need to filter out rows that are ALL null because the union will take
          -- null row, try to match it with something that will not exist, so it will
          -- match with null, so I'll get an empty row with all nulls
          SELECT rfe_nome_cassa as nome_cassa, rfe_iban_cassa as iban_cassa
@@ -1871,7 +1890,10 @@ FROM (
          WHERE user_id = auth.uid() AND (c_nome_cassa IS NOT NULL OR c_iban_cassa IS NOT NULL)
      ) t1
          LEFT JOIN casse t2
-                   ON (t1.nome_cassa = t2.c_nome_cassa AND t1.iban_cassa = t2.c_iban_cassa)
+    -- IS NOT DISTINCT FROM is a better version of doing ON (COALESCE(t1.nome_cassa, '') = COALESCE(t2.c_nome_cassa, '')
+    -- I need it otherwise the join does not pick up the correct value to associate from t2 if any of the fields
+    -- of t1 are NULL.
+                   ON (t1.nome_cassa IS NOT DISTINCT FROM t2.c_nome_cassa AND t1.iban_cassa IS NOT DISTINCT FROM t2.c_iban_cassa)
 ORDER BY t1.nome_cassa, t1.iban_cassa;
 
 
@@ -1890,5 +1912,5 @@ FROM (
          FROM casse
          WHERE user_id = auth.uid() AND (c_nome_cassa IS NOT NULL OR c_iban_cassa IS NOT NULL)
      ) t1
-         LEFT JOIN casse t2 ON (t1.nome_cassa = t2.c_nome_cassa AND t1.iban_cassa = t2.c_iban_cassa)
+         LEFT JOIN casse t2 ON (t1.nome_cassa is not distinct from t2.c_nome_cassa AND t1.iban_cassa is not distinct from t2.c_iban_cassa)
 ORDER BY cassa;

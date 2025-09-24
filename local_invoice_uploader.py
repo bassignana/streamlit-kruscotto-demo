@@ -25,7 +25,7 @@ if not url or not service_key:
 supabase_client =  create_client(url, service_key)
 
 # Invoices changed manually with this P IVA value
-partita_iva_azienda = '04228480408'
+partita_iva_azienda = '12345678900'
 
 # Taken from test db
 USER_ID = '86eda584-e990-4e13-9d93-d61b7811da8e'

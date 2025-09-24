@@ -2,7 +2,7 @@ import traceback
 
 import streamlit as st
 import pandas as pd
-from utils import setup_page, fetch_all_records
+from utils import setup_page, fetch_all_records, to_money
 
 months = [
     'Set',
@@ -108,8 +108,8 @@ def are_terms_total_congruent(supabase_client, table_name, user_id, prefix):
                                   (check_terms['r' + prefix + 'data_documento'] == date_key)]
 
 
-            total_i = invoice[prefix + 'importo_totale_documento']
-            total_i_terms = i_terms['r' + prefix + 'importo_pagamento_rata'].sum()
+            total_i = to_money(invoice[prefix + 'importo_totale_documento'])
+            total_i_terms = to_money(i_terms['r' + prefix + 'importo_pagamento_rata'].sum())
 
             if total_i != total_i_terms:
                 errors.append((f'La fattura numero {number_key}, in data {date_key} ha un importo '
@@ -347,7 +347,7 @@ def main():
     passive_errors = are_terms_total_congruent(supabase_client, 'fatture_ricevute', user_id, 'fr_')
     discrepancy_errors = active_errors + passive_errors
     if any(discrepancy_errors):
-        with st.expander('Errori Gravi', expanded = False):
+        with st.expander('Avvisi', expanded = False):
             st.error('Le cifre in questa pagina saranno errate fino a quando gli errori qui sotto non verranno corretti.')
             for e in discrepancy_errors:
                 st.warning(e)

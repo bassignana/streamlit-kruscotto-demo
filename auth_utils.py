@@ -6,7 +6,11 @@ and can mess things up.
 import re
 import time
 import streamlit as st
+import subprocess
+import os
 
+# Safe path to the script (robust for deployment)
+RESET_SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "reset_password_secure.py")
 
 def validate_email(email):
     # todo: better pattern, like in https://stackoverflow.com/questions/201323/how-can-i-validate-an-email-address-using-a-regular-expression
@@ -168,3 +172,56 @@ def show_login_and_render_form(supabase_client):
                             else:
                                 st.error(message)
                                 return
+
+        # with tab3:
+        #     st.subheader("")
+        #
+        #     with st.form("reset_password_form", clear_on_submit=False):
+        #         recovery_email = st.text_input("Email", key="recovery_email")
+        #         new_password = st.text_input("Nuova Password", type="password", key="new_password")
+        #         confirm_new_password = st.text_input("Conferma Password", type="password", key="confirm_new_password")
+        #         submitted = st.form_submit_button("Procedi", type="primary")
+        #
+        #         if submitted:
+        #             if not all([recovery_email, new_password, confirm_new_password]):
+        #                 st.error("Tutti i campi sono obbligatori")
+        #             elif new_password != confirm_new_password:
+        #                 st.error("Le password non corrispondono")
+        #             else:
+        #                 # Optional: validate email/password formats
+        #                 is_email_valid, email_error_msg = validate_email(recovery_email)
+        #                 is_pwd_valid, pwd_error_msg = validate_password(new_password)
+        #
+        #                 if not is_email_valid:
+        #                     st.error(email_error_msg)
+        #                 elif not is_pwd_valid:
+        #                     st.error(pwd_error_msg)
+        #                 else:
+        #                     # ✅ Path to the secure script
+        #                     reset_script_path = os.path.join(os.path.dirname(__file__), "reset_password_secure.py")
+        #
+        #                     try:
+        #                         result = subprocess.run(
+        #                             [
+        #                                 "python", reset_script_path,
+        #                                 recovery_email,
+        #                                 new_password,
+        #                                 st.secrets["SUPABASE_URL"],
+        #                                 st.secrets["SUPABASE_SERVICE_ROLE_KEY"]
+        #                             ],
+        #                             check=True,
+        #                             capture_output=True,
+        #                             text=True
+        #                         )
+        #
+        #                         if "SUCCESS" in result.stdout:
+        #                             time.sleep(1.5)
+        #                             st.success("Reset effettuato con successo. "
+        #                                        "Cliccare sul tab Login per effettuare l'accesso.")
+        #                         else:
+        #                             st.error("Errore durante il reset:")
+        #                             st.text(result.stdout)
+        #
+        #                     except subprocess.CalledProcessError as e:
+        #                         st.error("Errore critico durante il reset della password.")
+        #                         st.text(e.output or e.stdout or "Nessun output disponibile.")

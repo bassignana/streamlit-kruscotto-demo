@@ -9,97 +9,95 @@ from invoice_record_creation import extract_xml_records
 from utils import extract_field_names, render_field_widget
 
 
-def render_add_form(supabase_client, table_name, fields_config, prefix):
-
-    with st.form(f"add_{table_name}_form",
-                 clear_on_submit=True,
-                 enter_to_submit=False):
-
-        form_data = {}
-        field_items = list(fields_config.items())
-
-        sql_table_fields_names = extract_field_names('sql/02_create_tables.sql', prefix)
-
-        cols = st.columns(2)
-        for i, (field_name, field_config) in enumerate(field_items):
-            with cols[i % 2]:
-                if field_name in sql_table_fields_names:
-                    form_data[field_name] = render_field_widget(
-                        field_name, field_config, key_suffix=f"add_{table_name}"
-                    )
-
-        col1, col2 = st.columns([1, 1])
-
-        with col1:
-            submitted = st.form_submit_button("Salva", type="primary")
-
-        with col2:
-            cancelled = st.form_submit_button("Annulla")
-
-        if cancelled:
-            st.rerun()
-
-        if submitted:
-            try:
-                is_valid, errors = validate_required_form_data(fields_config, form_data)
-
-                if not is_valid:
-                    for error in errors:
-                        st.error(error)
-                else:
-                    processed_data = {}
-                    # todo: the correct thing should be creating
-                    # default values for all non required fields,
-                    # that is consistent throughout all fields and
-                    # compatible with a direct upload to the database.
-                    # Maybe a string, for sure not None.
-                    #
-                    # For now I'm just uploading the str() version of whatever
-                    # value I get from form_data and dropping non required fields
-                    for field_name, field_config in fields_config.items():
-                        if field_config.get('required', False):
-                            value = form_data.get(field_name)
-                            # for field_name, value in form_data.items():
-                            processed_data[field_name] = str(value)
-
-
-                    prefixed_processed_data = {}
-                    for k,v in processed_data.items():
-                        prefixed_processed_data[prefix + k] = v
-                    prefixed_processed_data['user_id'] = st.session_state.user.id
-
-
-                    # Correct format to use for save_to_database()
-                    # todo: now that I don't use save_to_database() anymore
-                    # do I have to keep this format?
-                    data_to_upload = {}
-                    data_to_upload['data'] = prefixed_processed_data
-                    data_to_upload['status'] = 'success'
-                    list_data = []
-                    list_data.append(data_to_upload)
-                    print(list_data)
-
-                    with st.spinner("Salvataggio in corso..."):
-                        successful_results = [r.get('data') for r in list_data if r['status'] == 'success']
-
-                        try:
-                            result = supabase_client.table(table_name).insert(successful_results).execute()
-                            print("Insert successful:", result.data)
-                            st.success("Fattura salvata con successo nel database!")
-                            time.sleep(2)
-                            # todo: for resetting fields on reload I have to delete these
-                            # keys in the session state, or understand where they are formed
-                            # and clean them up some other way.
-                            # "numero_fattura_add_fatture_emesse":"1"
-                            # "partita_iva_prestatore_add_fatture_emesse":"1"
-                            # "data_scadenza_pagamento_add_fatture_emesse":NULL
-                            # "data_documento_add_fatture_emesse":"datetime.date(2025, 7, 31)"
-                            st.rerun()
-                        except Exception as e:
-                            st.error("Error inserting data:", e)
-
-            except Exception as e:
-                print(f'Error adding invoice manually: {e}')
+# def render_add_form(supabase_client, table_name, fields_config, prefix):
+#
+#     with st.form(f"add_{table_name}_form",
+#                  clear_on_submit=True,
+#                  enter_to_submit=False):
+#
+#         form_data = {}
+#         field_items = list(fields_config.items())
+#
+#         sql_table_fields_names = extract_field_names('sql/02_create_tables.sql', prefix)
+#
+#         cols = st.columns(2)
+#         for i, (field_name, field_config) in enumerate(field_items):
+#             with cols[i % 2]:
+#                 if field_name in sql_table_fields_names:
+#                     form_data[field_name] = render_field_widget(
+#                         field_name, field_config, key_suffix=f"add_{table_name}"
+#                     )
+#
+#         col1, col2 = st.columns([1, 1])
+#
+#         with col1:
+#             submitted = st.form_submit_button("Salva", type="primary")
+#
+#         with col2:
+#             cancelled = st.form_submit_button("Annulla")
+#
+#         if cancelled:
+#             st.rerun()
+#
+#         if submitted:
+#             try:
+#                 is_valid, errors = validate_required_form_data(fields_config, form_data)
+#
+#                 if not is_valid:
+#                     for error in errors:
+#                         st.error(error)
+#                 else:
+#                     processed_data = {}
+#                     # todo: the correct thing should be creating
+#                     # default values for all non required fields,
+#                     # that is consistent throughout all fields and
+#                     # compatible with a direct upload to the database.
+#                     # Maybe a string, for sure not None.
+#                     #
+#                     # For now I'm just uploading the str() version of whatever
+#                     # value I get from form_data and dropping non required fields
+#                     for field_name, field_config in fields_config.items():
+#                         if field_config.get('required', False):
+#                             value = form_data.get(field_name)
+#                             # for field_name, value in form_data.items():
+#                             processed_data[field_name] = str(value)
+#
+#
+#                     prefixed_processed_data = {}
+#                     for k,v in processed_data.items():
+#                         prefixed_processed_data[prefix + k] = v
+#                     prefixed_processed_data['user_id'] = st.session_state.user.id
+#
+#
+#                     # Correct format to use for save_to_database()
+#                     # todo: now that I don't use save_to_database() anymore
+#                     # do I have to keep this format?
+#                     data_to_upload = {}
+#                     data_to_upload['data'] = prefixed_processed_data
+#                     data_to_upload['status'] = 'success'
+#                     list_data = []
+#                     list_data.append(data_to_upload)
+#                     print(list_data)
+#
+#                     with st.spinner("Salvataggio in corso..."):
+#                         successful_results = [r.get('data') for r in list_data if r['status'] == 'success']
+#
+#                         try:
+#                             result = supabase_client.table(table_name).insert(successful_results).execute()
+#                             st.success("Fattura salvata con successo nel database!")
+#                             # todo: for resetting fields on reload I have to delete these
+#                             # keys in the session state, or understand where they are formed
+#                             # and clean them up some other way.
+#                             # "numero_fattura_add_fatture_emesse":"1"
+#                             # "partita_iva_prestatore_add_fatture_emesse":"1"
+#                             # "data_scadenza_pagamento_add_fatture_emesse":NULL
+#                             # "data_documento_add_fatture_emesse":"datetime.date(2025, 7, 31)"
+#                             st.rerun()
+#                         except Exception as e:
+#                             st.error("Error inserting data:", e)
+#
+#             except Exception as e:
+#                 print(f'Error adding invoice manually: {e}')
 
 def to_decimal(value) -> Decimal:
     """Convert value to Decimal with proper precision"""

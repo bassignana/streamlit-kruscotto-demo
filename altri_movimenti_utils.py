@@ -1,3 +1,5 @@
+import traceback
+
 import streamlit as st
 import pandas as pd
 import time
@@ -173,12 +175,12 @@ def render_add_modal(supabase_client, table_name, fields_config, prefix):
                                 term['rma_numero'] = processed_data['ma_numero']
                                 term['rma_data'] = processed_data['ma_data']
                                 term['rma_importo_pagamento'] = processed_data['ma_importo_totale']
-                                term['rma_data_scadenza'] = terms_due_date
+                                term['rma_data_scadenza'] = processed_data['ma_data']
                             elif table_name == 'movimenti_passivi':
                                 term['rmp_numero'] = processed_data['mp_numero']
                                 term['rmp_data'] = processed_data['mp_data']
                                 term['rmp_importo_pagamento'] = processed_data['mp_importo_totale']
-                                term['rmp_data_scadenza'] = terms_due_date
+                                term['rmp_data_scadenza'] = processed_data['ma_data']
                             else:
                                 raise Exception("Uniche tabelle supportate: movimenti_attivi, movimenti_passivi.")
 
@@ -372,9 +374,10 @@ def auto_split_payment_movement(importo_totale_documento: Decimal, num_installme
             installment_amount = amount_per_installment
             total_allocated += installment_amount
         term = {
+            'id':None,
             rate_prefix + 'data_scadenza':  datetime.strptime(start_date, '%Y-%m-%d').date() + timedelta(days=interval_days * (i + 1)),
             rate_prefix + 'importo_pagamento': installment_amount,
-            rate_prefix + 'nome_cassa': '',
+            rate_prefix + 'display_cassa': '',
             rate_prefix + 'notes': f'Rata {i + 1} di {num_installments}',
             rate_prefix + 'data_pagamento': None,  # Not paid yet
             rate_prefix + 'fattura_attesa': 'Nessuna'
@@ -393,10 +396,11 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
     else:
         try:
 
-            # terms = st.session_state[terms_key]
-            # Update terms, cannot do it in a function
             _edited = edited.copy()
             _edited.columns = [rate_prefix + col.replace(' ','_').lower() for col in _edited.columns]
+            _edited = _edited.rename(columns={rate_prefix + 'id': 'id'})
+            # are_all_ids_none = _edited['id'].isna().all()
+
             up_to_date_terms = []
             for k,v in _edited.T.to_dict().items():
                 up_to_date_terms.append(v)
@@ -463,6 +467,22 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
                     st.warning(f'{' '.join(error)}')
                 return
 
+            for i in range(len(terms_to_save)):
+                term = terms_to_save[i]
+
+                term.pop(rate_prefix + 'x', None)
+
+                row_id = term['id']
+                if row_id:
+                    result = supabase_client.table('rate_' + table_name).select('*') \
+                        .eq('id', row_id) \
+                        .eq('user_id', st.session_state.user.id).execute()
+
+                    nome = result.data[0].get(rate_prefix + 'nome_cassa')
+                    iban = result.data[0].get(rate_prefix + 'iban_cassa')
+                    term[rate_prefix + 'nome_cassa'] = nome
+                    term[rate_prefix + 'iban_cassa'] = iban
+
             result = supabase_client.rpc('upsert_terms', {
                 'table_name': 'rate_' + table_name,
                 'delete_key': movement_key,
@@ -482,12 +502,16 @@ def save_movement_terms(edited, terms_key, rate_prefix, importo_totale_movimento
                 st.rerun()
             else:
                 st.error(f'Errore nel salvataggio: {result}')
+                st.text("Stack trace:")
+                st.text(traceback.format_exc())
 
         # todo: fix error management / logging.
         #  Here is interesting because the above catches db error that are not
         #  exceptions, the below only exceptions.
         except Exception as e:
             st.error(f"Eccezione nel salvataggio: {str(e)}")
+            st.text("Stack trace:")
+            st.text(traceback.format_exc())
 
 def render_movimenti_crud_page(supabase_client, user_id,
                                table_name, prefix,
@@ -729,7 +753,7 @@ def render_movimenti_crud_page(supabase_client, user_id,
                 # if st.session_state[terms_key] is None or st.session_state[selection_key] != selection \
                 #         or st.session_state[are_terms_updated] == True:
                 if st.session_state[terms_key] is None or st.session_state[selection_key] != numero_documento \
-                        or st.session_state[are_terms_updated] == True:
+                        or st.session_state[are_terms_updated] == True or st.session_state.force_update == True:
                     try:
                         result = supabase_client.table('rate_' + table_name).select('*').eq('user_id', user_id) \
                             .eq(rate_prefix + 'numero', numero_documento) \
@@ -737,11 +761,14 @@ def render_movimenti_crud_page(supabase_client, user_id,
 
                         existing_terms = []
                         for row in result.data:
+                            st.write(row)
+                            st.write(rate_prefix)
                             term = {
+                                'id' : row['id'],
                                 rate_prefix + 'data_scadenza': datetime.strptime(row[rate_prefix + 'data_scadenza'], '%Y-%m-%d').date(),
                                 rate_prefix + 'data_pagamento': datetime.strptime(row[rate_prefix + 'data_pagamento'], '%Y-%m-%d').date() if row[rate_prefix + 'data_pagamento'] else None,
                                 rate_prefix + 'importo_pagamento': float(row[rate_prefix + 'importo_pagamento']),
-                                rate_prefix + 'nome_cassa': row[rate_prefix + 'nome_cassa'] or '',
+                                rate_prefix + 'display_cassa': row[rate_prefix + 'display_cassa'] or '',
                                 rate_prefix + 'fattura_attesa': row[rate_prefix + 'fattura_attesa'] or '',
                                 rate_prefix + 'notes': row[rate_prefix + 'notes'] or '',
                             }
@@ -749,8 +776,9 @@ def render_movimenti_crud_page(supabase_client, user_id,
                         st.session_state[terms_key] = existing_terms
                         st.session_state[selection_key] = numero_documento
                         st.session_state[are_terms_updated] = False
+                        st.session_state.force_update = False
 
-                        # This try should be triggered only on the first loading or when I change selection
+                    # This try should be triggered only on the first loading or when I change selection
                         # so it should be safe to reset the existing terms here.
                         st.session_state[backup_terms_key] = existing_terms
                     except Exception as e:
@@ -767,6 +795,7 @@ def render_movimenti_crud_page(supabase_client, user_id,
 
                 # st.write(st.session_state[terms_key])
                 terms_df = pd.DataFrame(st.session_state[terms_key])
+                terms_df = terms_df.rename(columns = {'id':rate_prefix + 'id'})
                 terms_df.columns = [col[len(rate_prefix):].replace('_',' ').title() for col in terms_df.columns]
 
                 # Since some dates can be valued as None, ensure that the date columns
@@ -793,15 +822,17 @@ def render_movimenti_crud_page(supabase_client, user_id,
 
                 options = fetch_all_records_from_view(supabase_client, 'casse_options')
                 cleaned_options = [d.get('cassa') for d in options]
-                column_config['Nome Cassa'] = st.column_config.SelectboxColumn(
+                column_config['Display Cassa'] = st.column_config.SelectboxColumn(
                     "Cassa",
                     options=cleaned_options)
+
+                column_config['Id'] = st.column_config.TextColumn("Id")
+
+                column_config['Notes'] = st.column_config.TextColumn("Note")
 
                 column_config['Fattura Attesa'] = st.column_config.SelectboxColumn(
                     'Fattura Attesa',
                     options=['Nessuna','In Attesa','Ricevuta'])
-
-                column_config['Notes'] = st.column_config.TextColumn("Note")
 
                 terms_df = terms_df.sort_values(by=['Data Scadenza'])
 
@@ -811,13 +842,17 @@ def render_movimenti_crud_page(supabase_client, user_id,
 
                 # editing_enabled = st.toggle('Modifica Tabella', key = table_name + '_toggle')
 
-                column_order = ['Data Scadenza', 'Data Pagamento', 'Importo Pagamento', 'Nome Cassa', 'Fattura Attesa', 'Notes']
+                column_order = ['Data Scadenza', 'Data Pagamento', 'Importo Pagamento', 'Display Cassa', 'Fattura Attesa', 'Notes']
+                st.write(terms_df.index)
+
                 edited =  st.data_editor(terms_df,
                                           key=table_name + '_terms_df',
                                           column_config=column_config,
                                           hide_index=True,
                                           num_rows='dynamic',
-                                          column_order = column_order)
+                                          column_order = column_order,
+                                          disabled=["Id"]
+                                         )
 
 
                 c1, c2, c3 = st.columns([3,3,1], vertical_alignment='top')
@@ -860,6 +895,8 @@ def render_movimenti_crud_page(supabase_client, user_id,
                         else:
                             _edited = edited.copy()
                             _edited.columns = [rate_prefix + col.replace(' ','_').lower() for col in _edited.columns]
+                            _edited = _edited.reset_index()
+
                             up_to_date_terms = []
                             for k,v in _edited.T.to_dict().items():
                                 up_to_date_terms.append(v)

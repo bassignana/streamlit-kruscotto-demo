@@ -5,6 +5,9 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import os
 
+from utils import setup_page
+
+
 def send_email_feedback(feedback_data):
     """Send feedback via email using SMTP"""
     try:
@@ -237,13 +240,10 @@ def feedback_form():
 
 # Main function for standalone use
 def main():
-    st.set_page_config(
-        page_title="Feedback - Kruscotto",
-        page_icon="💬",
-        layout="wide"
-    )
-    
-    feedback_form()
+    user_id, supabase_client, page_can_render = setup_page("Contatti")
+
+    if page_can_render:
+        st.info("Per informazioni o assistenza scrivere a: supporto@kruscotto.it")
 
 
 if __name__ == "__main__":

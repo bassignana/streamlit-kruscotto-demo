@@ -81,6 +81,9 @@ alter database postgres
 set timezone to 'Europe/Rome';
 ```
 
+## Complex casse logic
+
+
 For a temporary development environment, I've created a new 
 Supabase project and I manually switch the credentials in the 
 secrets.toml file.
@@ -323,13 +326,14 @@ RIUNIONE Lun 22 Settembre
 [] X Venerdi, cassa default in anagrafica azienda
 
 PER RILASCIO:
-[] BUG: screen, probabilmente dovuta all'ordering della colonna, se seleziono una fattura, non vedo i termini
+[x] BUG: screen, probabilmente dovuta all'ordering della colonna, se seleziono una fattura, non vedo i termini
    corrispondenti.
 [] BUG: screen, duplicazione cassa quando creo una nuova cassa e poi la vado a selezionare in una fattura.
+[] BUG: screen, aggiungere manualmente una cassa prima di averne caricate altre da errore
 [] PWD Dimenticata
 [] Aumentare tempo sessione
-[] Analisi imposte: "Prossimo Rilascio"
-[] Contatti: mandare mail al supporto@kruscotto
+[x] Analisi imposte: "Prossimo Rilascio"
+[x] Contatti: mandare mail al supporto@kruscotto
 [] se non c'e la scadenza, DATA DOCUMENTO, sia per acquisti che vendite
 [] Togliere 2 mesi -> in oltre ASSICURANDOSI DI MANDARE TUTTI I TOTALI IN OLTRE DEI DUE MESI
 [] Tile sx: aggiungere totali a dx df, Fatture ed altri mov.

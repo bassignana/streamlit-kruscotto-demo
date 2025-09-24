@@ -1,3 +1,5 @@
+import time
+
 import streamlit as st
 from invoice_record_creation import extract_xml_records
 from invoice_xml_processor import process_xml_list
@@ -124,6 +126,13 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                                 # The best thing should be that all RPC functions will work the same.
                                 record_to_insert['user_id'] = user_id
 
+                                # This is for the casse manage flow: the first time that I insert a record I have to
+                                # assign a value to the display field.
+                                for term in out['terms']:
+                                    term['rfe_display_cassa'] = term.get('rfe_nome_cassa') or term.get('rfe_iban_cassa', None)
+
+                                # st.write(out['terms'])
+
                                 result = supabase_client.rpc('insert_record', {
                                     'table_name': 'fatture_emesse',
                                     'record_data': out['record'],
@@ -149,6 +158,13 @@ def render_generic_xml_upload_section(supabase_client, user_id):
                             elif out['invoice_type'] == 'ricevuta':
                                 record_to_insert = out['record'].copy()
                                 record_to_insert['user_id'] = user_id
+
+                                # This is for the casse manage flow: the first time that I insert a record I have to
+                                # assign a value to the display field.
+                                for term in out['terms']:
+                                    term['rfr_display_cassa'] = term.get('rfr_nome_cassa') or term.get('rfr_iban_cassa', None)
+
+                                # st.write(out['terms'])
 
                                 result = supabase_client.rpc('insert_record', {
                                     'table_name': 'fatture_ricevute',

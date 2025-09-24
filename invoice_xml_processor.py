@@ -39,7 +39,7 @@ output:
           'nome_committente': None,
           'numero_fattura': '68/2025',
           'partita_iva_committente': '08498730723',
-          'partita_iva_prestatore': '04228480408'
+          'partita_iva_prestatore': '12345678900'
     }
 
 REPEATED STRUCTURES:
@@ -151,9 +151,9 @@ def process_xml_list(xml_files: list) -> (list, str):
                 # I just put the values in an array that will be manage in another program.
                 elif len(expected_tags) == 1:
                     tag_value = expected_tags[0].text
-                    current_file_data['data'][sql_field_name] = tag_value
+                    current_file_data['data'][sql_field_name] = str(tag_value).strip()
                 elif len(expected_tags) > 1:
-                    current_file_data['data'][sql_field_name] = [tag.text for tag in expected_tags]
+                    current_file_data['data'][sql_field_name] = [str(tag.text).strip() for tag in expected_tags]
                 else:
                     assert False, "This branch should be unreachable."
 

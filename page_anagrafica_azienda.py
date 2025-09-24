@@ -137,16 +137,99 @@ def render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_n
                  enter_to_submit=False):
         form_data = {}
 
+        # I.e. original values
         selected_row = {
             'c_nome_cassa': selected_db_row['Nome Cassa'],
             'c_iban_cassa': selected_db_row['Iban Cassa'],
             'c_descrizione_cassa': selected_db_row['Descrizione Cassa']
         }
 
+        # st.write(selected_row)
+
+        # Later I will need to update all the records in the rate table with the updated value that I will modify.
+        # Otherwise, every time I change a value, I'll have outdated data in the database and when I display the
+        # terms in the modify extender, all values that have been modified are now blank.
+        # So I'll first get all the ids of the records in the rate tables that are associated with the selected_row.
+        # Then I'll manually calculate what to put in the casse_display value, and then I'll update all the records
+        # accordingly.
+        # result = supabase_client.table('rate_fatture_emesse').select('id') \
+        # .eq('rfe_nome_cassa', selected_row['c_nome_cassa']) \
+        # .eq('rfe_iban_cassa', selected_row['c_iban_cassa']) \
+        # .eq('user_id', st.session_state.user.id).execute()
+        # emesse_affected_ids = result.data
+        # # st.write(emesse_affected_ids)
+        #
+        # result = supabase_client.table('rate_fatture_ricevute').select('id') \
+        # .eq('rfr_nome_cassa', selected_row['c_nome_cassa']) \
+        # .eq('rfr_iban_cassa', selected_row['c_iban_cassa']) \
+        # .eq('user_id', st.session_state.user.id).execute()
+        # ricevute_affected_ids = result.data
+
+        selected_row2 = {
+            'c_nome_cassa': selected_db_row['Nome Cassa'] or None,
+            'c_iban_cassa': selected_db_row['Iban Cassa'] or None,
+            'c_descrizione_cassa': selected_db_row['Descrizione Cassa']
+        }
+        # Build the query for rate_fatture_emesse
+        emesse_query = supabase_client.table('rate_fatture_emesse').select('id')
+
+        # Handle nome_cassa - use is_ for None values, eq for actual values
+        if selected_row2['c_nome_cassa'] is None:
+            emesse_query = emesse_query.is_('rfe_nome_cassa', None)
+        else:
+            emesse_query = emesse_query.eq('rfe_nome_cassa', selected_row2['c_nome_cassa'])
+
+        # Handle iban_cassa - use is_ for None values, eq for actual values
+        if selected_row2['c_iban_cassa'] is None:
+            emesse_query = emesse_query.is_('rfe_iban_cassa', None)
+        else:
+            emesse_query = emesse_query.eq('rfe_iban_cassa', selected_row2['c_iban_cassa'])
+
+        emesse_query = emesse_query.eq('user_id', st.session_state.user.id)
+        result = emesse_query.execute()
+        emesse_affected_ids = result.data
+
+        # Build the query for rate_fatture_ricevute
+        ricevute_query = supabase_client.table('rate_fatture_ricevute').select('id')
+
+        # Handle nome_cassa - use is_ for None values, eq for actual values
+        if selected_row2['c_nome_cassa'] is None:
+            ricevute_query = ricevute_query.is_('rfr_nome_cassa', None)
+        else:
+            ricevute_query = ricevute_query.eq('rfr_nome_cassa', selected_row2['c_nome_cassa'])
+
+        # Handle iban_cassa - use is_ for None values, eq for actual values
+        if selected_row2['c_iban_cassa'] is None:
+            ricevute_query = ricevute_query.is_('rfr_iban_cassa', None)
+        else:
+            ricevute_query = ricevute_query.eq('rfr_iban_cassa', selected_row2['c_iban_cassa'])
+
+        ricevute_query = ricevute_query.eq('user_id', st.session_state.user.id)
+        result = ricevute_query.execute()
+        ricevute_affected_ids = result.data
+
+
+        # st.write(emesse_affected_ids)
+
         is_read_from_emesse = selected_row['c_nome_cassa'] in emesse_names or selected_row['c_iban_cassa'] in emesse_iban
 
         if is_read_from_emesse:
             st.info('Attualmente, per le casse lette da fatture emesse, è possibile modificare solo la descrizione')
+
+        else: #todo: This is necessary only for the case where...?
+            # Immediately fetch data that I need in the upsert, if I do it in the upsert section,
+            # for some reason it does not fetch data.
+            result = supabase_client.table('casse').select('id') \
+                .eq('c_nome_cassa', selected_db_row['Nome Cassa']) \
+                .eq('c_iban_cassa', selected_db_row['Iban Cassa']) \
+                .eq('c_descrizione_cassa', selected_db_row['Descrizione Cassa']) \
+                .eq('user_id', st.session_state.user.id) \
+                .execute()
+
+            # st.write(result.data)
+
+            upsert_record_id = result.data[0].get('id')
+
 
         for i, (field_name, field_config) in enumerate(config.items()):
             if field_name in ['c_nome_cassa','c_iban_cassa','c_descrizione_cassa']:
@@ -165,6 +248,7 @@ def render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_n
                         disabled = False
                     )
 
+        # st.write(form_data)
         col1, col2 = st.columns([1, 1])
         with col1:
             if st.form_submit_button("Aggiorna", type="primary"):
@@ -185,30 +269,99 @@ def render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_n
                 try:
 
                     with st.spinner("Salvataggio in corso..."):
-                        delete_query = supabase_client.table('casse').delete()
-                        for field, value in selected_row.items():
-                            delete_query = delete_query.eq(field, value)
-                        result = delete_query.execute()
+                        # st.write(form_data)
+                        #
+                        upsert_data = {
+                            'user_id': st.session_state.user.id,
+                            'c_nome_cassa': None if form_data['c_nome_cassa'].strip() == '' else form_data['c_nome_cassa'],
+                            'c_iban_cassa': None if form_data['c_iban_cassa'].strip() == '' else form_data['c_iban_cassa'],
+                            'c_descrizione_cassa': None if form_data['c_descrizione_cassa'].strip() == '' else form_data['c_descrizione_cassa']
+                        }
 
-                        #
-                        #
-                        #
-                        # TODO; hack:
-                        #  Before the insert I have to check that the row that I'm inserting will not
-                        #  trigger a duplicate row error. In that case it means that the row is already
-                        #  present in the database and I should skip the insert.
-                        #  It should not happen if I start from a state of the database that is not compromised
-                        #  but I need to do it for safety.
-                        #
-                        #
-                        #
-                        result = supabase_client.table('casse').insert(form_data).execute()
+                        display_value = upsert_data.get('c_descrizione_cassa') or upsert_data.get('c_nome_cassa') or upsert_data.get('c_iban_cassa', None)
+
+                        st.write(display_value)
+                        st.write(is_read_from_emesse)
+                        st.write(upsert_data)
+
+                        if is_read_from_emesse:
+
+                            query = supabase_client.table('casse').select('id').eq('user_id', st.session_state.user.id)
+
+                            # Handle c_nome_cassa - check for empty string or use eq
+                            if not upsert_data['c_nome_cassa']:
+                                query = query.is_('c_nome_cassa', None)
+                            else:
+                                query = query.eq('c_nome_cassa', upsert_data['c_nome_cassa'])
+
+                            # Handle c_iban_cassa - check for empty string or use eq
+                            if not upsert_data['c_iban_cassa']:
+                                query = query.is_('c_iban_cassa', None)
+                            else:
+                                query = query.eq('c_iban_cassa', upsert_data['c_iban_cassa'])
+
+                            # Execute the query
+                            existing_result = query.execute()
+
+                            # Upsert logic
+                            if existing_result.data:
+                                # UPDATE existing
+                                existing_id = existing_result.data[0]['id']
+                                result = supabase_client.table('casse').update(upsert_data).eq('id', existing_id).execute()
+                            else:
+                                # INSERT new
+                                result = supabase_client.table('casse').insert(upsert_data).execute()
+
+
+
+
+                            # When you have multiple unique constraints on a table (primary key + your composite unique key),
+                            # you need to tell the database which one to use for conflict resolution.
+                            # result = supabase_client.table('casse').upsert(upsert_data,
+                            #                                                on_conflict='user_id,c_nome_cassa,c_iban_cassa'
+                            #                                                ).execute()
+                            st.write(result)
+                            # time.sleep(10)
+
+                            # Check if update actually affected any rows
+                            if len(result.data) == 0:
+                                st.error("Nessun record trovato da aggiornare")
+                                return
+
+                            for row_id in emesse_affected_ids:
+                                result = supabase_client.table('rate_fatture_emesse').update({'rfe_display_cassa': display_value}) \
+                                .eq('id',row_id.get('id')).execute()
+
+                            for row_id in ricevute_affected_ids:
+                                result = supabase_client.table('rate_fatture_ricevute').update({'rfr_display_cassa': display_value}) \
+                                .eq('id',row_id.get('id')).execute()
+
+                        else:
+                            # Here I need to use another condition, id, to handle conflict,
+                            # otherwise I get duplication.
+
+                            upsert_data['id'] = upsert_record_id
+                            result = supabase_client.table('casse').upsert(upsert_data,
+                                                                           on_conflict='id'
+                                                                           ).execute()
+
+                            for row_id in emesse_affected_ids:
+                                result = supabase_client.table('rate_fatture_emesse').update({'rfe_display_cassa': display_value}) \
+                                    .eq('id',row_id.get('id')).execute()
+                                if not result.data:
+                                    st.error(result)
+
+                            for row_id in ricevute_affected_ids:
+                                result = supabase_client.table('rate_fatture_ricevute').update({'rfr_display_cassa': display_value}) \
+                                    .eq('id',row_id.get('id')).execute()
 
                         has_errored = (hasattr(result, 'error') and result.error)
 
                         # todo: I don't know if has_errored works for all types of errors...
                         if not has_errored:
                             st.success("Dati aggiornati con successo!")
+
+                            st.session_state.force_update = True
                             st.rerun()
                         else:
                             st.error(f"Errore modifica cassa: {result.error.message}")
@@ -262,10 +415,6 @@ def render_delete_casse_modal(supabase_client, selected_db_row, emesse_names, em
                 raise Exception(f'Error deleting cassa manually: {e}')
 
 def render_casse(supabase_client, config):
-    # widget_key = 'anagrafica_azienda_'
-    # terms_key = widget_key + 'terms'
-    # if terms_key not in st.session_state:
-    #     st.session_state[terms_key] = None
 
     emesse_names_result = supabase_client.table('rate_fatture_emesse').select('rfe_nome_cassa') \
                                   .eq('user_id', st.session_state.user.id) \
@@ -287,11 +436,11 @@ def render_casse(supabase_client, config):
 
     casse_data = fetch_all_records_from_view(supabase_client, 'casse_summary')
 
-    # TODO: test
+    # TODO: broken
     if not casse_data:
-        st.warning("Nessuna cassa trovata. Creare una fattura emessa oppure aggiungere manualmente una cassa.")
-        if st.button("Aggiungi Cassa", type='primary', key = '_add_first_cassa'):
-            render_add_casse_modal(supabase_client, config)
+        st.warning("Caricare una fattura prima di poter procedere all'aggiunta o alla modifica delle casse.")
+        # if st.button("Aggiungi Cassa", type='primary', key = '_add_first_cassa'):
+        #     render_add_casse_modal(supabase_client, config)
         return
 
     casse_df = pd.DataFrame(casse_data)

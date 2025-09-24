@@ -379,7 +379,7 @@ def extract_xml_records(parsing_results, partita_iva_azienda) -> list[dict]:
     return results
 
 if __name__ == '__main__':
-    partita_iva_azienda = '04228480408'
+    partita_iva_azienda = '12345678900'
     xml_files = glob.glob(os.path.join('fe_scadenze_multiple/', "*.xml"))
     parsing_results, error = process_xml_list(xml_files)
     results = extract_xml_records(parsing_results, partita_iva_azienda)

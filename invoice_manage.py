@@ -1,3 +1,5 @@
+import time
+import traceback
 from decimal import Decimal, ROUND_HALF_UP
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
@@ -65,7 +67,7 @@ def create_monthly_invoices_summary_chart(data_dict, show_amounts=False):
     # Update layout
     fig.update_layout(
         title={
-            'text': 'Fatture Mensili',
+            'text': 'Fatturato (Comprensivo di IVA)',
             'font': {'size': 16, 'color': '#1f2937'},
             'x': 0.5,
             'xanchor': 'center'
@@ -132,10 +134,10 @@ def auto_split_payment_invoice(importo_totale_documento: Decimal, num_installmen
             installment_amount = amount_per_installment
             total_allocated += installment_amount
         term = {
-
+            'id':None,
             rate_prefix + 'data_scadenza_pagamento':  datetime.strptime(start_date, '%Y-%m-%d').date() + timedelta(days=interval_days * (i + 1)),
             rate_prefix + 'importo_pagamento_rata': installment_amount,
-            rate_prefix + 'nome_cassa': '',
+            rate_prefix + 'display_cassa': '',
             rate_prefix + 'notes': f'Rata {i + 1} di {num_installments}',
             rate_prefix + 'data_pagamento_rata': None  # Not paid yet
         }
@@ -154,7 +156,14 @@ def save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
         try:
 
             _edited = edited.copy()
+
             _edited.columns = [rate_prefix + col.replace(' ','_').lower() for col in _edited.columns]
+            _edited = _edited.rename(columns={rate_prefix + 'id': 'id'})
+
+            # _edited = _edited.reset_index('id')
+            # are_all_ids_none = _edited['id'].isna().all()
+            # are_any_ids_none = _edited['id'].isna().any()
+
             up_to_date_terms = []
             for k,v in _edited.T.to_dict().items():
                 up_to_date_terms.append(v)
@@ -196,7 +205,7 @@ def save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
                     if k not in term:
                         term[k] = v
 
-            # Adding ather not nullable fields, if missing, for insert.
+            # Adding other not nullable fields, if missing, for insert.
             for term in terms_to_save:
                 for k,v in document_not_nullable_fields.items():
                     if k not in term:
@@ -217,6 +226,40 @@ def save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
                     # todo: Better error message
                     st.warning(f'{' '.join(error)}')
                 return
+
+            # st.write(terms_to_save)
+            # if not are_all_ids_none:
+            #     for i in range(len(terms_to_save)):
+            #         term = terms_to_save[i]
+            #         # st.write(st.session_state.user.id)
+            #         row_id = term['id']
+            #         result = supabase_client.table('rate_' + table_name).select('*') \
+            #         .eq('id', row_id) \
+            #         .eq('user_id', st.session_state.user.id).execute()
+            #
+            #         nome = result.data[0].get(rate_prefix + 'nome_cassa')
+            #         iban = result.data[0].get(rate_prefix + 'iban_cassa')
+            #         term[rate_prefix + 'nome_cassa'] = nome
+            #         term[rate_prefix + 'iban_cassa'] = iban
+            st.write(terms_to_save)
+
+
+            for i in range(len(terms_to_save)):
+                term = terms_to_save[i]
+
+                term.pop(rate_prefix + 'x', None)
+
+                row_id = term['id']
+                if row_id:
+                    result = supabase_client.table('rate_' + table_name).select('*') \
+                        .eq('id', row_id) \
+                        .eq('user_id', st.session_state.user.id).execute()
+                    nome = result.data[0].get(rate_prefix + 'nome_cassa')
+                    iban = result.data[0].get(rate_prefix + 'iban_cassa')
+                    term[rate_prefix + 'nome_cassa'] = nome
+                    term[rate_prefix + 'iban_cassa'] = iban
+
+            st.write(terms_to_save)
 
             result = supabase_client.rpc('upsert_terms', {
                 'table_name': 'rate_' + table_name,
@@ -239,6 +282,8 @@ def save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
         #  exceptions, the below only exceptions.
         except Exception as e:
             st.error(f"Eccezione nel salvataggio: {str(e)}")
+            st.text("Stack trace:")
+            st.text(traceback.format_exc())
 
 @st.dialog("Aggiungi fattura")
 def render_invoice_add_modal(supabase_client, table_name, fields_config, prefix):
@@ -361,13 +406,13 @@ def render_invoice_add_modal(supabase_client, table_name, fields_config, prefix)
                                 term['rfe_numero_fattura'] = prefixed_processed_data['fe_numero_fattura']
                                 term['rfe_data_documento'] = prefixed_processed_data['fe_data_documento']
                                 term['rfe_importo_pagamento_rata'] = prefixed_processed_data['fe_importo_totale_documento']
-                                term['rfe_data_scadenza_pagamento'] = terms_due_date
+                                term['rfe_data_scadenza_pagamento'] = prefixed_processed_data['fe_data_documento']
                                 term['rfe_partita_iva_prestatore'] = prefixed_processed_data['fe_partita_iva_prestatore']
                             elif table_name == 'fatture_ricevute':
                                 term['rfr_numero_fattura'] = prefixed_processed_data['fr_numero_fattura']
                                 term['rfr_data_documento'] = prefixed_processed_data['fr_data_documento']
                                 term['rfr_importo_pagamento_rata'] = prefixed_processed_data['fr_importo_totale_documento']
-                                term['rfr_data_scadenza_pagamento'] = terms_due_date
+                                term['rfr_data_scadenza_pagamento'] = prefixed_processed_data['fr_data_documento']
                                 term['rfr_partita_iva_prestatore'] = prefixed_processed_data['fr_partita_iva_prestatore']
                             else:
                                 raise Exception("Uniche tabelle supportate: fatture_emesse, fatture_ricevute.")
@@ -660,7 +705,7 @@ def render_invoice_crud_page(supabase_client, user_id,
             if delete:
                 if selection.selection['rows']:
                     selected_index = selection.selection['rows'][0]
-                    record_id = df_vis[selected_index].name
+                    record_id = df_vis.iloc[selected_index].name
 
                     render_invoice_delete_modal(supabase_client, table_name, record_id)
                 else:
@@ -698,7 +743,7 @@ def render_invoice_crud_page(supabase_client, user_id,
                 }
 
                 if st.session_state[terms_key] is None or st.session_state[selection_key] != numero_documento \
-                        or st.session_state[are_terms_updated] == True:
+                        or st.session_state[are_terms_updated] == True or st.session_state.force_update == True:
                     try:
                         result = supabase_client.table('rate_' + table_name).select('*').eq('user_id', user_id) \
                             .eq(rate_prefix + 'numero_fattura', numero_documento) \
@@ -707,16 +752,18 @@ def render_invoice_crud_page(supabase_client, user_id,
                         existing_terms = []
                         for row in result.data:
                             term = {
+                                'id' : row['id'],
                                 rate_prefix + 'data_scadenza_pagamento': datetime.strptime(row[rate_prefix + 'data_scadenza_pagamento'], '%Y-%m-%d').date(),
                                 rate_prefix + 'data_pagamento_rata': datetime.strptime(row[rate_prefix + 'data_pagamento_rata'], '%Y-%m-%d').date() if row[rate_prefix + 'data_pagamento_rata'] else None,
                                 rate_prefix + 'importo_pagamento_rata': to_money(row[rate_prefix + 'importo_pagamento_rata']),
-                                rate_prefix + 'nome_cassa': row[rate_prefix + 'nome_cassa'] or '',
+                                rate_prefix + 'display_cassa': row[rate_prefix + 'display_cassa'] or '',
                                 rate_prefix + 'notes': row[rate_prefix + 'notes'] or '',
                             }
                             existing_terms.append(term)
                         st.session_state[terms_key] = existing_terms
                         st.session_state[selection_key] = numero_documento
                         st.session_state[are_terms_updated] = False
+                        st.session_state.force_update = False
 
                         # This try should be triggered only on the first loading or when I change selection
                         # so it should be safe to reset the existing terms here.
@@ -725,7 +772,12 @@ def render_invoice_crud_page(supabase_client, user_id,
                         st.error(f"Errore nel caricamento dei termini delle fatture: {str(e)}")
 
                 terms_df = pd.DataFrame(st.session_state[terms_key])
+                terms_df = terms_df.rename(columns = {'id':rate_prefix + 'id'})
+
+                # terms_df = terms_df.set_index('id', drop=True)
                 terms_df.columns = [col[len(rate_prefix):].replace('_',' ').title() for col in terms_df.columns]
+                # st.write(terms_df)
+
 
                 # Since some dates can be valued as None, ensure that the date columns
                 # are correctly represented as dates.
@@ -746,10 +798,11 @@ def render_invoice_crud_page(supabase_client, user_id,
 
                 options = fetch_all_records_from_view(supabase_client, 'casse_options')
                 cleaned_options = [d.get('cassa') for d in options]
-
-                column_config['Nome Cassa'] = st.column_config.SelectboxColumn(
+                column_config['Display Cassa'] = st.column_config.SelectboxColumn(
                     "Cassa",
                     options=cleaned_options)
+
+                column_config['Id'] = st.column_config.TextColumn("Id")
 
                 column_config['Notes'] = st.column_config.TextColumn("Note")
 
@@ -759,14 +812,16 @@ def render_invoice_crud_page(supabase_client, user_id,
                     'Importo Pagamento Rata': format_italian_currency,
                 })
 
-                column_order = ['Data Scadenza Pagamento', 'Data Pagamento Rata', 'Importo Pagamento Rata', 'Nome Cassa', 'Notes']
-
+                # removing columns from order will hide them
+                column_order = ['Data Scadenza Pagamento', 'Data Pagamento Rata', 'Importo Pagamento Rata', 'Display Cassa', 'Notes']
                 edited =  st.data_editor(terms_df,
                                          key=table_name + '_terms_df',
                                          column_config=column_config,
                                          hide_index=True,
                                          num_rows='dynamic',
-                                         column_order = column_order)
+                                         column_order = column_order,
+                                         disabled=["Id"]
+                                         )
 
 
                 c1, c2, c3 = st.columns([3,3,1], vertical_alignment='top')
@@ -809,6 +864,7 @@ def render_invoice_crud_page(supabase_client, user_id,
                         else:
                             _edited = edited.copy()
                             _edited.columns = [rate_prefix + col.replace(' ','_').lower() for col in _edited.columns]
+                            _edited = _edited.reset_index()
 
                             up_to_date_terms = []
                             for k,v in _edited.T.to_dict().items():
