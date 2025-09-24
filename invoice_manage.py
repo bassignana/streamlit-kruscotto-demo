@@ -241,7 +241,7 @@ def save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
             #         iban = result.data[0].get(rate_prefix + 'iban_cassa')
             #         term[rate_prefix + 'nome_cassa'] = nome
             #         term[rate_prefix + 'iban_cassa'] = iban
-            st.write(terms_to_save)
+            # st.write(terms_to_save)
 
 
             for i in range(len(terms_to_save)):
@@ -259,7 +259,7 @@ def save_invoice_terms(edited, terms_key, rate_prefix, importo_totale_movimento,
                     term[rate_prefix + 'nome_cassa'] = nome
                     term[rate_prefix + 'iban_cassa'] = iban
 
-            st.write(terms_to_save)
+            # st.write(terms_to_save)
 
             result = supabase_client.rpc('upsert_terms', {
                 'table_name': 'rate_' + table_name,

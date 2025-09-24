@@ -343,7 +343,7 @@ def render_xml_upload_section(supabase_client, table_name, fields_config, displa
                                 st.session_state.xml_processing_results = None
                                 st.session_state.xml_processing_stage = 'saved'
 
-                                time.sleep(2)
+                                time.sleep(1)
                                 st.rerun()
 
                             except Exception as e:
@@ -449,7 +449,7 @@ def render_modify_form(supabase_client, user_id, table_name, fields_config, data
                         result = supabase_client.table(table_name).update(processed_data).eq('id', record_id).execute()
                         if result:
                             st.success("Fattura salvata con successo nel database!")
-                            time.sleep(2)
+                            time.sleep(1)
                             st.rerun()
             except Exception as e:
                 print(f'Error updating invoice: {e}')
@@ -595,7 +595,7 @@ def render_delete_confirmation(supabase_client, user_id, table_name, fields_conf
                         if result:
                             pass
                     st.success("Fatture eliminate con successo")
-                    time.sleep(2)
+                    time.sleep(1)
                     st.rerun()
             except Exception as e:
                 print(f'Error deleting fattura: {e}')

@@ -761,8 +761,8 @@ def render_movimenti_crud_page(supabase_client, user_id,
 
                         existing_terms = []
                         for row in result.data:
-                            st.write(row)
-                            st.write(rate_prefix)
+                            # st.write(row)
+                            # st.write(rate_prefix)
                             term = {
                                 'id' : row['id'],
                                 rate_prefix + 'data_scadenza': datetime.strptime(row[rate_prefix + 'data_scadenza'], '%Y-%m-%d').date(),
@@ -843,7 +843,7 @@ def render_movimenti_crud_page(supabase_client, user_id,
                 # editing_enabled = st.toggle('Modifica Tabella', key = table_name + '_toggle')
 
                 column_order = ['Data Scadenza', 'Data Pagamento', 'Importo Pagamento', 'Display Cassa', 'Fattura Attesa', 'Notes']
-                st.write(terms_df.index)
+                # st.write(terms_df.index)
 
                 edited =  st.data_editor(terms_df,
                                           key=table_name + '_terms_df',

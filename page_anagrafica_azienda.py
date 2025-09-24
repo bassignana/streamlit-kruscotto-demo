@@ -58,7 +58,7 @@ def render_anagrafica_azienda_form(client, user_id):
 
                     if result.data:
                         st.success("Dati aggiornati con successo!")
-                        time.sleep(2)
+                        time.sleep(1)
                     else:
                         st.error("Errore durante l'aggiornamento")
                         return
@@ -72,7 +72,7 @@ def render_anagrafica_azienda_form(client, user_id):
 
                     if result.data:
                         st.success("Dati inseriti con successo!")
-                        time.sleep(2)
+                        time.sleep(1)
                     else:
                         st.error("Errore durante l'inserimento")
                         return
@@ -280,9 +280,9 @@ def render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_n
 
                         display_value = upsert_data.get('c_descrizione_cassa') or upsert_data.get('c_nome_cassa') or upsert_data.get('c_iban_cassa', None)
 
-                        st.write(display_value)
-                        st.write(is_read_from_emesse)
-                        st.write(upsert_data)
+                        # st.write(display_value)
+                        # st.write(is_read_from_emesse)
+                        # st.write(upsert_data)
 
                         if is_read_from_emesse:
 
@@ -320,7 +320,7 @@ def render_modify_casse_modal(supabase_client, config, selected_db_row, emesse_n
                             # result = supabase_client.table('casse').upsert(upsert_data,
                             #                                                on_conflict='user_id,c_nome_cassa,c_iban_cassa'
                             #                                                ).execute()
-                            st.write(result)
+                            # st.write(result)
                             # time.sleep(10)
 
                             # Check if update actually affected any rows
