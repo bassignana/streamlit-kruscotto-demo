@@ -161,8 +161,11 @@ def render_generic_xml_upload_section(supabase_client, user_id):
 
                                 # This is for the casse manage flow: the first time that I insert a record I have to
                                 # assign a value to the display field.
+                                # NOTE: actually, I want to try to force None here, because in ricevute I should not
+                                # get any cassa at the beginning.
                                 for term in out['terms']:
-                                    term['rfr_display_cassa'] = term.get('rfr_nome_cassa') or term.get('rfr_iban_cassa', None)
+                                    # term['rfr_display_cassa'] = term.get('rfr_nome_cassa') or term.get('rfr_iban_cassa', None)
+                                    term['rfr_display_cassa'] = None
 
                                 # st.write(out['terms'])
 
