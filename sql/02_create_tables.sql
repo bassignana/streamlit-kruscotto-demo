@@ -1032,10 +1032,14 @@ WITH
             dc.*,
             rma_data_scadenza < dc.today AS is_overdue,
             dc.today - rma_data_scadenza AS overdue_days,
+--             COALESCE(
+--                     c.c_descrizione_cassa,
+--                     NULLIF(TRIM(rma_nome_cassa), ''),
+--                     NULLIF(TRIM(rma_iban_cassa), ''),
+--                     'Non specificato'
+--             ) AS cassa
             COALESCE(
-                    c.c_descrizione_cassa,
-                    NULLIF(TRIM(rma_nome_cassa), ''),
-                    NULLIF(TRIM(rma_iban_cassa), ''),
+                    NULLIF(TRIM(rma_display_cassa), ''),
                     'Non specificato'
             ) AS cassa
         FROM rate_movimenti_attivi rma
@@ -1205,12 +1209,16 @@ CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker
     dc.*,
     rmp_data_scadenza < dc.today AS is_overdue,
     dc.today - rmp_data_scadenza AS overdue_days,
+--     COALESCE(
+--     c.c_descrizione_cassa,
+--     NULLIF(TRIM(rmp_nome_cassa), ''),
+--     NULLIF(TRIM(rmp_iban_cassa), ''),
+--     'Non specificato'
+-- ) AS cassa
     COALESCE(
-    c.c_descrizione_cassa,
-    NULLIF(TRIM(rmp_nome_cassa), ''),
-    NULLIF(TRIM(rmp_iban_cassa), ''),
-    'Non specificato'
-) AS cassa
+            NULLIF(TRIM(rmp_display_cassa), ''),
+            'Non specificato'
+    ) AS cassa
     FROM rate_movimenti_passivi rmp
     CROSS JOIN date_calc dc
     LEFT JOIN casse c ON (

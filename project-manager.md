@@ -342,8 +342,8 @@ PER RILASCIO:
 
 RIUNIONE PRE RILASCIO
 
-[] Anagrafica azienda BUG?
-[] BUG Controllare casse
+[x] Anagrafica azienda BUG?
+[x] BUG Controllare casse
 [] Flussi di cassa TOTALE BUG
 
 
