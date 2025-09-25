@@ -6,12 +6,12 @@ import pandas as pd
 
 def main():
     user_id, supabase_client, page_can_render = setup_page("Gestione Altri Movimenti")
-    imposta1, imposta2 = st.tabs(["IVA", "Altre Imposte"])
+    imposta1, imposta2 = st.tabs(["Fatturato", "Imposte"])
 
     if page_can_render:
 
         with imposta1:
-            st.info("L'analisi delle imposte sarà operativa nel prossimo rilascio")
+            st.info("L'analisi del fatturato sarà operativa nei prossimi rilasci")
             # result = supabase_client.table('movimenti_passivi').select('*') \
             #     .eq('mp_tipo', 'IMPOSTA').execute()
             #
@@ -35,7 +35,7 @@ def main():
             #     elif importo_dovuto > soglia:
             #         st.error("Soglia importo superata")
         with imposta2:
-            st.info("L'analisi delle imposte sarà operativa nel prossimo rilascio")
+            st.info("L'analisi delle imposte sarà operativa nei prossimi rilasci")
 
 
 

@@ -170,6 +170,13 @@ def main():
                 ]
                 df = df.set_index(df.columns[0])
 
+                column_config = {}
+                for col in df.columns:
+                    column_config[col] = st.column_config.NumberColumn(
+                        label=col,
+                        format="accounting",
+                        width = 60
+                    )
 
                 c1, c2 = st.columns([1,3])
 
@@ -186,7 +193,7 @@ def main():
                     fig = create_monthly_movements_summary_chart(df.to_dict(), show_amounts=False)
                     st.plotly_chart(fig)
 
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(df, use_container_width=True, column_config=column_config)
 
 
                 avvisi = []

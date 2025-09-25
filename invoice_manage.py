@@ -999,18 +999,6 @@ def main():
                                      'rfr_',
                                      XML_FIELD_MAPPING)
 
-        # with upload:
-        #     render_generic_xml_upload_section(supabase_client, user_id)
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':

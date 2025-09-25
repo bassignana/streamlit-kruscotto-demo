@@ -461,11 +461,10 @@ def render_casse(supabase_client, config):
 
     casse_data = fetch_all_records_from_view(supabase_client, 'casse_summary')
 
-    # TODO: broken
     if not casse_data:
-        st.warning("Caricare una fattura prima di poter procedere all'aggiunta o alla modifica delle casse.")
-        # if st.button("Aggiungi Cassa", type='primary', key = '_add_first_cassa'):
-        #     render_add_casse_modal(supabase_client, config)
+        st.info("Nessuna cassa letta da fattura. È possibile creare una cassa manualmente.")
+        if st.button("Aggiungi Cassa", type='primary', key = '_add_first_cassa'):
+            render_add_casse_modal(supabase_client, config, emesse_names, emesse_iban)
         return
 
     casse_df = pd.DataFrame(casse_data)

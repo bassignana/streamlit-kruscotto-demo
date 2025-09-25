@@ -344,18 +344,17 @@ RIUNIONE PRE RILASCIO
 
 [x] Anagrafica azienda BUG?
 [x] BUG Controllare casse
-[] Flussi di cassa TOTALE BUG
+[x] Flussi di cassa TOTALE BUG
 
 
-[] Sommario altri movimenti non ci sono i decimali
-[] Fatturato / Imposte al posto di Analisi Imposte
-   All'interno mettere tab 
-   Fatturato ... sarà operativa nei prossimi rilasci
-[] Movimenti attivi / passivi nei flussi
+[x] Sommario altri movimenti non ci sono i decimali
+[x] Fatturato / Imposte al posto di Analisi Imposte
+    All'interno mettere tab 
+    Fatturato ... sarà operativa nei prossimi rilasci
 
 Futuro
 [] Aggiorna sbatte fuori
-[] Pulsante di aggiunta cassa anche se non ci sono fatture
+[x] Pulsante di aggiunta cassa anche se non ci sono fatture
 
 
 
