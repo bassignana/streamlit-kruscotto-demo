@@ -328,17 +328,34 @@ RIUNIONE Lun 22 Settembre
 PER RILASCIO:
 [x] BUG: screen, probabilmente dovuta all'ordering della colonna, se seleziono una fattura, non vedo i termini
    corrispondenti.
-[] BUG: screen, duplicazione cassa quando creo una nuova cassa e poi la vado a selezionare in una fattura.
-[] BUG: screen, aggiungere manualmente una cassa prima di averne caricate altre da errore
+[x] BUG: screen, duplicazione cassa quando creo una nuova cassa e poi la vado a selezionare in una fattura.
+[?] BUG: screen, aggiungere manualmente una cassa prima di averne caricate altre da errore
 [] PWD Dimenticata
 [] Aumentare tempo sessione
 [x] Analisi imposte: "Prossimo Rilascio"
 [x] Contatti: mandare mail al supporto@kruscotto
-[] se non c'e la scadenza, DATA DOCUMENTO, sia per acquisti che vendite
-[] Togliere 2 mesi -> in oltre ASSICURANDOSI DI MANDARE TUTTI I TOTALI IN OLTRE DEI DUE MESI
+[x] se non c'e la scadenza, DATA DOCUMENTO, sia per acquisti che vendite
+[x] Togliere 2 mesi -> in oltre ASSICURANDOSI DI MANDARE TUTTI I TOTALI IN OLTRE DEI DUE MESI
 [] Tile sx: aggiungere totali a dx df, Fatture ed altri mov.
 [] TEST: i totali nelle varie pagine devono essere corretti, occhio ai BUG nelle casse
-[] Fatture mensili -> Fatturato (comprensivo di IVA)
+[x] Fatture mensili -> Fatturato (comprensivo di IVA)
+
+RIUNIONE PRE RILASCIO
+
+[] Anagrafica azienda BUG?
+[] BUG Controllare casse
+[] Flussi di cassa TOTALE BUG
+
+
+[] Sommario altri movimenti non ci sono i decimali
+[] Fatturato / Imposte al posto di Analisi Imposte
+   All'interno mettere tab 
+   Fatturato ... sarà operativa nei prossimi rilasci
+[] Movimenti attivi / passivi nei flussi
+
+Futuro
+[] Aggiorna sbatte fuori
+[] Pulsante di aggiunta cassa anche se non ci sono fatture
 
 
 

@@ -25,22 +25,26 @@ setup_logging()
 # logging.basicConfig(level=logging.ERROR)    # Shows error, critical only
 # logging.basicConfig(level=logging.CRITICAL) # Shows critical only
 
-@st.cache_resource
 def init_supabase():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_ANON_KEY"]
-    return create_client(url, key)
+    # url = st.secrets["SUPABASE_URL"]
+    # key = st.secrets["SUPABASE_ANON_KEY"]
+    # return create_client(url, key)
+    if 'supabase_client' not in st.session_state:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_ANON_KEY"]
+        st.session_state.supabase_client = create_client(url, key)
 
+    return st.session_state.supabase_client
 
 
 def main():
-    # st.write(st.session_state)
     st.set_page_config(page_title="Kruscotto", page_icon="", layout="wide")
 
     supabase_client = init_supabase()
-    
-    if 'client' not in st.session_state:
-        st.session_state.client = supabase_client
+
+    # This should be redundant.
+    # if 'client' not in st.session_state:
+    #     st.session_state.client = supabase_client
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
     if 'user' not in st.session_state:

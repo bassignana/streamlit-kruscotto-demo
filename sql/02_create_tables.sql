@@ -3,8 +3,6 @@
 DROP TABLE IF EXISTS public.user_data CASCADE;
 DROP TABLE IF EXISTS public.fatture_emesse CASCADE;
 DROP TABLE IF EXISTS public.fatture_ricevute CASCADE;
-DROP TABLE IF EXISTS public.payment_terms_ricevute CASCADE;
-DROP TABLE IF EXISTS public.payment_terms_emesse CASCADE;
 DROP TABLE IF EXISTS public.rate_fatture_emesse CASCADE;
 DROP TABLE IF EXISTS public.rate_fatture_ricevute CASCADE;
 DROP TABLE IF EXISTS public.movimenti_attivi CASCADE;
@@ -52,8 +50,9 @@ ALTER TABLE public.casse
 
 ALTER TABLE public.casse ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.casse
-FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage only their own data" ON public.casse as permissive
+FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 
 
@@ -70,8 +69,9 @@ CREATE TABLE public.notifications (
 -- Even if it is not necessary:
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.notifications
-    FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage only their own data" ON public.notifications as permissive
+    FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 
 
@@ -89,8 +89,10 @@ CREATE TABLE public.user_data (
 
 ALTER TABLE public.user_data ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.user_data
-FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage only their own data" ON public.user_data as permissive
+FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
 
 -- Unique constraint on user_id for enabling upsert ( on conflict ) using
 -- only user_id. This is done for seeding and testing.
@@ -127,8 +129,9 @@ CREATE TABLE public.fatture_emesse (
 
 ALTER TABLE public.fatture_emesse ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.fatture_emesse
-FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage only their own data" ON public.fatture_emesse as permissive
+FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_emesse
@@ -176,8 +179,9 @@ CREATE TABLE public.rate_fatture_emesse (
 
 ALTER TABLE public.rate_fatture_emesse ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.rate_fatture_emesse
-FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage only their own data" ON public.rate_fatture_emesse as permissive
+FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 
 
@@ -196,8 +200,9 @@ CREATE TABLE public.fatture_ricevute (
 
 ALTER TABLE public.fatture_ricevute ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.fatture_ricevute
-FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage only their own data" ON public.fatture_ricevute as permissive
+FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 -- Keep id as simple primary key for DB reasons, use separate unique constraints for business rules.
 ALTER TABLE public.fatture_ricevute
@@ -235,8 +240,9 @@ CREATE TABLE public.rate_fatture_ricevute (
 
 ALTER TABLE public.rate_fatture_ricevute ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.rate_fatture_ricevute
-FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage only their own data" ON public.rate_fatture_ricevute as permissive
+FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 
 
@@ -255,8 +261,9 @@ CREATE TABLE public.movimenti_attivi (
 
 ALTER TABLE public.movimenti_attivi ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.movimenti_attivi
-FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage only their own data" ON public.movimenti_attivi as permissive
+FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 ALTER TABLE public.movimenti_attivi
     ADD CONSTRAINT movimenti_attivi_unique_index_for_rate_fkey
@@ -284,8 +291,11 @@ CREATE TABLE public.rate_movimenti_attivi (
           ON DELETE CASCADE ON UPDATE CASCADE
   );
 
-CREATE POLICY "Users can manage only their own data" ON public.rate_movimenti_attivi
-FOR ALL USING (auth.uid() = user_id);
+ALTER TABLE public.rate_movimenti_attivi ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage only their own data" ON public.rate_movimenti_attivi as permissive
+FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 
 
@@ -304,8 +314,9 @@ CREATE TABLE public.movimenti_passivi (
 
 ALTER TABLE public.movimenti_passivi ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage only their own data" ON public.movimenti_passivi
-FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage only their own data" ON public.movimenti_passivi as permissive
+FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 ALTER TABLE public.movimenti_passivi
     ADD CONSTRAINT movimenti_passivi_unique_index_for_rate_fkey
@@ -333,8 +344,11 @@ CREATE TABLE public.rate_movimenti_passivi (
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE POLICY "Users can manage only their own data" ON public.rate_movimenti_passivi
-FOR ALL USING (auth.uid() = user_id);
+ALTER TABLE public.rate_movimenti_passivi ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage only their own data" ON public.rate_movimenti_passivi as permissive
+FOR ALL USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 
 
@@ -343,10 +357,6 @@ FOR ALL USING (auth.uid() = user_id);
 
 -- Add indexes for better performance
 -- CREATE INDEX idx_payment_terms_user_id ON public.payment_terms(user_id);
--- CREATE INDEX idx_payment_terms_invoice_id ON public.payment_terms(invoice_id);
--- CREATE INDEX idx_payment_terms_data_scadenza_pagamento ON public.payment_terms(data_scadenza_pagamento);
--- CREATE INDEX idx_payment_terms_is_paid ON public.payment_terms(is_paid);
-
 
 -- With the following functions and triggers,
 -- when I create or update a record, the created_at
@@ -1893,7 +1903,9 @@ FROM (
     -- IS NOT DISTINCT FROM is a better version of doing ON (COALESCE(t1.nome_cassa, '') = COALESCE(t2.c_nome_cassa, '')
     -- I need it otherwise the join does not pick up the correct value to associate from t2 if any of the fields
     -- of t1 are NULL.
-                   ON (t1.nome_cassa IS NOT DISTINCT FROM t2.c_nome_cassa AND t1.iban_cassa IS NOT DISTINCT FROM t2.c_iban_cassa)
+                   ON (t1.nome_cassa IS NOT DISTINCT FROM t2.c_nome_cassa AND
+                       t1.iban_cassa IS NOT DISTINCT FROM t2.c_iban_cassa and
+                       t2.user_id = auth.uid())
 ORDER BY t1.nome_cassa, t1.iban_cassa;
 
 
@@ -1912,5 +1924,7 @@ FROM (
          FROM casse
          WHERE user_id = auth.uid() AND (c_nome_cassa IS NOT NULL OR c_iban_cassa IS NOT NULL)
      ) t1
-         LEFT JOIN casse t2 ON (t1.nome_cassa is not distinct from t2.c_nome_cassa AND t1.iban_cassa is not distinct from t2.c_iban_cassa)
+         LEFT JOIN casse t2 ON (t1.nome_cassa is not distinct from t2.c_nome_cassa AND
+                                t1.iban_cassa is not distinct from t2.c_iban_cassa and
+                                t2.user_id = auth.uid())
 ORDER BY cassa;

@@ -75,10 +75,10 @@ def setup_page(page_title = "", page_icon = "", enable_page_can_render_warning =
         page_icon=page_icon,
         layout="wide"
     )
-    if 'client' not in st.session_state:
-        st.error("Please create the client for invoice_uploader")
+    if 'supabase_client' not in st.session_state:
+        st.error("Please create the client")
         st.stop()
-    supabase_client = st.session_state.client
+    supabase_client = st.session_state.supabase_client
 
     if 'user' not in st.session_state or not st.session_state.user:
         # st.error("🔐 Please login first")

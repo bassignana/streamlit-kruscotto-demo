@@ -23,7 +23,6 @@ def render_anagrafica_azienda_form(client, user_id):
 
     existing_cf = existing_data['ud_codice_fiscale'] if existing_data else ''
     existing_piva = existing_data['ud_partita_iva'] if existing_data else ''
-
     with st.form('anagrafiche',clear_on_submit=False, enter_to_submit=False, width=500):
         codice_fiscale = st.text_input('Codice Fiscale *', placeholder='es. BSSTMS96T27B885E', value=existing_cf, key='codice_fiscale')
         partita_iva = st.text_input('Partita IVA *', placeholder='es. 1234567890', value=existing_piva, key='partita_iva')
