@@ -981,7 +981,7 @@ def main():
                                                   emesse_total - ricevute_total]},
                                       index = ['Fatture Emesse', 'Fatture Ricevute', 'Saldo'])
                 df_vis = pd.concat([df, totals], axis=1)
-                column_config['Totale'] = column_config[col] = st.column_config.NumberColumn(
+                column_config['Totale'] = column_config['Totale'] = st.column_config.NumberColumn(
                     label='Totale',
                     format="accounting",
                     width = 60
