@@ -1052,7 +1052,7 @@ WITH
         WHERE rma_data_pagamento IS NULL AND rma.user_id = auth.uid()
           -- business logic: if I have already got an invoice for that term, then It will show up already in the
           -- rate_fatture_*, so I remove it from here so that I don't count it twice
-          AND rma_fattura_attesa != 'Ricevuta'
+          AND rma_fattura_attesa is distinct from 'Ricevuta'
     ),
 
     cassa_data AS (
@@ -1229,7 +1229,7 @@ CREATE VIEW passive_cashflow_next_12_months_groupby_casse WITH (security_invoker
     WHERE rmp_data_pagamento IS NULL AND rmp.user_id = auth.uid()
       -- business logic: if I have already got an invoice for that term, then It will show up already in the
       -- rate_fatture_*, so I remove it from here so that I don't count it twice
-      AND rmp_fattura_attesa != 'Ricevuta'
+      AND rmp_fattura_attesa is distinct from 'Ricevuta'
 ),
 
     cassa_data AS (
