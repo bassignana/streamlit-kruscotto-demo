@@ -193,8 +193,18 @@ def main():
                     fig = create_monthly_movements_summary_chart(df.to_dict(), show_amounts=False)
                     st.plotly_chart(fig)
 
-                st.dataframe(df, use_container_width=True, column_config=column_config)
-
+                # Ugly: since I don't have time, I just add the total column to the current dataframe
+                # instead of modifying the view.
+                totals = pd.DataFrame({'Totale': [movimenti_attivi_totale, movimenti_passivi_totale,
+                                                  movimenti_attivi_totale - movimenti_passivi_totale]},
+                                      index = ['Movimenti Attivi', 'Movimenti Passivi', 'Saldo'])
+                df_vis = pd.concat([df, totals], axis=1)
+                column_config['Totale'] = column_config[col] = st.column_config.NumberColumn(
+                    label='Totale',
+                    format="accounting",
+                    width = 60
+                )
+                st.dataframe(df_vis, use_container_width=True, column_config=column_config)
 
                 avvisi = []
                 today_iso = date.today().isoformat()

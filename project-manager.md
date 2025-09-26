@@ -354,9 +354,9 @@ Futuro
 [x] Pulsante di aggiunta cassa anche se non ci sono fatture
 
 DAY 1 FIXSES:
-[] Email bug
-[] Tile sx: aggiungere totali a dx df, Fatture ed altri mov.
-[] Aumentare tempo sessione
+[x] Email bug
+[x] Tile sx: aggiungere totali a dx df, Fatture ed altri mov.
+[] Saldo Iniziale
 [] Ensure all credit cards are up to date for the next month
 [] DYNAMIC DATES: overview of situation
 [] Primo livello multiIndex flussi di cassa Bold or Tutto maiuscolo?
@@ -364,6 +364,7 @@ DAY 1 FIXSES:
 [] E2E test
 [] DASHBOARD per il monitoraggio dei dati: come impostare una pwd unica da db? senza form?
    Mettere un controllo su email e pwd che, se diverse, non vengono accettate. Comment out reset pwd form.
+[] Aumentare tempo sessione? Finchè porto tutte queste modifiche forse meglio che facciano il login molte volte.
 
 
 

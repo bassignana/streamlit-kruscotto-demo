@@ -975,7 +975,18 @@ def main():
                     fig = create_monthly_invoices_summary_chart(df.to_dict(), show_amounts=False)
                     st.plotly_chart(fig)
 
-                st.dataframe(df, use_container_width=True, column_config=column_config)
+                # Ugly: since I don't have time, I just add the total column to the current dataframe
+                # instead of modifying the view.
+                totals = pd.DataFrame({'Totale': [emesse_total, ricevute_total,
+                                                  emesse_total - ricevute_total]},
+                                      index = ['Fatture Emesse', 'Fatture Ricevute', 'Saldo'])
+                df_vis = pd.concat([df, totals], axis=1)
+                column_config['Totale'] = column_config[col] = st.column_config.NumberColumn(
+                    label='Totale',
+                    format="accounting",
+                    width = 60
+                )
+                st.dataframe(df_vis, use_container_width=True, column_config=column_config)
 
                 different_year_attivi = supabase_client.table('fatture_emesse').select('*') \
                     .or_('fe_data_documento.lt.2025-01-01,fe_data_documento.gt.2025-12-31').execute()
