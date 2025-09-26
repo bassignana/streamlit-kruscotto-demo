@@ -281,17 +281,30 @@ def render_modify_modal(supabase_client, table_name, fields_config, selected_id,
             with cols[i % 2]:
                 if field_name in sql_table_fields_names:
                     record_value = selected_row_parent_data.get(field_name, None)
+
                     # Since in their infinite intelligence they decided that for selecting a value
                     # from the dropdown menu I need to pass its index, instead of the value itself(!),
                     # I need to add this branch.
+                    #
+                    # Also since index(None) gives error, I need to do it separately.
                     if field_name == 'ma_tipo':
+                        if record_value is not None:
+                            index = ma_tipo_options.index(record_value)
+                        else:
+                            index = None
+
                         form_data[field_name] = render_field_widget(
-                            field_name, field_config, index=ma_tipo_options.index(record_value),
+                            field_name, field_config, index=index,
                             key_suffix=f"modify_{table_name}"
                         )
                     elif field_name == 'mp_tipo':
+                        if record_value is not None:
+                            index = mp_tipo_options.index(record_value)
+                        else:
+                            index = None
+
                         form_data[field_name] = render_field_widget(
-                            field_name, field_config, index=mp_tipo_options.index(record_value),
+                            field_name, field_config, index=index,
                             key_suffix=f"modify_{table_name}"
                         )
                     else:

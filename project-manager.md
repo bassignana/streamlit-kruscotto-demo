@@ -330,13 +330,10 @@ PER RILASCIO:
    corrispondenti.
 [x] BUG: screen, duplicazione cassa quando creo una nuova cassa e poi la vado a selezionare in una fattura.
 [?] BUG: screen, aggiungere manualmente una cassa prima di averne caricate altre da errore
-[] PWD Dimenticata
-[] Aumentare tempo sessione
 [x] Analisi imposte: "Prossimo Rilascio"
 [x] Contatti: mandare mail al supporto@kruscotto
 [x] se non c'e la scadenza, DATA DOCUMENTO, sia per acquisti che vendite
 [x] Togliere 2 mesi -> in oltre ASSICURANDOSI DI MANDARE TUTTI I TOTALI IN OLTRE DEI DUE MESI
-[] Tile sx: aggiungere totali a dx df, Fatture ed altri mov.
 [] TEST: i totali nelle varie pagine devono essere corretti, occhio ai BUG nelle casse
 [x] Fatture mensili -> Fatturato (comprensivo di IVA)
 
@@ -355,6 +352,19 @@ RIUNIONE PRE RILASCIO
 Futuro
 [] Aggiorna sbatte fuori
 [x] Pulsante di aggiunta cassa anche se non ci sono fatture
+
+DAY 1 FIXSES:
+[] Email bug
+[] Tile sx: aggiungere totali a dx df, Fatture ed altri mov.
+[] Aumentare tempo sessione
+[] Ensure all credit cards are up to date for the next month
+[] DYNAMIC DATES: overview of situation
+[] Primo livello multiIndex flussi di cassa Bold or Tutto maiuscolo?
+[] PWD Dimenticata ( agli utenti già registrati gli verrà inviata una mail? )
+[] E2E test
+[] DASHBOARD per il monitoraggio dei dati: come impostare una pwd unica da db? senza form?
+   Mettere un controllo su email e pwd che, se diverse, non vengono accettate. Comment out reset pwd form.
+
 
 
 
