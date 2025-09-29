@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DeveloperToolsToolWindowSettingsV1" lastSelectedContentNodeId="text-case-transformer" pluginVersion="7.1.0">
+    <developerToolsConfigurations>
+      <developerToolConfiguration developerToolId="text-case-transformer" id="7c3c6d0a-aaf8-42ee-bbaa-b321823e7a1f" name="Workbench">
+        <properties>
+          <property key="sourceText" type="INPUT" value="kotlin.String|'FLUSSO DI CASSA',&#10;'Futuro',         &#10;'Futuro',         &#10;'Futuro',         &#10;'Futuro',         &#10;'Futuro',         &#10;'Futuro',         &#10;'Futuro',         &#10;'Futuro',         &#10;'Futuro',         &#10;'Futuro',         &#10;# 'Futuro',       &#10;# 'Futuro',       &#10;'Futuro',         &#10;'Futuro',         &#10;'Scaduto',        &#10;'Scaduto',        &#10;'Scaduto',        &#10;'Scaduto',        &#10;'Totale'          " />
+          <property key="inputTextCase" type="CONFIGURATION" value="TextCaseTransformer-TextCase|UPPER_CASE" />
+          <property key="originalParsingMode" type="CONFIGURATION" value="TextCaseTransformer-OriginalParsingMode|FIXED_TEXT_CASE" />
+        </properties>
+      </developerToolConfiguration>
+    </developerToolsConfigurations>
+  </component>
+</project>

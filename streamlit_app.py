@@ -83,8 +83,8 @@ def main():
         pg = st.navigation(
             {
             # "Sommario": [overview],
-            "Documenti": [fatture_manage, upload, altri_movimenti_manage],
             "Analisi": [flussi_di_cassa, analisi_imposte],
+            "Documenti": [fatture_manage, upload, altri_movimenti_manage],
             "Profilo": [profile, anagrafica_azienda],
             "Contatti": [feedback],
             },

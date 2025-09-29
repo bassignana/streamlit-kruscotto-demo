@@ -171,25 +171,25 @@ def main():
 
         active_df.columns = pd.MultiIndex.from_arrays([[
                'ATTIVI',                    #cassa
-               'Da Incassare',              #settembre
-               'Da Incassare',              #ottobre
-               'Da Incassare',              #novembre
-               'Da Incassare',              #dicembre
-               'Da Incassare',              #gennaio
-               'Da Incassare',              #febbraio
-               'Da Incassare',              #marzo
-               'Da Incassare',              #aprile
-               'Da Incassare',              #maggio
-               'Da Incassare',              #giugno
-               # 'Da Incassare',              #luglio
-               # 'Da Incassare',              #agosto
-               'Da Incassare',              #incassare_oltre
-               'Da Incassare',              #totale_da_incassare
-               'Da Incassare Scaduti',      #scaduti_30gg
-               'Da Incassare Scaduti',      #scaduti_60gg
-               'Da Incassare Scaduti',      #scaduti_oltre
-               'Da Incassare Scaduti',      #totale_scaduti
-               'Totale'                     #totale_attivi
+               'DA INCASSARE',              #settembre
+               'DA INCASSARE',              #ottobre
+               'DA INCASSARE',              #novembre
+               'DA INCASSARE',              #dicembre
+               'DA INCASSARE',              #gennaio
+               'DA INCASSARE',              #febbraio
+               'DA INCASSARE',              #marzo
+               'DA INCASSARE',              #aprile
+               'DA INCASSARE',              #maggio
+               'DA INCASSARE',              #giugno
+               # 'DA INCASSARE',              #luglio
+               # 'DA INCASSARE',              #agosto
+               'DA INCASSARE',              #incassare_oltre
+               'DA INCASSARE',              #totale_da_incassare
+               'DA INCASSARE SCADUTI',      #scaduti_30gg
+               'DA INCASSARE SCADUTI',      #scaduti_60gg
+               'DA INCASSARE SCADUTI',      #scaduti_oltre
+               'DA INCASSARE SCADUTI',      #totale_scaduti
+               'TOTALE'                     #totale_attivi
                                                        ],
                 active_df.columns])
 
@@ -216,25 +216,25 @@ def main():
 
         passive_df.columns = pd.MultiIndex.from_arrays([[
             'PASSIVI',                   #cassa
-            'Da Pagare',                 #settembre
-            'Da Pagare',                 #ottobre
-            'Da Pagare',                 #novembre
-            'Da Pagare',                 #dicembre
-            'Da Pagare',                 #gennaio
-            'Da Pagare',                 #febbraio
-            'Da Pagare',                 #marzo
-            'Da Pagare',                 #aprile
-            'Da Pagare',                 #maggio
-            'Da Pagare',                 #giugno
-            # 'Da Pagare',                 #luglio
-            # 'Da Pagare',                 #agosto
-            'Da Pagare',                 #incassare_oltre
-            'Da Pagare',                 #totale_da_incassare
-            'Da Pagare Scaduti',         #scaduti_30gg
-            'Da Pagare Scaduti',         #scaduti_60gg
-            'Da Pagare Scaduti',         #scaduti_oltre
-            'Da Pagare Scaduti',         #totale_scaduti
-            'Totale'                     #totale_attivi
+            'DA PAGARE',                 #settembre
+            'DA PAGARE',                 #ottobre
+            'DA PAGARE',                 #novembre
+            'DA PAGARE',                 #dicembre
+            'DA PAGARE',                 #gennaio
+            'DA PAGARE',                 #febbraio
+            'DA PAGARE',                 #marzo
+            'DA PAGARE',                 #aprile
+            'DA PAGARE',                 #maggio
+            'DA PAGARE',                 #giugno
+            # 'DA PAGARE',                 #luglio
+            # 'DA PAGARE',                 #agosto
+            'DA PAGARE',                 #incassare_oltre
+            'DA PAGARE',                 #totale_da_incassare
+            'DA PAGARE SCADUTI',         #scaduti_30gg
+            'DA PAGARE SCADUTI',         #scaduti_60gg
+            'DA PAGARE SCADUTI',         #scaduti_oltre
+            'DA PAGARE SCADUTI',         #totale_scaduti
+            'TOTALE'                     #totale_attivi
         ],
             passive_df.columns])
 
@@ -323,25 +323,25 @@ def main():
 
             saldo.columns = pd.MultiIndex.from_arrays([[
                 'FLUSSO DI CASSA',        #cassa
-                'Futuro',                 #'Set',
-                'Futuro',                 #'Ott',
-                'Futuro',                 #'Nov',
-                'Futuro',                 #'Dic',
-                'Futuro',                 #'Gen',
-                'Futuro',                 #'Feb',
-                'Futuro',                 #'Mar',
-                'Futuro',                 #'Apr',
-                'Futuro',                 #'Mag',
-                'Futuro',                 #'Giu',
-                # 'Futuro',                 #'Lug',
-                # 'Futuro',                 #'Ago',
-                'Futuro',                 #'Oltre',
-                'Futuro',                 #'Totale',
-                'Scaduto',                #'30GG',
-                'Scaduto',                #'60GG',
-                'Scaduto',                #'Oltre ',
-                'Scaduto',                #'Totale ',
-                'Totale'                  #'Netto'
+                'FUTURO',                 #'Set',
+                'FUTURO',                 #'Ott',
+                'FUTURO',                 #'Nov',
+                'FUTURO',                 #'Dic',
+                'FUTURO',                 #'Gen',
+                'FUTURO',                 #'Feb',
+                'FUTURO',                 #'Mar',
+                'FUTURO',                 #'Apr',
+                'FUTURO',                 #'Mag',
+                'FUTURO',                 #'Giu',
+                # 'FUTURO',                 #'Lug',
+                # 'FUTURO',                 #'Ago',
+                'FUTURO',                 #'Oltre',
+                'FUTURO',                 #'Totale',
+                'SCADUTO',                #'30GG',
+                'SCADUTO',                #'60GG',
+                'SCADUTO',                #'Oltre ',
+                'SCADUTO',                #'Totale ',
+                'TOTALE'                  #'Netto'
             ],
                 saldo.columns])
 
