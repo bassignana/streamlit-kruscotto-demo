@@ -6,6 +6,8 @@ import logging
 from decimal import Decimal, ROUND_HALF_UP, getcontext
 from datetime import datetime, date
 import pandas as pd
+from PIL import Image
+
 
 def to_money(amount):
     getcontext().prec = 28
@@ -64,15 +66,16 @@ def fetch_all_records(supabase_client, table_name: str, user_id: str):
         logging.exception(f"Database error in fetch_all_records - error: {e} - table: {table_name}, user_id: {user_id}")
         raise
 
+# TODO: remove page_icon everywhere.
 def setup_page(page_title = "", page_icon = "", enable_page_can_render_warning = True):
     """
     enable_page_can_render_warning is False only for the page that shows the anagrafica form,
     otherwise the warning will always be present on the top of the anagrafica form's page.
     """
-
+    im = Image.open("favicon.png")
     st.set_page_config(
         page_title=page_title,
-        page_icon=page_icon,
+        page_icon=im,
         layout="wide"
     )
     if 'supabase_client' not in st.session_state:

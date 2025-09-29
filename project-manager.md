@@ -1,6 +1,7 @@
 # 1. Snippets
 Run the following code snippets to 'automate' running the project.
 In pycharm there is a bug in running fragments.
+This declarative style of setting up a project was a mistake, at least this current implementation.
 
 Initialized with: 
 uv init --python 3.13
@@ -43,10 +44,6 @@ equal, or I can create a dummy prod env and do the above with that.
 
 For the list of COMMON and UNCOMMON tags between all invoices:
 python3 invoice_common_tags.py fatture_emesse/ fatture_ricevute 
-
-OLD
-Seeding the database
-python3 tool_reset_db.py --noseed
 
 Lunch db tests
 Create .pgpass and give right permissions with `chmod 0660 .pgpass` like mentioned

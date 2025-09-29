@@ -3,8 +3,9 @@
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/db_tests/test_insert_record_procedure.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/sql/001_test_seeding.sql" dialect="PostgreSQL" />
-    <file url="file://$PROJECT_DIR$/sql/00_test.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/sql/002_tests.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/sql/02_create_tables.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/sql/_test.sql" dialect="PostgreSQL" />
     <file url="PROJECT" dialect="PostgreSQL" />
   </component>
 </project>

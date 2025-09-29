@@ -1,6 +1,8 @@
 import streamlit as st
 import logging
 import os
+
+from PIL import Image
 from supabase import create_client
 from auth_utils import show_login_and_render_form
 
@@ -38,7 +40,8 @@ def init_supabase():
 
 
 def main():
-    st.set_page_config(page_title="Kruscotto", page_icon="", layout="wide")
+    im = Image.open("favicon.png")
+    st.set_page_config(page_title="Kruscotto", page_icon=im, layout="wide")
 
     supabase_client = init_supabase()
 

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>DATABASE</ID>
+  <OriginalElement>42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.active_cashflow_next_12_months_groupby_casse</OriginalElement>
+  <nodes>
+    <node x="-579.0" y="-172.0">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.casse_options</node>
+    <node x="-101.0" y="-61.0">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.fatture_ricevute_overview</node>
+    <node x="-581.0" y="1532.5">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.passive_cashflow_next_12_months_groupby_casse</node>
+    <node x="-95.0" y="1532.5">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.active_cashflow_next_12_months_groupby_casse</node>
+    <node x="-86.0" y="490.0">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.monthly_invoice_summary</node>
+    <node x="-254.0" y="167.5">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.movimenti_passivi_overview</node>
+    <node x="-228.5" y="944.5">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.invoice_payment_summary</node>
+    <node x="-365.0" y="432.5">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.cashflow_next_12_months</node>
+    <node x="-577.5" y="910.0">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.monthly_altri_movimenti_summary</node>
+    <node x="-246.5" y="1287.5">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.movimenti_attivi_overview</node>
+    <node x="-391.5" y="-15.0">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.casse_summary</node>
+    <node x="-582.0" y="179.0">42e93777-440e-476e-9205-0493e9d68462.VIEW:postgres.public.fatture_emesse_overview</node>
+  </nodes>
+  <notes />
+  <edges />
+  <settings layout="Hierarchic Compact" zoom="0.44516129032258067" showDependencies="false" x="-118.5" y="913.0" />
+  <SelectedNodes />
+  <Categories>
+    <Category>Columns</Category>
+    <Category>Comments</Category>
+    <Category>Virtual foreign keys</Category>
+  </Categories>
+</Diagram>
+
