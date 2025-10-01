@@ -148,7 +148,6 @@ def main():
 
     active_result = supabase_client.table('active_cashflow_next_12_months_groupby_casse').select('*').execute()
     passive_result = supabase_client.table('passive_cashflow_next_12_months_groupby_casse').select('*').execute()
-    st.write(active_result.data)
 
     if not active_result.data:
         st.warning("Nessun dato disponibile per i movimenti attivi")
