@@ -2,9 +2,9 @@
 Run the following code snippets to 'automate' running the project.
 In pycharm there is a bug in running fragments.
 This declarative style of setting up a project was a mistake, at least this current implementation.
+Also putting the logic in the database is mostly a mistake.
 
 Initialized with: 
-uv init --python 3.13
 
 ```bash
 # Before running any snippet,
@@ -14,13 +14,14 @@ pwd
 
 Add packages with versioning:
 ```bash
+uv init --python 3.13
+
 uv add 'streamlit==1.47.0'
 uv add 'pandas==2.3.0'
 uv add 'supabase==2.16'
 uv add 'plotly==6.2'
 uv add 'pytest==8.4.2'
 ```
-uv add 'streamlit-aggrid==1.1.7'
 
 Manage local development inside the venv
 ```bash
@@ -461,6 +462,8 @@ DEV
 [] RLS
 
 # 3. Project automation
+
+## Goal
 Goal: starting from the initial sql tables definition and 
 a config file detailing what variables in the sql are corresponding
 to the values inside the xml tag, I want to create automatically:
@@ -559,8 +562,17 @@ separate config: altri_movimenti_config.py
 IF some utils are taken from invoice_utils.py others from altri_movimenti_utils.py,
 copy the util. Customization will be needed, now or in the future.
 
+## Time related months changes
 
-
+Flussi di cassa: 
+Patch:
+SQL active_cashflow_next_12_months_groupby_casse and passive:
+change dates near # @ change dates comments
+cash_flow.py:
+change dates near # @CHANGE DATES comments
+More stable:
+In sql put name like month0, month1 etc. The month are already calculated starting
+from the current month. Then in the app, map monthN names to current month + other 9 months.
 
 # Security
 - In order for views to 'inherit' the RLS policies, I have to use the

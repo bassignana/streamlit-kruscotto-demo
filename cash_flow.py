@@ -4,8 +4,8 @@ import streamlit as st
 import pandas as pd
 from utils import setup_page, fetch_all_records, to_money
 
+# @CHANGE DATES
 months = [
-    'Set',
     'Ott',
     'Nov',
     'Dic',
@@ -16,7 +16,8 @@ months = [
     'Mag',
     'Giu',
     'Lug',
-    'Ago'
+    'Ago',
+    'Set'
 ]
 
 def get_cashflow_column_config(df_columns, months):
@@ -147,6 +148,7 @@ def main():
 
     active_result = supabase_client.table('active_cashflow_next_12_months_groupby_casse').select('*').execute()
     passive_result = supabase_client.table('passive_cashflow_next_12_months_groupby_casse').select('*').execute()
+    st.write(active_result.data)
 
     if not active_result.data:
         st.warning("Nessun dato disponibile per i movimenti attivi")
@@ -270,20 +272,21 @@ def main():
             active_totals = active_totals.fillna(0)
             passive_totals = passive_totals.fillna(0)
 
+            # @CHANGE DATES
             saldo_columns = [
                                         # cassa
-                'Set',                  # settembre
-                'Ott',                  # ottobre
-                'Nov',                  # novembre
-                'Dic',                  # dicembre
-                'Gen',                  # gennaio
-                'Feb',                  # febbraio
-                'Mar',                  # marzo
-                'Apr',                  # aprile
-                'Mag',                  # maggio
-                'Giu',                  # giugno
-                # 'Lug',                  # luglio
-                # 'Ago',                  # agosto
+                'Ott',                  # settembre
+                'Nov',                  # ottobre
+                'Dic',                  # novembre
+                'Gen',                  # dicembre
+                'Feb',                  # gennaio
+                'Mar',                  # febbraio
+                'Apr',                  # marzo
+                'Mag',                  # aprile
+                'Giu',                  # maggio
+                'Lug',                  # giugno
+                # 'Ago',                  # luglio
+                # 'Set',                  # agosto
                 'Oltre',                # pagare_oltre
                 'Totale',               # totale_da_pagare
                 '30GG',                 # scaduti_30gg
