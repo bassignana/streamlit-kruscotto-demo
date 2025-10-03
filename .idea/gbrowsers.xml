@@ -2,6 +2,48 @@
 <project version="4">
   <component name="GBrowserService"><![CDATA[{
   "defaultHomePage": "https://google.com",
-  "isSuggestionSearchEnabled": true
+  "isSuggestionSearchEnabled": true,
+  "history": [
+    {
+      "name": "",
+      "url": "https://google.com"
+    },
+    {
+      "name": "GBrowser - IntelliJ IDEs Plugin | Marketplace",
+      "url": "https://plugins.jetbrains.com/plugin/14458-gbrowser"
+    },
+    {
+      "name": "Google Search",
+      "url": "https://www.google.com/search?q=https://googleusercontent.com/maps.google.com/0"
+    },
+    {
+      "name": "https://www.google.com/search?q=https://googleusercontent.com/maps.google.com/0&sei=CbbeaKeTF4Ko9u8Pl76xqAw",
+      "url": "https://www.google.com/sorry/index?continue=https://www.google.com/search%3Fq%3Dhttps://googleusercontent.com/maps.google.com/0%26sei%3DCbbeaKeTF4Ko9u8Pl76xqAw&q=EhAqBBJAMQcHACBHw8cTUJE6GIns-sYGIjBVUFT4v79u3EhQ9Y7HpX8-LCmL-qTf2EIWWjQvoNxmAlDVe4QvzQpthWaitto-8tMyAVJaAUM"
+    },
+    {
+      "name": "https://googleusercontent.com/maps.google.com/0 - Cerca con Google",
+      "url": "https://www.google.com/search?q=https://googleusercontent.com/maps.google.com/0&sei=CbbeaKeTF4Ko9u8Pl76xqAw"
+    },
+    {
+      "name": "python 13 typing docs - Cerca con Google",
+      "url": "https://www.google.com/search?q=python+13+typing+docs&sca_esv=c846489d7201f9ae&ei=JLbeaMv8K6jt7_UPi_TxmAw&ved=0ahUKEwjLnqf2hIaQAxWo9rsIHQt6HMMQ4dUDCHA&uact=5&oq=python+13+typing+docs&gs_lp=Egxnd3Mtd2l6LXNlcnAiFXB5dGhvbiAxMyB0eXBpbmcgZG9jczIFECEYoAEyBRAhGKABMgUQIRifBTIFECEYnwVIslZQAFjMVHAFeACQAQCYAYYBoAGPFqoBBDcuMTm4AQPIAQD4AQGYAh-gAqkXqAIKwgILEAAYgAQYsQMYgwHCAggQABiABBixA8ICBBAAGAPCAhEQLhiABBixAxjRAxiDARjHAcICCBAuGIAEGLEDwgIOEAAYgAQYsQMYgwEYigXCAgUQLhiABMICEBAAGIAEGLEDGEMYgwEYigXCAgsQLhiABBixAxjUAsICBRAAGIAEwgILEC4YgAQYxwEYrwHCAg4QLhiABBjHARiOBRivAcICChAAGIAEGLEDGArCAgoQABiABBhDGIoFwgIQEAAYAxi0AhjqAhiPAdgBAcICFhAuGNEDGAMYtAIYxwEY6gIYjwHYAQHCAhAQLhgDGLQCGOoCGI8B2AEBwgIOEC4YgAQYsQMY0QMYxwHCAgsQLhiABBixAxiDAcICBhAAGBYYHsICBxAAGIAEGBPCAggQABgWGAoYHsICCBAAGIAEGKIEwgIFEAAY7wXCAgQQIRgVmAME8QVOyFggYEH1DLoGBAgBGAqSBwQ5LjIyoAfItQGyBwQ0LjIyuAeVF8IHBzAuMTEuMjDIB3A&sclient=gws-wiz-serp"
+    },
+    {
+      "name": "typing — Support for type hints — Python 3.13.7 documentation",
+      "url": "https://docs.python.org/3/library/typing.html"
+    },
+    {
+      "name": "Type hints cheat sheet - mypy 1.18.2 documentation",
+      "url": "https://mypy.readthedocs.io/en/stable/cheat_sheet_py3.html"
+    },
+    {
+      "name": "Search — Python 3.13.7 documentation",
+      "url": "https://docs.python.org/3/search.html?q=optional"
+    },
+    {
+      "name": "typing — Support for type hints — Python 3.13.7 documentation",
+      "url": "https://docs.python.org/3/library/typing.html#typing.Optional"
+    }
+  ]
 }]]></component>
 </project>

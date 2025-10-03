@@ -1,16 +1,15 @@
 import logging
 import re
-
 import streamlit as st
 import time
 import pandas as pd
 
 from altri_movimenti_config import altri_movimenti_config
 from altri_movimenti_utils import remove_prefix
+from anagrafica_utils import get_cleaned_company_identifiers
 from config import uppercase_prefixes, technical_fields
 from invoice_utils import render_field_widget
 from utils import setup_page, fetch_all_records_from_view
-
 
 def render_anagrafica_azienda_form(client, user_id):
 
@@ -29,23 +28,9 @@ def render_anagrafica_azienda_form(client, user_id):
         submitted = st.form_submit_button("Imposta", type="primary")
 
         if submitted:
-            if not all([codice_fiscale.strip(), partita_iva.strip()]):
-                st.error("Inserire tutti i campi obbligatori")
-                return
-
-            cf_clean = codice_fiscale.strip().upper()
-            # Pattern breakdown
-            # 6 letters: [a-zA-Z]{6}
-            # 2 numbers: \d{2}
-            # ...
-            cf_pattern = r"[a-zA-Z]{6}\d{2}[a-zA-Z]{1}\d{2}[a-zA-Z]{1}\d{3}[a-zA-Z]{1}"
-            if not re.fullmatch(cf_pattern, cf_clean):
-                st.error("La struttura del Codice Fiscale non è corretta")
-                return
-
-            piva_clean = partita_iva.strip()
-            if not re.fullmatch(r"\d{11}", piva_clean):
-                st.error("La Partita IVA deve essere composta da 11 numeri")
+            error, cf_clean, piva_clean = get_cleaned_company_identifiers(codice_fiscale, partita_iva)
+            if error:
+                st.error(error)
                 return
 
             try:
