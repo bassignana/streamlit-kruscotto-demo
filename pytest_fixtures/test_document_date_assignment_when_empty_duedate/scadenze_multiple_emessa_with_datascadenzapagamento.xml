@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<?xml-stylesheet type="text/xsl" href="fatturapa_v1.2.xsl"?>
+<!-- DOLPHIN SRL Fattura Elettronica ver: 4.1.7  -->
+<p:FatturaElettronica versione="FPR12" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <FatturaElettronicaHeader>
+    <DatiTrasmissione>
+      <IdTrasmittente>
+        <IdPaese>IT</IdPaese>
+        <IdCodice>12345678900</IdCodice>
+      </IdTrasmittente>
+      <ProgressivoInvio>31445</ProgressivoInvio>
+      <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+      <CodiceDestinatario>0000000</CodiceDestinatario><ContattiTrasmittente />
+      
+    </DatiTrasmissione>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA>
+          <IdPaese>IT</IdPaese>
+          <IdCodice>12345678900</IdCodice>
+        </IdFiscaleIVA>
+        <CodiceFiscale>12345678900</CodiceFiscale>
+        <Anagrafica>
+          <Denominazione>BLUENEXT SRL  </Denominazione>
+        </Anagrafica>
+        <RegimeFiscale>RF01</RegimeFiscale>
+      </DatiAnagrafici>
+      <Sede>
+        <Indirizzo>VIALE XXIII SETTEMBRE 1845 N. 95</Indirizzo>
+        <CAP>47921</CAP>
+        <Comune>RIMINI</Comune>
+        <Provincia>RN</Provincia>
+        <Nazione>IT</Nazione>
+      </Sede>
+      <Contatti />
+    </CedentePrestatore>
+    <CessionarioCommittente>
+      <DatiAnagrafici>
+        <IdFiscaleIVA>
+          <IdPaese>IT</IdPaese>
+          <IdCodice>06666960726</IdCodice>
+        </IdFiscaleIVA>
+        <Anagrafica>
+          <Denominazione>DIBENEDETTO CESAREO STUDIO ASSOCIATO </Denominazione>
+        </Anagrafica>
+      </DatiAnagrafici>
+      <Sede>
+        <Indirizzo>VIA A. MORO, 51</Indirizzo>
+        <CAP>70037</CAP>
+        <Comune>RUVO DI PUGLIA</Comune>
+        <Provincia>BA</Provincia>
+        <Nazione>IT</Nazione>
+      </Sede>
+    </CessionarioCommittente><TerzoIntermediarioOSoggettoEmittente><DatiAnagrafici><IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>12345678900</IdCodice></IdFiscaleIVA><Anagrafica><Denominazione>BLUENEXT SRL</Denominazione></Anagrafica></DatiAnagrafici></TerzoIntermediarioOSoggettoEmittente>
+  <SoggettoEmittente>TZ</SoggettoEmittente></FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>TD01</TipoDocumento>
+        <Divisa>EUR</Divisa>
+        <Data>2025-01-17</Data>
+        <Numero>1345/25/1</Numero>
+        <ImportoTotaleDocumento>6104.10</ImportoTotaleDocumento>
+        <Causale>FATTURE VENDITA ITALIA</Causale>
+        <Art73>SI</Art73>
+      </DatiGeneraliDocumento>
+    </DatiGenerali>
+    <DatiBeniServizi>
+      <DettaglioLinee>
+        <NumeroLinea>1</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>ASS_INTEGRATO</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>CANONE DI ASSISTENZA ANNUALE INTEGRATO ANNO 2025</Descrizione>
+        <Quantita>1.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>3448.18000000</PrezzoUnitario>
+        <PrezzoTotale>3448.18000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>7</NumeroLinea>
+        <Descrizione>Factotum Evolution fino a 3 Client</Descrizione>
+        <PrezzoUnitario>0.00000000</PrezzoUnitario>
+        <PrezzoTotale>0.00000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>8</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>9999851</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>SERVIZIO LIVE UPDATE</Descrizione>
+        <Quantita>1.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>80.00000000</PrezzoUnitario>
+        <PrezzoTotale>80.00000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>9</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>ASS_FISCALE</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>CANONE DI ASSISTENZA ANNUALE FISCALE ANNO 2025</Descrizione>
+        <Quantita>1.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>106.03000000</PrezzoUnitario>
+        <PrezzoTotale>106.03000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>11</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>3T</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>SCONTO COME PREVISTO DA CONTRATTO</Descrizione>
+        <Quantita>2.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>-623.02000000</PrezzoUnitario>
+        <PrezzoTotale>-1246.04000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>12</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>7208003</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>PROGRAMMA CERTIFICAZIONE UNICA -C.U.</Descrizione>
+        <Quantita>1.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>81.68000000</PrezzoUnitario>
+        <PrezzoTotale>81.68000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>13</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>ASS_B2B</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>CANONE DI MANUTENZIONE ANNUALE PIATTAFORMA B2B ANNO 2025</Descrizione>
+        <Quantita>1.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>1484.39000000</PrezzoUnitario>
+        <PrezzoTotale>1484.39000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>16</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>6008283</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>BUNDLE GESTIONE "ADEMPIMENTI PRECOMPILATI"</Descrizione>
+        <Quantita>1.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>318.08000000</PrezzoUnitario>
+        <PrezzoTotale>318.08000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>17</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>9110093</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>Fatturazione Elettronica PA - 100 fatture/anno </Descrizione>
+        <Quantita>1.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>104.97000000</PrezzoUnitario>
+        <PrezzoTotale>104.97000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>18</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>ASS_TELEMATICI</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>CANONE DI ASSISTENZA ANNUALE ESPANDO TELEMATICI ANNO 2025</Descrizione>
+        <Quantita>1.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>176.71000000</PrezzoUnitario>
+        <PrezzoTotale>176.71000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>20</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>6518053</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>Conservazione Digitale Online fino a 5.000 Fatture Elettroniche B2B</Descrizione>
+        <Quantita>1.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>290.76000000</PrezzoUnitario>
+        <PrezzoTotale>290.76000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DettaglioLinee>
+        <NumeroLinea>21</NumeroLinea>
+        <CodiceArticolo>
+          <CodiceTipo>CODICE</CodiceTipo>
+          <CodiceValore>7838059</CodiceValore>
+        </CodiceArticolo>
+        <Descrizione>Espando bilancio Terzo settore Fino a 5 aziende</Descrizione>
+        <Quantita>1.00000000</Quantita>
+        <UnitaMisura>NR</UnitaMisura>
+        <PrezzoUnitario>158.60000000</PrezzoUnitario>
+        <PrezzoTotale>158.60000</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DatiRiepilogo>
+        <AliquotaIVA>22.00</AliquotaIVA>
+        <ImponibileImporto>5003.36</ImponibileImporto>
+        <Imposta>1100.74</Imposta>
+        <EsigibilitaIVA>I</EsigibilitaIVA>
+        <RiferimentoNormativo>IVA 22%</RiferimentoNormativo>
+      </DatiRiepilogo>
+    </DatiBeniServizi>
+    <DatiPagamento>
+      <CondizioniPagamento>TP01</CondizioniPagamento>
+      <DettaglioPagamento>
+        <ModalitaPagamento>MP05</ModalitaPagamento>
+        <DataRiferimentoTerminiPagamento>2025-01-17</DataRiferimentoTerminiPagamento>
+        <GiorniTerminiPagamento>73</GiorniTerminiPagamento>
+        <DataScadenzaPagamento>2025-03-31</DataScadenzaPagamento>
+        <ImportoPagamento>1100.74</ImportoPagamento>
+        <IstitutoFinanziario>BANCA POPOLARE DELL'EMILIA ROMAGNA  </IstitutoFinanziario>
+        <IBAN>IT18N0538724202000002036135</IBAN>
+        <ABI>05387</ABI>
+        <CAB>24202</CAB>
+      </DettaglioPagamento>
+      <DettaglioPagamento>
+        <ModalitaPagamento>MP05</ModalitaPagamento>
+        <DataRiferimentoTerminiPagamento>2025-01-17</DataRiferimentoTerminiPagamento>
+        <GiorniTerminiPagamento>73</GiorniTerminiPagamento>
+        <DataScadenzaPagamento>2025-03-31</DataScadenzaPagamento>
+        <ImportoPagamento>1250.84</ImportoPagamento>
+        <IstitutoFinanziario>BANCA POPOLARE DELL'EMILIA ROMAGNA  </IstitutoFinanziario>
+        <IBAN>IT18N0538724202000002036135</IBAN>
+        <ABI>05387</ABI>
+        <CAB>24202</CAB>
+      </DettaglioPagamento>
+      <DettaglioPagamento>
+        <ModalitaPagamento>MP05</ModalitaPagamento>
+        <DataRiferimentoTerminiPagamento>2025-01-17</DataRiferimentoTerminiPagamento>
+        <GiorniTerminiPagamento>134</GiorniTerminiPagamento>
+        <DataScadenzaPagamento>2025-05-31</DataScadenzaPagamento>
+        <ImportoPagamento>1250.84</ImportoPagamento>
+        <IstitutoFinanziario>BANCA POPOLARE DELL'EMILIA ROMAGNA  </IstitutoFinanziario>
+        <IBAN>IT18N0538724202000002036135</IBAN>
+        <ABI>05387</ABI>
+        <CAB>24202</CAB>
+      </DettaglioPagamento>
+      <DettaglioPagamento>
+        <ModalitaPagamento>MP05</ModalitaPagamento>
+        <DataRiferimentoTerminiPagamento>2025-01-17</DataRiferimentoTerminiPagamento>
+        <GiorniTerminiPagamento>195</GiorniTerminiPagamento>
+        <DataScadenzaPagamento>2025-07-31</DataScadenzaPagamento>
+        <ImportoPagamento>1250.84</ImportoPagamento>
+        <IstitutoFinanziario>BANCA POPOLARE DELL'EMILIA ROMAGNA  </IstitutoFinanziario>
+        <IBAN>IT18N0538724202000002036135</IBAN>
+        <ABI>05387</ABI>
+        <CAB>24202</CAB>
+      </DettaglioPagamento>
+      <DettaglioPagamento>
+        <ModalitaPagamento>MP05</ModalitaPagamento>
+        <DataRiferimentoTerminiPagamento>2025-01-17</DataRiferimentoTerminiPagamento>
+        <GiorniTerminiPagamento>256</GiorniTerminiPagamento>
+        <DataScadenzaPagamento>2025-09-30</DataScadenzaPagamento>
+        <ImportoPagamento>1250.84</ImportoPagamento>
+        <IstitutoFinanziario>BANCA POPOLARE DELL'EMILIA ROMAGNA  </IstitutoFinanziario>
+        <IBAN>IT18N0538724202000002036135</IBAN>
+        <ABI>05387</ABI>
+        <CAB>24202</CAB>
+      </DettaglioPagamento>
+    </DatiPagamento>
+  </FatturaElettronicaBody>
+</p:FatturaElettronica>

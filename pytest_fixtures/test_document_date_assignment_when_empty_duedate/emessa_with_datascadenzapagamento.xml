@@ -1,0 +1,146 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<ns3:FatturaElettronica xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" versione="FPA12">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>04228480408</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>1</ProgressivoInvio>
+            <FormatoTrasmissione>FPA12</FormatoTrasmissione>
+            <CodiceDestinatario>79WUWZ</CodiceDestinatario><ContattiTrasmittente />
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>12345678900</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>06666960726</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>STUDIO ASSOCIATO CESAREO DIBENEDETTO</Denominazione>
+                    <Titolo>DOTT.</Titolo>
+                </Anagrafica>
+                <AlboProfessionale>DOTTORI COMMERCIALISTI ED ESPERTI CONTABILI</AlboProfessionale>
+                <NumeroIscrizioneAlbo>476/A</NumeroIscrizioneAlbo>
+                <DataIscrizioneAlbo>1993-01-19</DataIscrizioneAlbo>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA ALDO MORO</Indirizzo>
+                <NumeroCivico>51</NumeroCivico>
+                <CAP>70037</CAP>
+                <Comune>RUVO DI PUGLIA</Comune>
+                <Provincia>BA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+            <Contatti>
+                <Telefono>0803620300</Telefono>
+                <Email>paolocesareo.studio@gmail.com</Email>
+            </Contatti>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <CodiceFiscale>80008750731</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>Comune di Taranto-Direzione Programmazione Economico Finanziaria</Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>Via Anfiteatro ex Mercato Coperto</Indirizzo>
+                <CAP>74121</CAP>
+                <Comune>Taranto</Comune>
+                <Provincia>TA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+        <TerzoIntermediarioOSoggettoEmittente>
+            
+        <DatiAnagrafici><IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>04228480408</IdCodice></IdFiscaleIVA><Anagrafica><Denominazione>BLUENEXT SRL</Denominazione></Anagrafica></DatiAnagrafici></TerzoIntermediarioOSoggettoEmittente>
+        <SoggettoEmittente>TZ</SoggettoEmittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD01</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2025-07-18</Data>
+                <Numero>2/PA</Numero>
+                <DatiRitenuta>
+                    <TipoRitenuta>RT02</TipoRitenuta>
+                    <ImportoRitenuta>853.86</ImportoRitenuta>
+                    <AliquotaRitenuta>20.00</AliquotaRitenuta>
+                    <CausalePagamento>A</CausalePagamento>
+                </DatiRitenuta>
+                <DatiCassaPrevidenziale>
+                    <TipoCassa>TC02</TipoCassa>
+                    <AlCassa>4.00</AlCassa>
+                    <ImportoContributoCassa>170.77</ImportoContributoCassa>
+                    <ImponibileCassa>4269.29</ImponibileCassa>
+                    <AliquotaIVA>22.00</AliquotaIVA>
+                </DatiCassaPrevidenziale>
+                <ImportoTotaleDocumento>5416.87</ImportoTotaleDocumento>
+                <Causale>Fattura PA immediata (TD01) del 18/07/2025 N.ro 2/PA</Causale>
+            </DatiGeneraliDocumento>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>1</NumeroLinea>
+                <Descrizione>Onorario per la carica di componente del Collegio dei Revisori dei Conti del Comune di Taranto ricoperta nel periodo dal 12.05.2025 al 31.05.2025</Descrizione>
+                <Quantita>20.00000</Quantita>
+                <UnitaMisura>NR</UnitaMisura>
+                <PrezzoUnitario>73.64550</PrezzoUnitario>
+                <PrezzoTotale>1472.91</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <Ritenuta>SI</Ritenuta>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>2</NumeroLinea>
+                <Descrizione>Rimborso chilometrico n. 4 trasferte 12-16-23-27/05/2025 (p.m. 1,69513/5=0,339)
+1 viaggio a/r km 246</Descrizione>
+                <Quantita>984.00000</Quantita>
+                <UnitaMisura>NR</UnitaMisura>
+                <PrezzoUnitario>0.33900</PrezzoUnitario>
+                <PrezzoTotale>333.58</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <Ritenuta>SI</Ritenuta>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>3</NumeroLinea>
+                <Descrizione>Onorario per la carica di componente del Collegio dei Revisori dei Conti del Comune di Taranto ricoperta nel mese di giugno 2025</Descrizione>
+                <Quantita>1.00000</Quantita>
+                <UnitaMisura>NR</UnitaMisura>
+                <PrezzoUnitario>2209.37000</PrezzoUnitario>
+                <PrezzoTotale>2209.37</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <Ritenuta>SI</Ritenuta>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>4</NumeroLinea>
+                <Descrizione>Rimborso chilometrico n. 3 trasferte 11-17-24/06/2025 (p.m. 1,1717/5=0,3434)
+1 viaggio a/r km 246</Descrizione>
+                <Quantita>738.00000</Quantita>
+                <UnitaMisura>NR</UnitaMisura>
+                <PrezzoUnitario>0.34340</PrezzoUnitario>
+                <PrezzoTotale>253.43</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <Ritenuta>SI</Ritenuta>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <ImponibileImporto>4440.06</ImponibileImporto>
+                <Imposta>976.81</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+        <DatiPagamento>
+            <CondizioniPagamento>TP02</CondizioniPagamento>
+            <DettaglioPagamento>
+                <ModalitaPagamento>MP05</ModalitaPagamento>
+                <DataScadenzaPagamento>2025-08-17</DataScadenzaPagamento>
+                <ImportoPagamento>4563.01</ImportoPagamento>
+                <IBAN>IT15X0301503200000004223581</IBAN>
+            </DettaglioPagamento>
+        </DatiPagamento>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>

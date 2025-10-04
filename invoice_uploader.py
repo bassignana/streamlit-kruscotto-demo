@@ -33,7 +33,7 @@ def render_generic_xml_upload_section(supabase_client, user_id):
 
     uploaded_files = st.file_uploader(
         "Carica fatture in formato XML. Attualmente è consentito caricare fino a 100 fatture.",
-        type=['xml'],
+        type=['xml', 'p7m'],
         accept_multiple_files=True,
         # help="Carica fino a 20 fatture XML contemporaneamente",
         key=f"uploader_{st.session_state.uploader_key}"

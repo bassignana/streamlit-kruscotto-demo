@@ -73,7 +73,7 @@ def get_logicless_field_in_list(xml_data, field_name:str, len_field:list[str | N
     return field
 
 def extract_xml_records(parsing_results, partita_iva_azienda) -> list[dict]:
-    MONTHS_IN_ADVANCE = 1 # TODO: factor out
+    # MONTHS_IN_ADVANCE = 1 # TODO: factor out
     results = []
 
     for xml in parsing_results:
@@ -147,10 +147,11 @@ def extract_xml_records(parsing_results, partita_iva_azienda) -> list[dict]:
                 data_documento = xml_data.get('data_documento')
                 assert data_documento is not None, "data_documento can't be None."
 
-                data_documento_date = datetime.fromisoformat(data_documento)
-                first_day = datetime(data_documento_date.year, data_documento_date.month, 1)
-                last_day_next_X_months = first_day + relativedelta(months=MONTHS_IN_ADVANCE + 1, days=-1)
-                terms_due_date = [last_day_next_X_months.date().isoformat()]
+                # data_documento_date = datetime.fromisoformat(data_documento)
+                # first_day = datetime(data_documento_date.year, data_documento_date.month, 1)
+                # last_day_next_X_months = first_day + relativedelta(months=MONTHS_IN_ADVANCE + 1, days=-1)
+                # terms_due_date = [last_day_next_X_months.date().isoformat()]
+                terms_due_date = [data_documento]
 
             else:
                 assert False, f"Branching error for terms_due_date."
@@ -242,10 +243,11 @@ def extract_xml_records(parsing_results, partita_iva_azienda) -> list[dict]:
                 data_documento = xml_data.get('data_documento')
                 assert data_documento is not None, "data_documento can't be None."
 
-                data_documento_date = datetime.fromisoformat(data_documento)
-                first_day = datetime(data_documento_date.year, data_documento_date.month, 1)
-                last_day_next_X_months = first_day + relativedelta(months=MONTHS_IN_ADVANCE, days=-1)
-                terms_due_date = [last_day_next_X_months.date().isoformat()]
+                # data_documento_date = datetime.fromisoformat(data_documento)
+                # first_day = datetime(data_documento_date.year, data_documento_date.month, 1)
+                # last_day_next_X_months = first_day + relativedelta(months=MONTHS_IN_ADVANCE, days=-1)
+                # terms_due_date = [last_day_next_X_months.date().isoformat()]
+                terms_due_date = [data_documento]
 
             else:
                 assert False, f"RICEVUTA Branching error for terms_due_date."
