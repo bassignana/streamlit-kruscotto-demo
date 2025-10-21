@@ -27,9 +27,9 @@ def render_generic_xml_upload_section(supabase_client, user_id):
     response = supabase_client.table('fatture_ricevute').select('id', count='exact').eq('user_id',user_id).execute()
     count_passive = response.count
 
-    if count_active + count_passive > 100:
-        st.warning("Superato il limite massimo di 100 fatture. Contattare l'assistenza per ricevere più spazio.")
-        return
+    # if count_active + count_passive > 100:
+    #     st.warning("Superato il limite massimo di 100 fatture. Contattare l'assistenza per ricevere più spazio.")
+    #     return
 
     uploaded_files = st.file_uploader(
         "Carica fatture in formato XML. Attualmente è consentito caricare fino a 100 fatture.",
