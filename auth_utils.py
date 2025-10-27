@@ -8,6 +8,7 @@ import time
 import streamlit as st
 import subprocess
 import os
+from supabase import create_client
 
 # Safe path to the script (robust for deployment)
 RESET_SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "reset_password_secure.py")
@@ -102,7 +103,7 @@ def show_login_and_render_form(supabase_client):
     with content:
         st.image("LogoK-Largo.png")
 
-        tab1, tab2 = st.tabs(["Login", "Registrazione"])
+        tab1, tab2, tab3 = st.tabs(["Login", "Registrazione", "Reset Password"])
 
         with tab1:
             st.subheader(" ")
@@ -179,55 +180,54 @@ def show_login_and_render_form(supabase_client):
                                 time.sleep(1)
                                 return
 
-        # with tab3:
-        #     st.subheader("")
-        #
-        #     with st.form("reset_password_form", clear_on_submit=False):
-        #         recovery_email = st.text_input("Email", key="recovery_email")
-        #         new_password = st.text_input("Nuova Password", type="password", key="new_password")
-        #         confirm_new_password = st.text_input("Conferma Password", type="password", key="confirm_new_password")
-        #         submitted = st.form_submit_button("Procedi", type="primary")
-        #
-        #         if submitted:
-        #             if not all([recovery_email, new_password, confirm_new_password]):
-        #                 st.error("Tutti i campi sono obbligatori")
-        #             elif new_password != confirm_new_password:
-        #                 st.error("Le password non corrispondono")
-        #             else:
-        #                 # Optional: validate email/password formats
-        #                 is_email_valid, email_error_msg = validate_email(recovery_email)
-        #                 is_pwd_valid, pwd_error_msg = validate_password(new_password)
-        #
-        #                 if not is_email_valid:
-        #                     st.error(email_error_msg)
-        #                 elif not is_pwd_valid:
-        #                     st.error(pwd_error_msg)
-        #                 else:
-        #                     # ✅ Path to the secure script
-        #                     reset_script_path = os.path.join(os.path.dirname(__file__), "reset_password_secure.py")
-        #
-        #                     try:
-        #                         result = subprocess.run(
-        #                             [
-        #                                 "python", reset_script_path,
-        #                                 recovery_email,
-        #                                 new_password,
-        #                                 st.secrets["SUPABASE_URL"],
-        #                                 st.secrets["SUPABASE_SERVICE_ROLE_KEY"]
-        #                             ],
-        #                             check=True,
-        #                             capture_output=True,
-        #                             text=True
-        #                         )
-        #
-        #                         if "SUCCESS" in result.stdout:
-        #                             time.sleep(1.5)
-        #                             st.success("Reset effettuato con successo. "
-        #                                        "Cliccare sul tab Login per effettuare l'accesso.")
-        #                         else:
-        #                             st.error("Errore durante il reset:")
-        #                             st.text(result.stdout)
-        #
-        #                     except subprocess.CalledProcessError as e:
-        #                         st.error("Errore critico durante il reset della password.")
-        #                         st.text(e.output or e.stdout or "Nessun output disponibile.")
+        with tab3:
+            # Done: Check in the source that the key does not get exposed.
+            url = st.secrets["SUPABASE_URL"]
+            key = st.secrets["SUPABASE_SERVICE_ROLE_KEY"]
+            supabase_client = create_client(url, key)
+
+            # NOTE; does not work in Streamlit, but it is a good flow.
+            # This flow is secure because, even if I put another person email
+            # I'm granted access to the reset password page from the link in the email
+            # that I get. The link is made by a unique token that will grant me access to the
+            # reset page. So I need to have access to the email account for resetting the
+            # password.
+            #
+            # email = st.text_input('Email:', width = 300, key='reset_email_text_input')
+            # if st.button('Invia email', type='primary'):
+            #     supabase_client.auth.reset_password_for_email(
+            #         email,
+            #     )
+            #     st.success('Controlla la tua casella di posta. Una mail per il reset della password sarà inviata a breve.')
+            #     st.warning('Attenzione: controllare anche la casella della posta indesiderata (SPAM).')
+
+            with st.form("reset_password", enter_to_submit=False):
+                email = st.text_input("Email *")
+                new_password = st.text_input("Nuova Password *", type="password")
+                confirm_password = st.text_input("Conferma Password *", type="password")
+                submit = st.form_submit_button("Reset Password")
+
+                if submit:
+                    if not email or not new_password:
+                        st.error("Completa tutti i campi")
+                    elif len(new_password) < 8:
+                        st.error("La password deve avere almeno 8 caratteri")
+                    elif new_password != confirm_password:
+                        st.error("Le password non combaciano")
+                    else:
+                        try:
+                            response = supabase_client.auth.admin.list_users()
+                            user = next((u for u in response if u.email == email), None)
+
+                            if not user:
+                                st.error("L'email inserita non è associata a nessun utente")
+                            else:
+                                supabase_client.auth.admin.update_user_by_id(
+                                    user.id,
+                                    {"password": new_password}
+                                )
+
+                                st.success("Password ripristinata correttamente, è possibile procedere al login")
+
+                        except Exception as e:
+                            st.error(f"Error: {str(e)}")
