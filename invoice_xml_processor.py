@@ -62,6 +62,49 @@ import os
 import glob
 from invoice_xml_mapping import XML_FIELD_MAPPING
 from pprint import pprint
+import subprocess
+import tempfile
+from pathlib import Path
+
+def convert_p7m_to_xml_bytes(file_obj_or_path) -> bytes:
+    """
+    Converts a .p7m signed file to XML and returns the resulting XML content as bytes.
+    Accepts either a Streamlit UploadedFile or a file path.
+    """
+
+    # Write input to a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".p7m") as temp_in:
+        if hasattr(file_obj_or_path, 'read'):
+            temp_in.write(file_obj_or_path.read())
+            temp_in.flush()
+            file_obj_or_path.seek(0)  # reset stream
+        else:
+            with open(file_obj_or_path, 'rb') as f_in:
+                temp_in.write(f_in.read())
+        temp_in_path = Path(temp_in.name)
+
+    temp_out_path = temp_in_path.with_suffix(".xml")
+
+    try:
+        subprocess.run([
+            'openssl', 'smime',
+            '-verify', '-noverify',
+            '-in', str(temp_in_path),
+            '-inform', 'DER',
+            '-out', str(temp_out_path)
+        ], check=True, capture_output=True, text=True)
+
+        with open(temp_out_path, 'rb') as f_out:
+            xml_bytes = f_out.read()
+
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"OpenSSL conversion failed: {e.stderr or e.stdout}")
+    finally:
+        temp_in_path.unlink(missing_ok=True)
+        temp_out_path.unlink(missing_ok=True)
+
+    return xml_bytes
+
 
 def process_xml_list(xml_files: list) -> (list, str):
     """
@@ -93,13 +136,26 @@ def process_xml_list(xml_files: list) -> (list, str):
             if hasattr(file, 'name') and hasattr(file, 'read'):
                 filename = file.name
                 current_file_data['filename'] = filename
-                xml_content = file.read()
-                file.seek(0)  # Reset file pointer
+
+                # Handle .p7m conversion
+                if filename.lower().endswith('.p7m'):
+                    xml_content = convert_p7m_to_xml_bytes(file)
+                else:
+                    xml_content = file.read()
+                    file.seek(0)
+
                 xml_tree = ET.ElementTree(ET.fromstring(xml_content))
-            else: # Os file path
+
+            else:  # OS file path
                 filename = os.path.basename(file)
                 current_file_data['filename'] = filename
-                xml_tree = ET.parse(file)
+
+                if filename.lower().endswith('.p7m'):
+                    xml_content = convert_p7m_to_xml_bytes(file)
+                    xml_tree = ET.ElementTree(ET.fromstring(xml_content))
+                else:
+                    xml_tree = ET.parse(file)
+
         except Exception as e:
             current_file_data['error_message'] = f"XML Parsing Error: {str(e)}"
             # Don't return, but continue to the next file.
