@@ -261,6 +261,123 @@ def money_to_string(amount):
 
     return str(amount)
 
+### Customized widgets for forms to replace render_field_widget() pipeline
+def text_input(field_name, default_value, required, key_suffix, label, help_text, disabled, placeholder = None):
+    widget_key = f"{field_name}_{key_suffix}"
+
+    if required:
+        label += " *"
+
+    return st.text_input(
+        label,
+        value=default_value or "",
+        key=widget_key,
+        placeholder=placeholder,
+        help=help_text,
+        disabled=disabled
+        )
+
+def selectbox(field_name, default_value, index, required, key_suffix, label, options, help_text, disabled):
+
+    widget_key = f"{field_name}_{key_suffix}"
+
+    if required:
+        label += " *"
+
+    # Since value selection is index based:
+    # index = options.index(default_value)
+
+    return st.selectbox(
+        label,
+        options=options,
+        index=index,
+        key=widget_key,
+        help=help_text,
+        disabled=disabled
+    )
+
+def money_input(field_name, default_value, required, key_suffix, label, help_text, disabled):
+
+    widget_key = f"{field_name}_{key_suffix}"
+
+    if required:
+        label += " *"
+
+    if default_value is not None:
+        if isinstance(default_value, Decimal):
+            value = float(default_value)
+        else:
+            value = float(default_value)
+
+    return st.number_input(
+        label,
+        value=value,
+        step=1.00,
+        format="%.2f",
+        key=widget_key,
+        help=help_text,
+        disabled=disabled
+    )
+
+def integer_input(field_name, default_value, required, key_suffix, label, help_text, disabled):
+
+    widget_key = f"{field_name}_{key_suffix}"
+    value = int(default_value) if default_value is not None else 0
+
+    if required:
+        label += " *"
+
+    return st.number_input(
+        label,
+        value=value,
+        step=1,
+        key=widget_key,
+        help=help_text,
+        disabled=disabled
+    )
+
+def date_input(field_name, default_value, required, key_suffix, label, help_text, disabled):
+
+    widget_key = f"{field_name}_{key_suffix}"
+
+    # NOTE: since it is a required field, I should always have a default value.
+    if default_value:
+        if isinstance(default_value, str):
+            default_value = datetime.strptime(default_value, '%Y-%m-%d').date()
+        elif isinstance(default_value, datetime):
+            default_value = default_value.date()
+
+    if required:
+        return st.date_input(
+            label,
+            value=default_value or date.today(),
+            key=widget_key,
+            help=help_text,
+            disabled=disabled
+        )
+    else:
+        return st.date_input(
+            value = None,
+            label = label,
+            key=widget_key,
+            help=help_text,
+            disabled=disabled
+        )
+
+def checkbox(field_name, default_value, required, key_suffix, label, help_text, disabled):
+    widget_key = f"{field_name}_{key_suffix}"
+    if required:
+        label += " *"
+    value = bool(default_value) if default_value is not None else False
+    return st.checkbox(
+        label,
+        value=value,
+        key=widget_key,
+        help=help_text,
+        disabled=disabled
+    )
+
+
 def render_field_widget(field_name, field_config, default_value = None, key_suffix = "", disabled = False, index = 0):
     """Render appropriate SINGLE input widget based on field configuration"""
 

@@ -9,7 +9,8 @@ from invoice_xml_mapping import XML_FIELD_MAPPING
 from config import technical_fields, uppercase_prefixes
 from utils import setup_page, money_to_string, to_money, fetch_all_records_from_view, extract_prefixed_field_names, \
     render_field_widget, are_all_required_fields_present, remove_prefix, extract_field_names, fetch_record_from_id, \
-    fetch_all_records, get_standard_column_config, format_italian_currency, get_df_metric
+    fetch_all_records, get_standard_column_config, format_italian_currency, get_df_metric, \
+    text_input, selectbox, money_input, integer_input, date_input, checkbox
 import pandas as pd
 
 def create_monthly_invoices_summary_chart(data_dict, show_amounts=False):
@@ -457,31 +458,184 @@ def render_invoice_modify_modal(supabase_client, table_name, fields_config, sele
         config_items = list(fields_config.items())
         sql_table_fields_names = extract_field_names('sql/02_create_tables.sql', prefix)
 
-        cols = st.columns(2)
-        column_flag = False  # Start with left column (index 0)
-        for i, (field_name, field_config) in enumerate(config_items):
-            with cols[int(column_flag)]:
-                if field_name in sql_table_fields_names:
-                    record_value = selected_row_parent_data.get(prefix + field_name, None)
-                    if field_name == 'partita_iva_prestatore' and table_name == 'fatture_emesse':
-                        form_data[field_name] = render_field_widget(
-                            field_name, field_config,
-                            record_value, f"add_{table_name}", True)
-                    else:
-                        form_data[field_name] = render_field_widget(
-                            field_name, field_config, record_value,
-                            f"add_{table_name}", False
-                        )
-                    # Only invert the flag after actually rendering a field
-                    column_flag = not column_flag
-
         col1, col2 = st.columns([1, 1])
 
-        with col1:
+        if table_name == 'fatture_emesse':
+            with col1:
+                form_data['numero_fattura'] = text_input(
+                    field_name = 'numero_fattura',
+                    label = 'Numero Fattura',
+                    default_value = selected_row_parent_data.get(prefix + 'numero_fattura', None),
+                    help_text = 'Numero identificativo della fattura',
+                    placeholder = 'es. 2025-001',
+                    required = True,
+                    key_suffix = 'fatture_emesse',
+                    disabled = False
+                )
+
+                form_data['importo_totale_documento'] = money_input(
+                    field_name = 'importo_totale_documento',
+                    label = 'Importo Totale',
+                    default_value = selected_row_parent_data.get(prefix + 'importo_totale_documento', None),
+                    help_text = 'Importo totale della fattura in Euro',
+                    required = True,
+                    key_suffix = 'fatture_emesse',
+                    disabled = False
+                )
+
+                form_data['partita_iva_committente'] = text_input(
+                    field_name = 'partita_iva_committente',
+                    label = 'P. IVA Committente',
+                    default_value = selected_row_parent_data.get(prefix + 'partita_iva_committente', None),
+                    help_text = 'Partita IVA del Committente',
+                    required = False,
+                    key_suffix = 'fatture_emesse',
+                    disabled = False
+                )
+
+                form_data['denominazione_committente'] = text_input(
+                    field_name = 'denominazione_committente',
+                    label = 'Denominazione Committente',
+                    default_value = selected_row_parent_data.get(prefix + 'denominazione_committente', None),
+                    help_text = 'Denominazione del soggetto giuridico committente',
+                    required = False,
+                    key_suffix = 'fatture_emesse',
+                    disabled = False
+                )
+
+                form_data['cognome_committente'] = text_input(
+                    field_name = 'cognome_committente',
+                    label = 'Cognome Committente',
+                    default_value = selected_row_parent_data.get(prefix + 'cognome_committente', None),
+                    help_text = 'Cognome del committente',
+                    required = False,
+                    key_suffix = 'fatture_emesse',
+                    disabled = False
+                )
+
+            with col2:
+                form_data['data_documento'] = date_input(
+                    field_name = 'data_documento',
+                    label = 'Data Documento',
+                    default_value = selected_row_parent_data.get(prefix + 'data_documento', None),
+                    help_text = 'Data di emissione della fattura',
+                    required = True,
+                    key_suffix = 'fatture_emesse',
+                    disabled = False
+                )
+
+                form_data['partita_iva_prestatore'] = text_input(
+                    field_name = 'partita_iva_prestatore',
+                    label = 'P. IVA Prestatore',
+                    default_value = selected_row_parent_data.get(prefix + 'partita_iva_prestatore', None),
+                    help_text = 'Partita IVA del Prestatore',
+                    required = True,
+                    key_suffix = 'fatture_emesse',
+                    disabled = True
+                )
+
+                form_data['codice_fiscale_committente'] = text_input(
+                    field_name = 'codice_fiscale_committente',
+                    label = 'CF Committente',
+                    default_value = selected_row_parent_data.get(prefix + 'codice_fiscale_committente', None),
+                    help_text = 'Codice Fiscale del Committente',
+                    required = False,
+                    key_suffix = 'fatture_emesse',
+                    disabled = False
+                )
+
+                form_data['nome_committente'] = text_input(
+                    field_name = 'nome_committente',
+                    label = 'Nome Committente',
+                    default_value = selected_row_parent_data.get(prefix + 'nome_committente', None),
+                    help_text = 'Nome del committente',
+                    required = False,
+                    key_suffix = 'fatture_emesse',
+                    disabled = False
+                )
+
+        elif table_name == 'fatture_ricevute':
+            with col1:
+                form_data['numero_fattura'] = text_input(
+                    field_name = 'numero_fattura',
+                    label = 'Numero Fattura',
+                    default_value = selected_row_parent_data.get(prefix + 'numero_fattura', None),
+                    help_text = 'Numero identificativo della fattura',
+                    placeholder = 'es. 2025-001',
+                    required = True,
+                    key_suffix = 'fatture_ricevute',
+                    disabled = False
+                )
+
+                form_data['importo_totale_documento'] = money_input(
+                    field_name = 'importo_totale_documento',
+                    label = 'Importo Totale',
+                    default_value = selected_row_parent_data.get(prefix + 'importo_totale_documento', None),
+                    help_text = 'Importo totale della fattura in Euro',
+                    required = True,
+                    key_suffix = 'fatture_ricevute',
+                    disabled = False
+                )
+
+                form_data['denominazione_prestatore'] = text_input(
+                    field_name = 'denominazione_prestatore',
+                    label = 'Denominazione Prestatore',
+                    default_value = selected_row_parent_data.get(prefix + 'denominazione_prestatore', None),
+                    help_text = 'Denominazione del prestatore',
+                    required = False,
+                    key_suffix = 'fatture_ricevute',
+                    disabled = False
+                )
+
+            with col2:
+                form_data['data_documento'] = date_input(
+                    field_name = 'data_documento',
+                    label = 'Data Documento',
+                    default_value = selected_row_parent_data.get(prefix + 'data_documento', None),
+                    help_text = 'Data di emissione della fattura',
+                    required = True,
+                    key_suffix = 'fatture_ricevute',
+                    disabled = False
+                )
+
+                form_data['partita_iva_prestatore'] = text_input(
+                    field_name = 'partita_iva_prestatore',
+                    label = 'P. IVA Prestatore',
+                    default_value = selected_row_parent_data.get(prefix + 'partita_iva_prestatore', None),
+                    help_text = 'Partita IVA del Prestatore',
+                    required = True,
+                    key_suffix = 'fatture_ricevute',
+                    disabled = False
+                )
+
+        else:
+            st.error('Wrong table. Only fatture_ricevute or fatture_emesse allowed.')
+
+        # column_flag = False  # Start with left column (index 0)
+        # for i, (field_name, field_config) in enumerate(config_items):
+        #     with cols[int(column_flag)]:
+        #         if field_name in sql_table_fields_names:
+        #             record_value = selected_row_parent_data.get(prefix + field_name, None)
+        #             if field_name == 'partita_iva_prestatore' and table_name == 'fatture_emesse':
+        #                 form_data[field_name] = render_field_widget(
+        #                     field_name, field_config,
+        #                     record_value, f"add_{table_name}", True)
+        #             else:
+        #                 form_data[field_name] = render_field_widget(
+        #                     field_name, field_config, record_value,
+        #                     f"add_{table_name}", False
+        #                 )
+        #             # Only invert the flag after actually rendering a field
+        #             column_flag = not column_flag
+
+        col3, _col4 = st.columns([1, 1])
+
+        with col3:
             submitted = st.form_submit_button("Aggiorna", type="primary")
 
         if submitted:
             try:
+                # todo: find a better way of doing it.
                 errors = are_all_required_fields_present(form_data, sql_table_fields_names, fields_config)
                 if errors:
                     for error in errors:

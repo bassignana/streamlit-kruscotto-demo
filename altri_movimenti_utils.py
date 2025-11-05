@@ -8,9 +8,11 @@ from decimal import Decimal, getcontext, ROUND_HALF_UP
 from dateutil.relativedelta import relativedelta
 from config import uppercase_prefixes, technical_fields, ma_tipo_options, mp_tipo_options
 from invoice_utils import render_field_widget
-from utils import extract_prefixed_field_names, get_standard_column_config, fetch_all_records_from_view, \
-    fetch_record_from_id, to_money, are_all_required_fields_present, remove_prefix, fetch_all_records, \
-    format_italian_currency
+from utils import extract_prefixed_field_names, get_standard_column_config, \
+    fetch_all_records_from_view, \
+    fetch_record_from_id, to_money, are_all_required_fields_present, remove_prefix, \
+    fetch_all_records, \
+    format_italian_currency, text_input, date_input, money_input, selectbox
 
 
 #
@@ -258,8 +260,20 @@ def render_modify_modal(supabase_client, table_name, fields_config, selected_id,
     # Inoltre, se usassi l'id come index nelle visualizzazioni?
     # """
 
-    selected_row_parent_data = fetch_record_from_id(supabase_client, table_name, selected_id)
+    # {
+    #     "id":"2dc775ec-c33b-4727-a3f7-99cf01dfb0e0"
+    #      "user_id":"0d15a504-9fff-49e0-8297-765428ac94c9"
+    #    "ma_numero":"111"
+    #    "ma_data":"2025-11-04"
+    #  "ma_importo_totale":2
+    #     "ma_tipo":"Altro"
+    #   "ma_cliente":""
+    #    "created_at":"2025-11-04T23:07:32.918678+01:00"
+    # "updated_at":"2025-11-04T23:07:32.918678+01:00"
+    # }
 
+    selected_row_parent_data = fetch_record_from_id(supabase_client, table_name, selected_id)
+    st.write(selected_row_parent_data)
     with st.form(f"modify_{table_name}_form",
                  clear_on_submit=False,
                  enter_to_submit=False):
@@ -276,46 +290,178 @@ def render_modify_modal(supabase_client, table_name, fields_config, selected_id,
         # it is an empty field.
         # This is because with this architecture I need to think that I can only update easily full technical
         # tables but not views.
-        cols = st.columns(2)
-        for i, (field_name, field_config) in enumerate(config_items):
-            with cols[i % 2]:
-                if field_name in sql_table_fields_names:
-                    record_value = selected_row_parent_data.get(field_name, None)
+        # cols = st.columns(2)
+        # for i, (field_name, field_config) in enumerate(config_items):
+        #     with cols[i % 2]:
+        #         if field_name in sql_table_fields_names:
+        #             record_value = selected_row_parent_data.get(field_name, None)
+        #
+        #             # Since in their infinite intelligence they decided that for selecting a value
+        #             # from the dropdown menu I need to pass its index, instead of the value itself(!),
+        #             # I need to add this branch.
+        #             #
+        #             # Also since index(None) gives error, I need to do it separately.
+        #             if field_name == 'ma_tipo':
+        #                 if record_value is not None:
+        #                     index = ma_tipo_options.index(record_value)
+        #                 else:
+        #                     index = None
+        #
+        #                 form_data[field_name] = render_field_widget(
+        #                     field_name, field_config, index=index,
+        #                     key_suffix=f"modify_{table_name}"
+        #                 )
+        #             elif field_name == 'mp_tipo':
+        #                 if record_value is not None:
+        #                     index = mp_tipo_options.index(record_value)
+        #                 else:
+        #                     index = None
+        #
+        #                 form_data[field_name] = render_field_widget(
+        #                     field_name, field_config, index=index,
+        #                     key_suffix=f"modify_{table_name}"
+        #                 )
+        #             else:
+        #                 form_data[field_name] = render_field_widget(
+        #                     field_name, field_config, record_value,
+        #                     key_suffix=f"modify_{table_name}"
+        #                 )
 
-                    # Since in their infinite intelligence they decided that for selecting a value
-                    # from the dropdown menu I need to pass its index, instead of the value itself(!),
-                    # I need to add this branch.
-                    #
-                    # Also since index(None) gives error, I need to do it separately.
-                    if field_name == 'ma_tipo':
-                        if record_value is not None:
-                            index = ma_tipo_options.index(record_value)
-                        else:
-                            index = None
-
-                        form_data[field_name] = render_field_widget(
-                            field_name, field_config, index=index,
-                            key_suffix=f"modify_{table_name}"
-                        )
-                    elif field_name == 'mp_tipo':
-                        if record_value is not None:
-                            index = mp_tipo_options.index(record_value)
-                        else:
-                            index = None
-
-                        form_data[field_name] = render_field_widget(
-                            field_name, field_config, index=index,
-                            key_suffix=f"modify_{table_name}"
-                        )
-                    else:
-                        form_data[field_name] = render_field_widget(
-                            field_name, field_config, record_value,
-                            key_suffix=f"modify_{table_name}"
-                        )
 
         col1, col2 = st.columns([1, 1])
 
-        with col1:
+        if table_name == 'movimenti_attivi':
+            with col1:
+                form_data['ma_numero'] = text_input(
+                    field_name = 'ma_numero',
+                    label = 'Numero Movimento Attivo',
+                    default_value = selected_row_parent_data.get('ma_numero', None),
+                    help_text = 'Numero movimento attivo',
+                    placeholder = 'es. 2025-001',
+                    required = True,
+                    key_suffix = 'movimenti_attivi',
+                    disabled = False
+                )
+
+                form_data['ma_importo_totale'] = money_input(
+                    field_name = 'ma_importo_totale',
+                    label = 'Importo Movimento',
+                    default_value = selected_row_parent_data.get('ma_importo_totale', None),
+                    help_text = 'Importo totale del movimento attivo',
+                    required = True,
+                    key_suffix = 'movimenti_attivi',
+                    disabled = False
+                )
+
+
+            with col2:
+                form_data['ma_data'] = date_input(
+                    field_name = 'ma_data',
+                    label = 'Data Movimento Attivo',
+                    default_value = selected_row_parent_data.get('ma_data', None),
+                    help_text = 'Data del movimento attivo',
+                    required = True,
+                    key_suffix = 'movimenti_attivi',
+                    disabled = False
+                )
+
+                record_value = selected_row_parent_data.get('ma_tipo', None)
+                if record_value is not None:
+                    index = ma_tipo_options.index(record_value)
+                else:
+                    index = None
+                form_data['ma_tipo'] = selectbox(
+                    options = ma_tipo_options,
+                    index = index,
+                    field_name = 'ma_tipo',
+                    label = 'Tipologia Movimento Attivo',
+                    default_value = record_value,
+                    help_text = 'TIpo del movimento attivo',
+                    required = True,
+                    key_suffix = 'movimenti_attivi',
+                    disabled = False
+                    )
+
+                form_data['ma_cliente'] = text_input(
+                    field_name = 'ma_cliente',
+                    label = 'Denominazione Cliente',
+                    default_value = selected_row_parent_data.get('ma_cliente', None),
+                    help_text = 'Denominazione Cliente',
+                    required = False,
+                    key_suffix = 'movimenti_attivi',
+                    disabled = False
+                )
+
+
+        elif table_name == 'movimenti_passivi':
+            with col1:
+                form_data['mp_numero'] = text_input(
+                    field_name = 'mp_numero',
+                    label = 'Numero Movimento Passivo',
+                    default_value = selected_row_parent_data.get('mp_numero', None),
+                    help_text = 'Numero movimento passivo',
+                    placeholder = 'es. 2025-001',
+                    required = True,
+                    key_suffix = 'movimenti_passivi',
+                    disabled = False
+                )
+
+                form_data['mp_importo_totale'] = money_input(
+                    field_name = 'mp_importo_totale',
+                    label = 'Importo Movimento',
+                    default_value = selected_row_parent_data.get('mp_importo_totale', None),
+                    help_text = 'Importo totale del movimento passivo',
+                    required = True,
+                    key_suffix = 'movimenti_passivi',
+                    disabled = False
+                )
+
+
+            with col2:
+                form_data['mp_data'] = date_input(
+                    field_name = 'mp_data',
+                    label = 'Data Movimento Attivo',
+                    default_value = selected_row_parent_data.get('mp_data', None),
+                    help_text = 'Data del movimento passivo',
+                    required = True,
+                    key_suffix = 'movimenti_passivi',
+                    disabled = False
+                )
+
+                record_value = selected_row_parent_data.get('mp_tipo', None)
+                if record_value is not None:
+                    index = mp_tipo_options.index(record_value)
+                else:
+                    index = None
+                form_data['mp_tipo'] = selectbox(
+                    options = mp_tipo_options,
+                    index = index,
+                    field_name = 'mp_tipo',
+                    label = 'Tipologia Movimento Passivo',
+                    default_value = record_value,
+                    help_text = 'Tipo del movimento passivo',
+                    required = True,
+                    key_suffix = 'movimenti_passivi',
+                    disabled = False
+                )
+
+                form_data['mp_fornitore'] = text_input(
+                    field_name = 'mp_fornitore',
+                    label = 'Denominazione Fornitore',
+                    default_value = selected_row_parent_data.get('mp_fornitore', None),
+                    help_text = 'Denominazione Fornitore',
+                    required = False,
+                    key_suffix = 'movimenti_passivi',
+                    disabled = False
+                )
+
+
+        else:
+            st.error('Wrong table. Only movimenti_attivi or movimenti_passivi allowed.')
+
+        col3, _col4 = st.columns([1, 1])
+
+        with col3:
             submitted = st.form_submit_button("Aggiorna", type="primary")
 
         if submitted:
