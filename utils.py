@@ -309,6 +309,9 @@ def money_input(field_name, default_value, required, key_suffix, label, help_tex
     #     else:
     #         value = float(default_value)
 
+    if default_value is None:
+        default_value = 0.00
+
     return st.number_input(
         label,
         value=float(default_value),
