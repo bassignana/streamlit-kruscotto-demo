@@ -303,15 +303,15 @@ def money_input(field_name, default_value, required, key_suffix, label, help_tex
     if required:
         label += " *"
 
-    if default_value is not None:
-        if isinstance(default_value, Decimal):
-            value = float(default_value)
-        else:
-            value = float(default_value)
+    # if default_value is not None:
+    #     if isinstance(default_value, Decimal):
+    #         value = float(default_value)
+    #     else:
+    #         value = float(default_value)
 
     return st.number_input(
         label,
-        value=value,
+        value=float(default_value),
         step=1.00,
         format="%.2f",
         key=widget_key,
