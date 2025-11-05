@@ -272,7 +272,7 @@ def render_modify_modal(supabase_client, table_name, fields_config, selected_id,
     # "updated_at":"2025-11-04T23:07:32.918678+01:00"
     # }
 
-    selected_row_parent_data = fetch_record_from_id(supabase_client, table_name, selected_id)
+    selected_row_parent_data = fetch_record_from_id(supabase_client, table_name, selected_id, st.session_state.user.id)
     # st.write(selected_row_parent_data)
     with st.form(f"modify_{table_name}_form",
                  clear_on_submit=False,
