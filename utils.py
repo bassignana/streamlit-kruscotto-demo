@@ -238,7 +238,7 @@ def fetch_all_records_from_view(supabase_client, view_name: str):
         logging.exception(f"Database error in fetch_all_records_from_view: {e}")
         raise
 
-def fetch_record_from_id(supabase_client, table_name, record_id, user_id = st.session_state.user.id):
+def fetch_record_from_id(supabase_client, table_name, record_id, user_id):
 
     # todo: better error handling and check for one single row
     try:

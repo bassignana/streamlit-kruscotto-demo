@@ -448,7 +448,7 @@ def render_invoice_add_modal(supabase_client, table_name, fields_config, prefix)
 @st.dialog("Modifica fattura")
 def render_invoice_modify_modal(supabase_client, table_name, fields_config, selected_id, prefix):
 
-    selected_row_parent_data = fetch_record_from_id(supabase_client, table_name, selected_id)
+    selected_row_parent_data = fetch_record_from_id(supabase_client, table_name, selected_id, st.session_state.user.id)
 
     with st.form(f"modify_{table_name}_form",
                  clear_on_submit=False,
