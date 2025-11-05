@@ -273,7 +273,7 @@ def render_modify_modal(supabase_client, table_name, fields_config, selected_id,
     # }
 
     selected_row_parent_data = fetch_record_from_id(supabase_client, table_name, selected_id)
-    st.write(selected_row_parent_data)
+    # st.write(selected_row_parent_data)
     with st.form(f"modify_{table_name}_form",
                  clear_on_submit=False,
                  enter_to_submit=False):
