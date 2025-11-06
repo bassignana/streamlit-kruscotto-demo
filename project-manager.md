@@ -565,7 +565,7 @@ copy the util. Customization will be needed, now or in the future.
 ## Time related months changes
 
 Flussi di cassa: 
-Patch:
+Patch (Current):
 SQL active_cashflow_next_12_months_groupby_casse and passive:
 change dates near # @ change dates comments
 cash_flow.py:

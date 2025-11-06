@@ -53,9 +53,6 @@ def validate_payment_terms(payment_terms, total_amount, term_prefix):
     return len(errors) == 0, errors
 
 
-
-
-
 def auto_split_payment_movimenti(importo_totale_documento, num_installments, start_date, term_prefix, interval_days = 30):
     # Precision 28 is different from decimal places!
     # I need to keep high precision to be able to handle float conversion
@@ -243,7 +240,6 @@ def render_delete_modal(supabase_client, table_name, record_id):
 
             except Exception as e:
                 raise Exception(f'Error deleting movement: {e}')
-
 
 @st.dialog("Modifica movimento")
 def render_modify_modal(supabase_client, table_name, fields_config, selected_id, prefix):
@@ -814,6 +810,10 @@ def render_movimenti_crud_page(supabase_client, user_id,
                     label=col,
                     format="accounting",
                 )
+
+        column_config['Data'] = st.column_config.DateColumn(
+            format = "MM/DD/YYYY"
+        )
 
         df_vis = df_vis.sort_values(by = ['Data', 'Numero'])
 

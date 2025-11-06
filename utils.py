@@ -8,6 +8,19 @@ from datetime import datetime, date
 import pandas as pd
 from PIL import Image
 
+def str_to_usdate(date_str):
+    """
+    Converts a date from 'yyyy-mm-dd' to 'mm/dd/yyyy'.
+    If the input is not a string, returns it unchanged.
+    """
+    if not isinstance(date_str, str):
+        return date_str
+
+    try:
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        return date_obj.strftime("%m/%d/%Y")
+    except ValueError:
+        return date_str
 
 def to_money(amount):
     getcontext().prec = 28

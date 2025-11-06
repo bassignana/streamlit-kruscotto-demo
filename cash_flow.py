@@ -2,7 +2,7 @@ import traceback
 
 import streamlit as st
 import pandas as pd
-from utils import setup_page, fetch_all_records, to_money
+from utils import setup_page, fetch_all_records, to_money, str_to_usdate
 
 # @CHANGE DATES
 months = [
@@ -113,7 +113,7 @@ def are_terms_total_congruent(supabase_client, table_name, user_id, prefix):
             total_i_terms = to_money(i_terms['r' + prefix + 'importo_pagamento_rata'].sum())
 
             if total_i != total_i_terms:
-                errors.append((f'La fattura numero {number_key}, in data {date_key} ha un importo '
+                errors.append((f'La fattura numero {number_key}, in data {str_to_usdate(date_key)} ha un importo '
                            f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
                            f'totale di {total_i_terms} Euro.'))
 
@@ -133,7 +133,7 @@ def are_terms_total_congruent(supabase_client, table_name, user_id, prefix):
             total_i_terms = i_terms['r' + prefix + 'importo_pagamento'].sum()
 
             if total_i != total_i_terms:
-                errors.append((f'Il movimento numero {number_key}, in data {date_key} ha un importo '
+                errors.append((f'Il movimento numero {number_key}, in data {str_to_usdate(date_key)} ha un importo '
                                f'totale di {total_i} Euro, mentre le relative scadenze hanno un importo '
                                f'totale di {total_i_terms} Euro.'))
 

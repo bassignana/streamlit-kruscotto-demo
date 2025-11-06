@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 import plotly.graph_objects as go
 import streamlit as st
-from utils import setup_page, get_df_metric
+from utils import setup_page, get_df_metric, str_to_usdate
 import pandas as pd
 
 from altri_movimenti_config import altri_movimenti_config
@@ -229,12 +229,12 @@ def main():
                     for movement in attivi_in_attesa.data:
                         movement_number = movement['rma_numero']
                         term_date = movement['rma_data_scadenza']
-                    avvisi.append(f'La rata con data scadenza {term_date} del movimento attivo numero {movement_number} è ancora in attesa di fattura.')
+                    avvisi.append(f'La rata con data scadenza {str_to_usdate(term_date)} del movimento attivo numero {movement_number} è ancora in attesa di fattura.')
                 if passivi_in_attesa.data:
                     for movement in passivi_in_attesa.data:
                         movement_number = movement['rmp_numero']
                         term_date = movement['rmp_data_scadenza']
-                    avvisi.append(f'La rata con data scadenza {term_date} del movimento passivo numero {movement_number} è ancora in attesa di fattura.')
+                    avvisi.append(f'La rata con data scadenza {str_to_usdate(term_date)} del movimento passivo numero {movement_number} è ancora in attesa di fattura.')
 
                 if avvisi:
                     with st.expander('Avvisi'):

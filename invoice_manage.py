@@ -818,6 +818,10 @@ def render_invoice_crud_page(supabase_client, user_id,
                     format="accounting",
                 )
 
+        column_config['Data Documento'] = st.column_config.DateColumn(
+            format = "MM/DD/YYYY"
+        )
+
         df_vis = df_vis.sort_values(by = ['Data Documento', 'Numero Fattura'])
 
         selection = st.dataframe(df_vis, use_container_width=True,

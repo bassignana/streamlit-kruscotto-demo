@@ -347,7 +347,7 @@ def render_xml_upload_section(supabase_client, table_name, fields_config, displa
                                 st.rerun()
 
                             except Exception as e:
-                                st.error(f"❌ Errore durante il salvataggio: {str(e)}")
+                                st.error(f"Errore durante il salvataggio: {str(e)}")
                                 print(f"Save error: {str(e)}")
                                 raise
 
