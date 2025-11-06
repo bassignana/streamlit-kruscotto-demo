@@ -10,9 +10,6 @@ import subprocess
 import os
 from supabase import create_client
 
-# Safe path to the script (robust for deployment)
-RESET_SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "reset_password_secure.py")
-
 def validate_email(email):
     # todo: better pattern, like in https://stackoverflow.com/questions/201323/how-can-i-validate-an-email-address-using-a-regular-expression
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
