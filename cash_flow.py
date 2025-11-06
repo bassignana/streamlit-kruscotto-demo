@@ -6,7 +6,6 @@ from utils import setup_page, fetch_all_records, to_money
 
 # @CHANGE DATES
 months = [
-    'Ott',
     'Nov',
     'Dic',
     'Gen',
@@ -17,7 +16,8 @@ months = [
     'Giu',
     'Lug',
     'Ago',
-    'Set'
+    'Set',
+    'Ott'
 ]
 
 def get_cashflow_column_config(df_columns, months):
@@ -274,7 +274,7 @@ def main():
             # @CHANGE DATES
             saldo_columns = [
                                         # cassa
-                'Ott',                  # settembre
+                # 'Ott',                  # settembre
                 'Nov',                  # ottobre
                 'Dic',                  # novembre
                 'Gen',                  # dicembre
@@ -284,7 +284,7 @@ def main():
                 'Mag',                  # aprile
                 'Giu',                  # maggio
                 'Lug',                  # giugno
-                # 'Ago',                  # luglio
+                'Ago',                  # luglio
                 # 'Set',                  # agosto
                 'Oltre',                # pagare_oltre
                 'Totale',               # totale_da_pagare
