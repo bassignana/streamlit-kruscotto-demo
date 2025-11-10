@@ -1,24 +1,35 @@
 import traceback
-
+from datetime import datetime
 import streamlit as st
 import pandas as pd
 from utils import setup_page, fetch_all_records, to_money, str_to_usdate
 
 # @CHANGE DATES
-months = [
-    'Nov',
-    'Dic',
-    'Gen',
-    'Feb',
-    'Mar',
-    'Apr',
-    'Mag',
-    'Giu',
-    'Lug',
-    'Ago',
-    'Set',
-    'Ott'
-]
+# months = [
+#     'Nov',
+#     'Dic',
+#     'Gen',
+#     'Feb',
+#     'Mar',
+#     'Apr',
+#     'Mag',
+#     'Giu',
+#     'Lug',
+#     'Ago',
+#     'Set',
+#     'Ott'
+# ]
+
+
+def get_short_months():
+    months = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']
+    current_month_index = datetime.now().month - 1  # month is 1-based
+    return months[current_month_index:] + months[:current_month_index]
+
+def get_long_months():
+    months = ['gennaio', 'febbraio', 'marzo', 'aprile', 'magio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+    current_month_index = datetime.now().month - 1  # month is 1-based
+    return months[current_month_index:] + months[:current_month_index]
 
 def get_cashflow_column_config(df_columns, months):
     column_config = {}
@@ -144,18 +155,41 @@ def are_terms_total_congruent(supabase_client, table_name, user_id, prefix):
 
 
 def main():
+
+    months = get_short_months()
+
     user_id, supabase_client, page_can_render = setup_page("Gestione Altri Movimenti")
 
     active_result = supabase_client.table('active_cashflow_next_12_months_groupby_casse').select('*').execute()
     passive_result = supabase_client.table('passive_cashflow_next_12_months_groupby_casse').select('*').execute()
 
+    active_columns = ['cassa'] + months[:10] + ['incassare_oltre',
+                                                'totale_da_incassare',
+                                                'scaduti_30gg',
+                                                'scaduti_60gg',
+                                                'scaduti_oltre',
+                                                'totale_scaduti',
+                                                'totale_attivi']
+
+    passive_columns = ['cassa'] + months[:10] + ['pagare_oltre',
+                                                'totale_da_pagare',
+                                                'scaduti_30gg',
+                                                'scaduti_60gg',
+                                                'scaduti_oltre',
+                                                'totale_scaduti',
+                                                'totale_passivi']
+
     if not active_result.data:
         st.warning("Nessun dato disponibile per i movimenti attivi")
     else:
         active_df = pd.DataFrame(active_result.data).fillna(0.00)
-        active_df.columns = [
-            col.replace('_', ' ').title() if isinstance(col, str) else str(col)
-            for col in active_df.columns
+
+        # active_df.columns = [
+        #     col.replace('_', ' ').title() if isinstance(col, str) else str(col)
+        #     for col in active_df.columns
+        # ]
+        active_df.columns = [ col.replace('_', ' ').title() if isinstance(col, str) else str(col)
+            for col in active_columns
         ]
 
         # TODO; this is causing an error when I use multiIndex!
@@ -201,9 +235,10 @@ def main():
         st.warning("Nessun dato disponibile per i movimenti passivi")
     else:
         passive_df = pd.DataFrame(passive_result.data).fillna(0.00)
+
         passive_df.columns = [
             col.replace('_', ' ').title() if isinstance(col, str) else str(col)
-            for col in passive_df.columns
+            for col in passive_columns
         ]
 
         # passive_df = passive_df.style.set_properties(
@@ -272,27 +307,37 @@ def main():
             passive_totals = passive_totals.fillna(0)
 
             # @CHANGE DATES
-            saldo_columns = [
-                                        # cassa
-                # 'Ott',                  # settembre
-                'Nov',                  # ottobre
-                'Dic',                  # novembre
-                'Gen',                  # dicembre
-                'Feb',                  # gennaio
-                'Mar',                  # febbraio
-                'Apr',                  # marzo
-                'Mag',                  # aprile
-                'Giu',                  # maggio
-                'Lug',                  # giugno
-                'Ago',                  # luglio
-                # 'Set',                  # agosto
-                'Oltre',                # pagare_oltre
-                'Totale',               # totale_da_pagare
-                '30GG',                 # scaduti_30gg
-                '60GG',                 # scaduti_60gg
-                'Oltre ',    # HACK: space in column name for avoiding duplicate # scaduti_oltre
-                'Totale ',   # HACK: space in column name for avoiding duplicate # totale_scaduti
-                'Netto'                 # totale_passivi
+            # saldo_columns = [
+            #                             # cassa
+            #     # 'Ott',                  # settembre
+            #     'Nov',                  # ottobre
+            #     'Dic',                  # novembre
+            #     'Gen',                  # dicembre
+            #     'Feb',                  # gennaio
+            #     'Mar',                  # febbraio
+            #     'Apr',                  # marzo
+            #     'Mag',                  # aprile
+            #     'Giu',                  # maggio
+            #     'Lug',                  # giugno
+            #     'Ago',                  # luglio
+            #     # 'Set',                  # agosto
+            #     'Oltre',                # pagare_oltre
+            #     'Totale',               # totale_da_pagare
+            #     '30GG',                 # scaduti_30gg
+            #     '60GG',                 # scaduti_60gg
+            #     'Oltre ',    # HACK: space in column name for avoiding duplicate # scaduti_oltre
+            #     'Totale ',   # HACK: space in column name for avoiding duplicate # totale_scaduti
+            #     'Netto'                 # totale_passivi
+            # ]
+
+            saldo_columns = months[:10] + [
+                    'Oltre',                # pagare_oltre
+                    'Totale',               # totale_da_pagare
+                    '30GG',                 # scaduti_30gg
+                    '60GG',                 # scaduti_60gg
+                    'Oltre ',               # HACK: space in column name for avoiding duplicate # scaduti_oltre
+                    'Totale ',              # HACK: space in column name for avoiding duplicate # totale_scaduti
+                    'Netto'                 # totale_passivi
             ]
 
             saldo = pd.DataFrame(active_totals.values - passive_totals.values,
