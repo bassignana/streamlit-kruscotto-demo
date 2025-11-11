@@ -1434,16 +1434,7 @@ WITH payment_aggregates AS (
                 THEN rfe_importo_pagamento_rata
                 ELSE 0
             END
-        ), 0)::numeric, 2) AS totale_incassato,
-
-        -- Total amount still unpaid (where payment date is null)
-        ROUND(COALESCE(SUM(
-            CASE
-                WHEN rfe_data_pagamento_rata IS NULL
-                THEN rfe_importo_pagamento_rata
-                ELSE 0
-            END
-        ), 0)::numeric, 2) AS totale_saldo
+        ), 0)::numeric, 2) AS totale_incassato
 
     FROM rate_fatture_emesse
     WHERE user_id = auth.uid()
@@ -1470,7 +1461,7 @@ SELECT
 
     ROUND(fe.fe_importo_totale_documento::numeric, 2) AS fe_importo_totale_documento,
     COALESCE(pa.totale_incassato, 0.00) AS v_incassato,
-    COALESCE(pa.totale_saldo, 0.00) AS v_saldo
+    ROUND(fe.fe_importo_totale_documento::numeric, 2) - ROUND(pa.totale_incassato::numeric, 2) AS v_saldo
 
 FROM fatture_emesse fe
 LEFT JOIN payment_aggregates pa ON (
@@ -1500,16 +1491,7 @@ WITH payment_aggregates AS (
                 THEN rfr_importo_pagamento_rata
                 ELSE 0
             END
-        ), 0)::numeric, 2) AS totale_pagato,
-
-        -- Total amount still unpaid (where payment date is null)
-        ROUND(COALESCE(SUM(
-            CASE
-                WHEN rfr_data_pagamento_rata IS NULL
-                THEN rfr_importo_pagamento_rata
-                ELSE 0
-            END
-        ), 0)::numeric, 2) AS totale_saldo
+        ), 0)::numeric, 2) AS totale_pagato
 
         -- Latest payment date for this invoice
         -- MAX(rfr_data_pagamento_rata) AS ultima_data_pagamento
@@ -1531,7 +1513,7 @@ SELECT
 
     ROUND(fr.fr_importo_totale_documento::numeric, 2) AS fr_importo_totale_documento,
     COALESCE(pa.totale_pagato, 0.00) AS v_pagato,
-    COALESCE(pa.totale_saldo, 0.00) AS v_saldo
+    ROUND(pa.totale_pagato::numeric, 2) - ROUND(fr.fr_importo_totale_documento::numeric, 2) AS v_saldo
 
 FROM fatture_ricevute fr
          LEFT JOIN payment_aggregates pa ON (
@@ -1560,16 +1542,7 @@ CREATE VIEW movimenti_attivi_overview WITH (security_invoker = true) AS
     THEN rma_importo_pagamento
     ELSE 0
     END
-), 0)::numeric, 2) AS totale_pagato,
-
-    -- Total amount still unpaid (where payment date is null)
-    ROUND(COALESCE(SUM(
-    CASE
-    WHEN rma_data_pagamento IS NULL
-    THEN rma_importo_pagamento
-    ELSE 0
-    END
-), 0)::numeric, 2) AS totale_saldo
+), 0)::numeric, 2) AS totale_pagato
 
     FROM rate_movimenti_attivi
     WHERE user_id = auth.uid()
@@ -1590,7 +1563,7 @@ SELECT
     ma.ma_tipo as ma_tipo,
     ROUND(ma.ma_importo_totale::numeric, 2) AS ma_importo_totale,
     COALESCE(pa.totale_pagato, 0.00) AS v_incassato,
-    COALESCE(pa.totale_saldo, 0.00) AS v_saldo
+    ROUND(ma.ma_importo_totale::numeric, 2) - ROUND(pa.totale_pagato::numeric, 2) AS v_saldo
 
 FROM movimenti_attivi ma
          LEFT JOIN payment_aggregates pa ON (
@@ -1618,16 +1591,7 @@ CREATE VIEW movimenti_passivi_overview WITH (security_invoker = true) AS
     THEN rmp_importo_pagamento
     ELSE 0
     END
-), 0)::numeric, 2) AS totale_pagato,
-
-    -- Total amount still unpaid (where payment date is null)
-    ROUND(COALESCE(SUM(
-    CASE
-    WHEN rmp_data_pagamento IS NULL
-    THEN rmp_importo_pagamento
-    ELSE 0
-    END
-), 0)::numeric, 2) AS totale_saldo
+), 0)::numeric, 2) AS totale_pagato
 
     FROM rate_movimenti_passivi
     WHERE user_id = auth.uid()
@@ -1648,7 +1612,7 @@ SELECT
     mp.mp_tipo as mp_tipo,
     ROUND(mp.mp_importo_totale::numeric, 2) AS mp_importo_totale,
     COALESCE(pa.totale_pagato, 0.00) AS v_pagato,
-    COALESCE(pa.totale_saldo, 0.00) AS v_saldo
+    ROUND(pa.totale_pagato::numeric, 2) - ROUND(mp.mp_importo_totale::numeric, 2) AS v_saldo
 
 FROM movimenti_passivi mp
          LEFT JOIN payment_aggregates pa ON (
